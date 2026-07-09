@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style data-omelette-print-defaults>
+@media print {
+  @page { margin: 0.5in; }
+  h1, h2, h3, h4, h5, h6 { break-after: avoid; }
+  figure, table, pre, blockquote, img, svg, tr, [class~="card" i] { break-inside: avoid; }
+  img, svg { max-width: 100%; }
+  p { orphans: 3; widows: 3; }
+}
+</style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+</style>
+</helmet>
+
+<div style="display:flex;flex-wrap:wrap;gap:60px 56px;padding:72px 64px;background:#E8E0D3;justify-content:center;align-items:flex-start;font-family:Inter,sans-serif;min-height:100vh;">
+
+  <!-- ============ 1 · ONBOARDING ============ -->
+  <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
+    <div style="font-family:Nunito;font-weight:700;font-size:13px;color:#3F7A86;background:#fff;padding:7px 16px;border-radius:999px;box-shadow:0 4px 12px rgba(80,100,100,.10);">1 · Onboarding</div>
+    <div style="position:relative;display:flex;flex-direction:column;width:390px;height:844px;background:#FBF7F0;border-radius:46px;box-shadow:0 24px 60px rgba(60,80,80,.22);overflow:hidden;">
+      <div style="height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 30px;font-family:Inter;font-weight:600;font-size:13px;color:#33403F;flex:0 0 auto;"><span>9:41</span><span style="width:17px;height:9px;border:1.5px solid #33403F;border-radius:2px;display:inline-block;"></span></div>
+
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:space-between;padding:24px 34px 40px;">
+        <div style="display:flex;flex-direction:column;align-items:center;text-align:center;margin-top:48px;">
+          <!-- companion blob -->
+          <div style="position:relative;width:220px;height:210px;margin-bottom:34px;">
+            <div style="position:absolute;top:16px;left:24px;width:64px;height:64px;border-radius:52% 48% 44% 56% / 55% 45% 55% 45%;background:#CDE4D3;opacity:.9;"></div>
+            <div style="position:absolute;bottom:6px;right:18px;width:40px;height:40px;border-radius:50%;background:#F3D79A;opacity:.9;"></div>
+            <div style="position:absolute;top:14px;left:36px;width:150px;height:150px;border-radius:46% 54% 58% 42% / 52% 46% 54% 48%;background:linear-gradient(150deg,#8FC3CD,#6FA8B5);box-shadow:0 22px 44px rgba(111,168,181,.42);"></div>
+            <div style="position:absolute;top:74px;left:78px;width:13px;height:13px;border-radius:50%;background:#33403F;"></div>
+            <div style="position:absolute;top:74px;left:120px;width:13px;height:13px;border-radius:50%;background:#33403F;"></div>
+            <div style="position:absolute;top:98px;left:88px;width:36px;height:18px;border:3px solid #33403F;border-top:none;border-radius:0 0 24px 24px;"></div>
+            <div style="position:absolute;top:70px;left:60px;width:12px;height:12px;border-radius:50%;background:#F0A98C;opacity:.55;"></div>
+            <div style="position:absolute;top:70px;left:140px;width:12px;height:12px;border-radius:50%;background:#F0A98C;opacity:.55;"></div>
+          </div>
+          <div style="font-family:Nunito;font-weight:800;font-size:42px;color:#3F7A86;letter-spacing:-.5px;">Pulse</div>
+          <div style="font-family:Nunito;font-weight:600;font-size:15px;color:#7C8887;margin-top:2px;">Your gentle health companion</div>
+          <p style="font-family:Inter;font-size:15.5px;line-height:1.65;color:#5C6866;margin:26px 4px 0;">Pulse listens when something feels off and helps you understand how seriously to take it — clear, calm guidance whenever you need it.</p>
+        </div>
+
+        <div style="display:flex;flex-direction:column;align-items:center;">
+          <div style="display:flex;gap:10px;align-items:flex-start;background:#EFF4F5;border-radius:18px;padding:14px 16px;margin-bottom:20px;">
+            <div style="width:20px;height:20px;border-radius:50%;border:2px solid #6FA8B5;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-family:Nunito;font-weight:800;font-size:12px;color:#3F7A86;">i</div>
+            <div style="font-family:Inter;font-size:12.5px;line-height:1.5;color:#6B7776;">Pulse offers guidance on <strong style="color:#3F7A86;">urgency</strong> — not a medical diagnosis. In an emergency, call your local emergency number.</div>
+          </div>
+          <button style="width:100%;height:58px;border:none;border-radius:20px;background:#4E8A97;color:#fff;font-family:Nunito;font-weight:700;font-size:17px;box-shadow:0 12px 26px rgba(78,138,151,.38);cursor:pointer;">Let's get started</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 2 · HOME ============ -->
+  <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
+    <div style="font-family:Nunito;font-weight:700;font-size:13px;color:#3F7A86;background:#fff;padding:7px 16px;border-radius:999px;box-shadow:0 4px 12px rgba(80,100,100,.10);">2 · Home</div>
+    <div style="position:relative;display:flex;flex-direction:column;width:390px;height:844px;background:#FBF7F0;border-radius:46px;box-shadow:0 24px 60px rgba(60,80,80,.22);overflow:hidden;">
+      <div style="height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 30px;font-family:Inter;font-weight:600;font-size:13px;color:#33403F;flex:0 0 auto;"><span>9:41</span><span style="width:17px;height:9px;border:1.5px solid #33403F;border-radius:2px;display:inline-block;"></span></div>
+
+      <div style="flex:1;overflow:hidden;padding:8px 24px 0;">
+        <div style="font-family:Inter;font-size:15px;color:#7C8887;">Good morning,</div>
+        <div style="font-family:Nunito;font-weight:800;font-size:25px;color:#33403F;line-height:1.15;margin-top:2px;">How are you feeling, {{ greetingName }}?</div>
+
+        <!-- profile row -->
+        <div style="display:flex;gap:16px;margin-top:22px;">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+            <div style="width:54px;height:54px;border-radius:50%;background:#6FA8B5;color:#fff;font-family:Nunito;font-weight:800;font-size:20px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 3px #FBF7F0,0 0 0 6px #6FA8B5;">M</div>
+            <span style="font-family:Nunito;font-weight:700;font-size:11px;color:#3F7A86;">You</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+            <div style="width:54px;height:54px;border-radius:50%;background:#B9A6D6;color:#fff;font-family:Nunito;font-weight:800;font-size:20px;display:flex;align-items:center;justify-content:center;">R</div>
+            <span style="font-family:Nunito;font-weight:600;font-size:11px;color:#7C8887;">Dad</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+            <div style="width:54px;height:54px;border-radius:50%;background:#8FB89A;color:#fff;font-family:Nunito;font-weight:800;font-size:20px;display:flex;align-items:center;justify-content:center;">L</div>
+            <span style="font-family:Nunito;font-weight:600;font-size:11px;color:#7C8887;">Leo</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+            <div style="width:54px;height:54px;border-radius:50%;background:#E8B04B;color:#fff;font-family:Nunito;font-weight:800;font-size:20px;display:flex;align-items:center;justify-content:center;">S</div>
+            <span style="font-family:Nunito;font-weight:600;font-size:11px;color:#7C8887;">Mom</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+            <div style="width:54px;height:54px;border-radius:50%;border:2px dashed #CBBFA0;color:#B0A688;font-family:Nunito;font-weight:800;font-size:26px;display:flex;align-items:center;justify-content:center;">+</div>
+            <span style="font-family:Nunito;font-weight:600;font-size:11px;color:#A69C82;">Add</span>
+          </div>
+        </div>
+
+        <!-- big input invitation -->
+        <div style="margin-top:26px;background:linear-gradient(160deg,#EAF3F4,#DCEBED);border-radius:28px;padding:22px 22px 18px;box-shadow:0 10px 26px rgba(111,168,181,.16);">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div style="width:38px;height:38px;border-radius:44% 56% 52% 48% / 55% 48% 52% 45%;background:linear-gradient(150deg,#8FC3CD,#6FA8B5);flex:0 0 auto;"></div>
+            <div style="font-family:Nunito;font-weight:800;font-size:20px;color:#2F4A4F;">Tell me what's going on</div>
+          </div>
+          <div style="font-family:Inter;font-size:13.5px;line-height:1.5;color:#5C7276;margin:10px 2px 16px;">Describe how you're feeling in your own words — no medical terms needed.</div>
+          <div style="display:flex;align-items:center;gap:10px;background:#fff;border-radius:16px;padding:12px 12px 12px 18px;box-shadow:0 4px 12px rgba(80,100,100,.08);">
+            <span style="flex:1;font-family:Inter;font-size:14.5px;color:#A0AAA9;">Type or tap to talk…</span>
+            <div style="width:40px;height:40px;border-radius:50%;background:#4E8A97;display:flex;align-items:center;justify-content:center;flex:0 0 auto;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3.5" width="6" height="11" rx="3"/><path d="M6 11.5a6 6 0 0 0 12 0"/><line x1="12" y1="17.5" x2="12" y2="20.5"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- recent -->
+        <div style="display:flex;align-items:baseline;justify-content:space-between;margin:26px 2px 12px;">
+          <span style="font-family:Nunito;font-weight:700;font-size:16px;color:#33403F;">Recent</span>
+          <span style="font-family:Inter;font-weight:600;font-size:13px;color:#6FA8B5;">See all</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;background:#fff;border-radius:20px;padding:16px;box-shadow:0 8px 22px rgba(80,100,100,.08);">
+          <div style="width:44px;height:44px;border-radius:14px;background:#EBF3ED;display:flex;align-items:center;justify-content:center;flex:0 0 auto;">
+            <div style="width:14px;height:14px;border-radius:50%;background:#8FB89A;"></div>
+          </div>
+          <div style="flex:1;">
+            <div style="font-family:Nunito;font-weight:700;font-size:15px;color:#33403F;">Sore throat & mild fever</div>
+            <div style="font-family:Inter;font-size:12.5px;color:#8B9694;margin-top:2px;">Monitored at home · Yesterday</div>
+          </div>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C3CBC9" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        </div>
+      </div>
+
+      <!-- bottom nav -->
+      <div style="position:absolute;left:0;right:0;bottom:0;height:84px;background:#fff;border-top:1px solid #F0E9DD;border-radius:26px 26px 0 0;box-shadow:0 -6px 20px rgba(80,100,100,.06);display:flex;justify-content:space-around;align-items:center;padding:0 12px 14px;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3F7A86" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-6.5 8 6.5"/><path d="M6.5 9.5V19h11V9.5"/></svg><span style="font-family:Nunito;font-weight:700;font-size:10px;color:#3F7A86;">Home</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ADB4B1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7A2.5 2.5 0 0 1 17.5 16H10l-4 3.5V16H6.5A2.5 2.5 0 0 1 4 13.5z"/></svg><span style="font-family:Nunito;font-weight:600;font-size:10px;color:#ADB4B1;">Chat</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ADB4B1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><span style="font-family:Nunito;font-weight:600;font-size:10px;color:#ADB4B1;">History</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ADB4B1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9.5" r="3"/><path d="M4 18a5 5 0 0 1 10 0"/><circle cx="17" cy="8" r="2.3"/><path d="M16 13.2A4 4 0 0 1 20 17.5"/></svg><span style="font-family:Nunito;font-weight:600;font-size:10px;color:#ADB4B1;">Family</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ADB4B1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="8" x2="12" y2="8"/><line x1="16" y1="8" x2="20" y2="8"/><circle cx="14" cy="8" r="2.2"/><line x1="4" y1="16" x2="8" y2="16"/><line x1="12" y1="16" x2="20" y2="16"/><circle cx="10" cy="16" r="2.2"/></svg><span style="font-family:Nunito;font-weight:600;font-size:10px;color:#ADB4B1;">Settings</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 3 · CHAT ============ -->
+  <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
+    <div style="font-family:Nunito;font-weight:700;font-size:13px;color:#3F7A86;background:#fff;padding:7px 16px;border-radius:999px;box-shadow:0 4px 12px rgba(80,100,100,.10);">3 · Chat</div>
+    <div style="position:relative;display:flex;flex-direction:column;width:390px;height:844px;background:#FBF7F0;border-radius:46px;box-shadow:0 24px 60px rgba(60,80,80,.22);overflow:hidden;">
+      <div style="height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 30px;font-family:Inter;font-weight:600;font-size:13px;color:#33403F;flex:0 0 auto;"><span>9:41</span><span style="width:17px;height:9px;border:1.5px solid #33403F;border-radius:2px;display:inline-block;"></span></div>
+
+      <!-- chat header -->
+      <div style="display:flex;align-items:center;gap:12px;padding:6px 20px 14px;border-bottom:1px solid #F0E9DD;flex:0 0 auto;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#33403F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+        <div style="width:36px;height:36px;border-radius:44% 56% 52% 48% / 55% 48% 52% 45%;background:linear-gradient(150deg,#8FC3CD,#6FA8B5);flex:0 0 auto;"></div>
+        <div style="flex:1;">
+          <div style="font-family:Nunito;font-weight:800;font-size:16px;color:#33403F;line-height:1;">Pulse</div>
+          <div style="font-family:Inter;font-size:11.5px;color:#8FB89A;margin-top:3px;">● Here with you · about Maya</div>
+        </div>
+      </div>
+
+      <!-- messages -->
+      <div style="flex:1;overflow:hidden;padding:12px 18px 0;display:flex;flex-direction:column;gap:8px;">
+        <div style="align-self:flex-start;font-family:Inter;font-size:12px;color:#A9B0AE;margin:0 2px 2px;">Pulse · Today</div>
+
+        <div style="max-width:78%;align-self:flex-end;background:#6FA8B5;border-radius:22px 22px 8px 22px;padding:12px 15px;box-shadow:0 6px 16px rgba(111,168,181,.28);font-family:Inter;font-size:14.5px;line-height:1.5;color:#fff;">Sore throat since yesterday, and now a fever too.</div>
+
+        <div style="max-width:82%;align-self:flex-start;background:#fff;border-radius:22px 22px 22px 8px;padding:12px 15px;box-shadow:0 6px 16px rgba(80,100,100,.08);font-family:Inter;font-size:14.5px;line-height:1.5;color:#3A4746;">I'm sorry you're feeling rough. How high has your temperature been?</div>
+
+        <div style="display:flex;flex-wrap:nowrap;gap:7px;justify-content:flex-end;">
+          <div style="font-family:Nunito;font-weight:700;font-size:13px;color:#3F7A86;background:#fff;border:1.5px solid #BBD7DD;border-radius:999px;padding:8px 13px;white-space:nowrap;">Under 38°</div>
+          <div style="font-family:Nunito;font-weight:700;font-size:13px;color:#fff;background:#6FA8B5;border:1.5px solid #6FA8B5;border-radius:999px;padding:8px 13px;white-space:nowrap;">38–39°</div>
+          <div style="font-family:Nunito;font-weight:700;font-size:13px;color:#3F7A86;background:#fff;border:1.5px solid #BBD7DD;border-radius:999px;padding:8px 13px;white-space:nowrap;">Over 39°</div>
+          <div style="font-family:Nunito;font-weight:700;font-size:13px;color:#3F7A86;background:#fff;border:1.5px solid #BBD7DD;border-radius:999px;padding:8px 13px;white-space:nowrap;">Not sure</div>
+        </div>
+
+        <!-- Urgency Tag Card -->
+        <div style="align-self:stretch;background:#fff;border-radius:24px;box-shadow:0 16px 36px rgba(80,100,100,.18);padding:18px;margin-top:2px;">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div style="width:44px;height:44px;border-radius:15px;background:{{ uColor }};display:flex;align-items:center;justify-content:center;flex:0 0 auto;">
+              <sc-if value="{{ isMonitor }}" hint-placeholder-val="{{ false }}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg></sc-if>
+              <sc-if value="{{ isSoon }}" hint-placeholder-val="{{ true }}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v4.3l3 1.8"/></svg></sc-if>
+              <sc-if value="{{ isNow }}" hint-placeholder-val="{{ false }}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.5v7"/><circle cx="12" cy="17.4" r="1.1" fill="#fff" stroke="none"/></svg></sc-if>
+            </div>
+            <div style="flex:1;">
+              <div style="font-family:Nunito;font-weight:800;font-size:18px;color:{{ uText }};line-height:1.1;">{{ uLabel }}</div>
+              <div style="font-family:Inter;font-weight:600;font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;color:#A9B0AE;margin-top:4px;">Pulse guidance</div>
+            </div>
+          </div>
+          <p style="font-family:Inter;font-size:14px;line-height:1.55;color:#5C6866;margin:13px 0 0;">{{ uExplain }}</p>
+          <div style="height:1px;background:#F0E9DD;margin:13px 0;"></div>
+          <div style="font-family:Nunito;font-weight:700;font-size:13px;color:#33403F;margin-bottom:4px;">What to do next</div>
+          <div style="font-family:Inter;font-size:14px;line-height:1.5;color:#5C6866;">{{ uNext }}</div>
+          <button style="margin-top:14px;width:100%;height:48px;border:none;border-radius:15px;background:{{ uColor }};color:#fff;font-family:Nunito;font-weight:700;font-size:15px;cursor:pointer;">{{ uAction }}</button>
+        </div>
+      </div>
+
+      <!-- input bar -->
+      <div style="flex:0 0 auto;padding:10px 18px 16px;background:#FBF7F0;">
+        <div style="display:flex;align-items:center;gap:10px;background:#fff;border-radius:22px;padding:8px 8px 8px 18px;box-shadow:0 6px 18px rgba(80,100,100,.10);">
+          <span style="flex:1;font-family:Inter;font-size:14.5px;color:#A0AAA9;">Message Pulse…</span>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6FA8B5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3.5" width="6" height="11" rx="3"/><path d="M6 11.5a6 6 0 0 0 12 0"/><line x1="12" y1="17.5" x2="12" y2="20.5"/></svg>
+          <div style="width:42px;height:42px;border-radius:50%;background:#4E8A97;display:flex;align-items:center;justify-content:center;flex:0 0 auto;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 4 · HISTORY ============ -->
+  <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
+    <div style="font-family:Nunito;font-weight:700;font-size:13px;color:#3F7A86;background:#fff;padding:7px 16px;border-radius:999px;box-shadow:0 4px 12px rgba(80,100,100,.10);">4 · History</div>
+    <div style="position:relative;display:flex;flex-direction:column;width:390px;height:844px;background:#FBF7F0;border-radius:46px;box-shadow:0 24px 60px rgba(60,80,80,.22);overflow:hidden;">
+      <div style="height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 30px;font-family:Inter;font-weight:600;font-size:13px;color:#33403F;flex:0 0 auto;"><span>9:41</span><span style="width:17px;height:9px;border:1.5px solid #33403F;border-radius:2px;display:inline-block;"></span></div>
+
+      <div style="flex:1;overflow:hidden;padding:8px 24px 0;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div style="font-family:Nunito;font-weight:800;font-size:25px;color:#33403F;">History</div>
+          <div style="display:flex;align-items:center;gap:6px;font-family:Nunito;font-weight:700;font-size:13px;color:#3F7A86;background:#fff;padding:8px 13px;border-radius:999px;box-shadow:0 4px 12px rgba(80,100,100,.08);">All profiles<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3F7A86" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></div>
+        </div>
+
+        <div style="font-family:Nunito;font-weight:700;font-size:13px;color:#A69C82;text-transform:uppercase;letter-spacing:.6px;margin:22px 0 10px;">Today</div>
+        <div style="display:flex;align-items:center;gap:13px;background:#fff;border-radius:18px;padding:14px 15px;box-shadow:0 6px 16px rgba(80,100,100,.07);margin-bottom:10px;">
+          <div style="width:10px;height:10px;border-radius:50%;background:#E8B04B;flex:0 0 auto;"></div>
+          <div style="flex:1;"><div style="font-family:Nunito;font-weight:700;font-size:15px;color:#33403F;">Sore throat & fever</div><div style="font-family:Inter;font-size:12px;color:#8B9694;margin-top:2px;">Maya · <span style="color:#B07E17;">See a doctor soon</span></div></div>
+          <div style="font-family:Inter;font-size:12px;color:#A0AAA9;">2h ago</div>
+        </div>
+
+        <div style="font-family:Nunito;font-weight:700;font-size:13px;color:#A69C82;text-transform:uppercase;letter-spacing:.6px;margin:20px 0 10px;">This week</div>
+        <div style="display:flex;align-items:center;gap:13px;background:#fff;border-radius:18px;padding:14px 15px;box-shadow:0 6px 16px rgba(80,100,100,.07);margin-bottom:10px;">
+          <div style="width:10px;height:10px;border-radius:50%;background:#E07856;flex:0 0 auto;"></div>
+          <div style="flex:1;"><div style="font-family:Nunito;font-weight:700;font-size:15px;color:#33403F;">Sudden ankle swelling</div><div style="font-family:Inter;font-size:12px;color:#8B9694;margin-top:2px;">Dad · <span style="color:#C85A38;">Seek care now</span></div></div>
+          <div style="font-family:Inter;font-size:12px;color:#A0AAA9;">Tue</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:13px;background:#fff;border-radius:18px;padding:14px 15px;box-shadow:0 6px 16px rgba(80,100,100,.07);margin-bottom:10px;">
+          <div style="width:10px;height:10px;border-radius:50%;background:#8FB89A;flex:0 0 auto;"></div>
+          <div style="flex:1;"><div style="font-family:Nunito;font-weight:700;font-size:15px;color:#33403F;">Headache after screen time</div><div style="font-family:Inter;font-size:12px;color:#8B9694;margin-top:2px;">Maya · <span style="color:#4F7A5E;">Monitor at home</span></div></div>
+          <div style="font-family:Inter;font-size:12px;color:#A0AAA9;">Mon</div>
+        </div>
+
+        <div style="font-family:Nunito;font-weight:700;font-size:13px;color:#A69C82;text-transform:uppercase;letter-spacing:.6px;margin:20px 0 10px;">Earlier</div>
+        <div style="display:flex;align-items:center;gap:13px;background:#fff;border-radius:18px;padding:14px 15px;box-shadow:0 6px 16px rgba(80,100,100,.07);">
+          <div style="width:10px;height:10px;border-radius:50%;background:#8FB89A;flex:0 0 auto;"></div>
+          <div style="flex:1;"><div style="font-family:Nunito;font-weight:700;font-size:15px;color:#33403F;">Rash on forearm</div><div style="font-family:Inter;font-size:12px;color:#8B9694;margin-top:2px;">Leo · <span style="color:#4F7A5E;">Monitor at home</span></div></div>
+          <div style="font-family:Inter;font-size:12px;color:#A0AAA9;">Jun 24</div>
+        </div>
+      </div>
+
+      <div style="position:absolute;left:0;right:0;bottom:0;height:84px;background:#fff;border-top:1px solid #F0E9DD;border-radius:26px 26px 0 0;box-shadow:0 -6px 20px rgba(80,100,100,.06);display:flex;justify-content:space-around;align-items:center;padding:0 12px 14px;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ADB4B1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-6.5 8 6.5"/><path d="M6.5 9.5V19h11V9.5"/></svg><span style="font-family:Nunito;font-weight:600;font-size:10px;color:#ADB4B1;">Home</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ADB4B1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7A2.5 2.5 0 0 1 17.5 16H10l-4 3.5V16H6.5A2.5 2.5 0 0 1 4 13.5z"/></svg><span style="font-family:Nunito;font-weight:600;font-size:10px;color:#ADB4B1;">Chat</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3F7A86" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><span style="font-family:Nunito;font-weight:700;font-size:10px;color:#3F7A86;">History</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ADB4B1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9.5" r="3"/><path d="M4 18a5 5 0 0 1 10 0"/><circle cx="17" cy="8" r="2.3"/><path d="M16 13.2A4 4 0 0 1 20 17.5"/></svg><span style="font-family:Nunito;font-weight:600;font-size:10px;color:#ADB4B1;">Family</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ADB4B1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="8" x2="12" y2="8"/><line x1="16" y1="8" x2="20" y2="8"/><circle cx="14" cy="8" r="2.2"/><line x1="4" y1="16" x2="8" y2="16"/><line x1="12" y1="16" x2="20" y2="16"/><circle cx="10" cy="16" r="2.2"/></svg><span style="font-family:Nunito;font-weight:600;font-size:10px;color:#ADB4B1;">Settings</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 5 · HOUSEHOLD PROFILES ============ -->
+  <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
+    <div style="font-family:Nunito;font-weight:700;font-size:13px;color:#3F7A86;background:#fff;padding:7px 16px;border-radius:999px;box-shadow:0 4px 12px rgba(80,100,100,.10);">5 · Household</div>
+    <div style="position:relative;display:flex;flex-direction:column;width:390px;height:844px;background:#FBF7F0;border-radius:46px;box-shadow:0 24px 60px rgba(60,80,80,.22);overflow:hidden;">
+      <div style="height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 30px;font-family:Inter;font-weight:600;font-size:13px;color:#33403F;flex:0 0 auto;"><span>9:41</span><span style="width:17px;height:9px;border:1.5px solid #33403F;border-radius:2px;display:inline-block;"></span></div>
+
+      <div style="flex:1;overflow:hidden;padding:8px 24px 0;">
+        <div style="font-family:Nunito;font-weight:800;font-size:25px;color:#33403F;">Household</div>
+        <div style="font-family:Inter;font-size:13.5px;color:#8B9694;margin-top:2px;">4 profiles · tap to view health info</div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px;">
+          <div style="background:#fff;border-radius:20px;padding:16px;box-shadow:0 8px 20px rgba(111,168,181,.16);border:2px solid #6FA8B5;display:flex;flex-direction:column;align-items:center;gap:8px;">
+            <div style="width:52px;height:52px;border-radius:50%;background:#6FA8B5;color:#fff;font-family:Nunito;font-weight:800;font-size:20px;display:flex;align-items:center;justify-content:center;">M</div>
+            <div style="font-family:Nunito;font-weight:700;font-size:15px;color:#33403F;">Maya</div>
+            <div style="font-family:Inter;font-size:12px;color:#8B9694;">You · 34</div>
+          </div>
+          <div style="background:#fff;border-radius:20px;padding:16px;box-shadow:0 8px 20px rgba(80,100,100,.07);display:flex;flex-direction:column;align-items:center;gap:8px;">
+            <div style="width:52px;height:52px;border-radius:50%;background:#B9A6D6;color:#fff;font-family:Nunito;font-weight:800;font-size:20px;display:flex;align-items:center;justify-content:center;">R</div>
+            <div style="font-family:Nunito;font-weight:700;font-size:15px;color:#33403F;">Robert</div>
+            <div style="font-family:Inter;font-size:12px;color:#8B9694;">Dad · 68</div>
+          </div>
+          <div style="background:#fff;border-radius:20px;padding:16px;box-shadow:0 8px 20px rgba(80,100,100,.07);display:flex;flex-direction:column;align-items:center;gap:8px;">
+            <div style="width:52px;height:52px;border-radius:50%;background:#8FB89A;color:#fff;font-family:Nunito;font-weight:800;font-size:20px;display:flex;align-items:center;justify-content:center;">L</div>
+            <div style="font-family:Nunito;font-weight:700;font-size:15px;color:#33403F;">Leo</div>
+            <div style="font-family:Inter;font-size:12px;color:#8B9694;">Son · 9</div>
+          </div>
+          <div style="background:#fff;border-radius:20px;padding:16px;box-shadow:0 8px 20px rgba(80,100,100,.07);display:flex;flex-direction:column;align-items:center;gap:8px;">
+            <div style="width:52px;height:52px;border-radius:50%;background:#E8B04B;color:#fff;font-family:Nunito;font-weight:800;font-size:20px;display:flex;align-items:center;justify-content:center;">S</div>
+            <div style="font-family:Nunito;font-weight:700;font-size:15px;color:#33403F;">Susan</div>
+            <div style="font-family:Inter;font-size:12px;color:#8B9694;">Mom · 65</div>
+          </div>
+          <div style="grid-column:span 2;border:2px dashed #CBBFA0;border-radius:20px;padding:14px;display:flex;align-items:center;justify-content:center;gap:10px;color:#A69C82;">
+            <span style="font-family:Nunito;font-weight:800;font-size:22px;">+</span><span style="font-family:Nunito;font-weight:700;font-size:14px;">Add a profile</span>
+          </div>
+        </div>
+
+        <!-- health info for selected -->
+        <div style="margin-top:18px;background:#fff;border-radius:24px;padding:18px;box-shadow:0 8px 22px rgba(80,100,100,.08);">
+          <div style="font-family:Nunito;font-weight:800;font-size:16px;color:#33403F;margin-bottom:14px;">Maya's health info</div>
+          <div style="font-family:Nunito;font-weight:700;font-size:12px;color:#A69C82;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Conditions</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;"><span style="font-family:Inter;font-weight:500;font-size:13px;color:#3F7A86;background:#EAF3F4;border-radius:999px;padding:7px 14px;">Asthma</span></div>
+          <div style="font-family:Nunito;font-weight:700;font-size:12px;color:#A69C82;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Allergies</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;"><span style="font-family:Inter;font-weight:500;font-size:13px;color:#C85A38;background:#FBEAE3;border-radius:999px;padding:7px 14px;">Penicillin</span><span style="font-family:Inter;font-weight:500;font-size:13px;color:#C85A38;background:#FBEAE3;border-radius:999px;padding:7px 14px;">Pollen</span></div>
+          <div style="font-family:Nunito;font-weight:700;font-size:12px;color:#A69C82;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Current medications</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;"><span style="font-family:Inter;font-weight:500;font-size:13px;color:#4F7A5E;background:#EBF3ED;border-radius:999px;padding:7px 14px;">Ventolin inhaler</span></div>
+        </div>
+      </div>
+
+      <div style="position:absolute;left:0;right:0;bottom:0;height:84px;background:#fff;border-top:1px solid #F0E9DD;border-radius:26px 26px 0 0;box-shadow:0 -6px 20px rgba(80,100,100,.06);display:flex;justify-content:space-around;align-items:center;padding:0 12px 14px;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ADB4B1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-6.5 8 6.5"/><path d="M6.5 9.5V19h11V9.5"/></svg><span style="font-family:Nunito;font-weight:600;font-size:10px;color:#ADB4B1;">Home</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ADB4B1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7A2.5 2.5 0 0 1 17.5 16H10l-4 3.5V16H6.5A2.5 2.5 0 0 1 4 13.5z"/></svg><span style="font-family:Nunito;font-weight:600;font-size:10px;color:#ADB4B1;">Chat</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ADB4B1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><span style="font-family:Nunito;font-weight:600;font-size:10px;color:#ADB4B1;">History</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3F7A86" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9.5" r="3"/><path d="M4 18a5 5 0 0 1 10 0"/><circle cx="17" cy="8" r="2.3"/><path d="M16 13.2A4 4 0 0 1 20 17.5"/></svg><span style="font-family:Nunito;font-weight:700;font-size:10px;color:#3F7A86;">Family</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ADB4B1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="8" x2="12" y2="8"/><line x1="16" y1="8" x2="20" y2="8"/><circle cx="14" cy="8" r="2.2"/><line x1="4" y1="16" x2="8" y2="16"/><line x1="12" y1="16" x2="20" y2="16"/><circle cx="10" cy="16" r="2.2"/></svg><span style="font-family:Nunito;font-weight:600;font-size:10px;color:#ADB4B1;">Settings</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 6 · SETTINGS ============ -->
+  <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
+    <div style="font-family:Nunito;font-weight:700;font-size:13px;color:#3F7A86;background:#fff;padding:7px 16px;border-radius:999px;box-shadow:0 4px 12px rgba(80,100,100,.10);">6 · Settings</div>
+    <div style="position:relative;display:flex;flex-direction:column;width:390px;height:844px;background:#FBF7F0;border-radius:46px;box-shadow:0 24px 60px rgba(60,80,80,.22);overflow:hidden;">
+      <div style="height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 30px;font-family:Inter;font-weight:600;font-size:13px;color:#33403F;flex:0 0 auto;"><span>9:41</span><span style="width:17px;height:9px;border:1.5px solid #33403F;border-radius:2px;display:inline-block;"></span></div>
+
+      <div style="flex:1;overflow:hidden;padding:8px 24px 0;">
+        <div style="font-family:Nunito;font-weight:800;font-size:25px;color:#33403F;margin-bottom:16px;">Settings</div>
+
+        <!-- account -->
+        <div style="display:flex;align-items:center;gap:14px;background:#fff;border-radius:20px;padding:16px;box-shadow:0 8px 20px rgba(80,100,100,.08);">
+          <div style="width:52px;height:52px;border-radius:50%;background:#6FA8B5;color:#fff;font-family:Nunito;font-weight:800;font-size:20px;display:flex;align-items:center;justify-content:center;">M</div>
+          <div style="flex:1;"><div style="font-family:Nunito;font-weight:700;font-size:16px;color:#33403F;">Maya Chen</div><div style="font-family:Inter;font-size:12.5px;color:#8B9694;margin-top:2px;">maya.chen@email.com</div></div>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C3CBC9" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        </div>
+
+        <div style="font-family:Nunito;font-weight:700;font-size:12px;color:#A69C82;text-transform:uppercase;letter-spacing:.6px;margin:22px 4px 8px;">Care</div>
+        <div style="background:#fff;border-radius:20px;box-shadow:0 6px 16px rgba(80,100,100,.06);overflow:hidden;">
+          <div style="display:flex;align-items:center;gap:12px;padding:15px 16px;">
+            <div style="width:34px;height:34px;border-radius:11px;background:#EAF3F4;display:flex;align-items:center;justify-content:center;color:#3F7A86;font-family:Nunito;font-weight:800;font-size:15px;">i</div>
+            <div style="flex:1;font-family:Inter;font-weight:500;font-size:14.5px;color:#33403F;">Read the disclaimer</div>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C3CBC9" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+          </div>
+        </div>
+
+        <div style="font-family:Nunito;font-weight:700;font-size:12px;color:#A69C82;text-transform:uppercase;letter-spacing:.6px;margin:20px 4px 8px;">Notifications</div>
+        <div style="background:#fff;border-radius:20px;box-shadow:0 6px 16px rgba(80,100,100,.06);overflow:hidden;">
+          <div style="display:flex;align-items:center;gap:12px;padding:15px 16px;border-bottom:1px solid #F5EFE4;">
+            <div style="flex:1;font-family:Inter;font-weight:500;font-size:14.5px;color:#33403F;">Check-in reminders</div>
+            <div style="width:46px;height:27px;border-radius:999px;background:#6FA8B5;position:relative;flex:0 0 auto;"><div style="position:absolute;top:3px;right:3px;width:21px;height:21px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.15);"></div></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;padding:15px 16px;">
+            <div style="flex:1;font-family:Inter;font-weight:500;font-size:14.5px;color:#33403F;">Follow-up nudges</div>
+            <div style="width:46px;height:27px;border-radius:999px;background:#E4DDD0;position:relative;flex:0 0 auto;"><div style="position:absolute;top:3px;left:3px;width:21px;height:21px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.15);"></div></div>
+          </div>
+        </div>
+
+        <div style="font-family:Nunito;font-weight:700;font-size:12px;color:#A69C82;text-transform:uppercase;letter-spacing:.6px;margin:20px 4px 8px;">Privacy & data</div>
+        <div style="background:#fff;border-radius:20px;box-shadow:0 6px 16px rgba(80,100,100,.06);overflow:hidden;">
+          <div style="display:flex;align-items:center;gap:12px;padding:15px 16px;border-bottom:1px solid #F5EFE4;"><div style="flex:1;font-family:Inter;font-weight:500;font-size:14.5px;color:#33403F;">Data & privacy controls</div><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C3CBC9" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></div>
+          <div style="display:flex;align-items:center;gap:12px;padding:15px 16px;border-bottom:1px solid #F5EFE4;"><div style="flex:1;font-family:Inter;font-weight:500;font-size:14.5px;color:#33403F;">Export my data</div><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C3CBC9" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></div>
+          <div style="display:flex;align-items:center;gap:12px;padding:15px 16px;"><div style="flex:1;font-family:Inter;font-weight:500;font-size:14.5px;color:#C85A38;">Delete history</div><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#E7C2B4" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></div>
+        </div>
+
+        <div style="font-family:Inter;font-size:11.5px;color:#A9B0AE;text-align:center;margin-top:20px;">Pulse v2.4 · Guidance, not diagnoses</div>
+      </div>
+
+      <div style="position:absolute;left:0;right:0;bottom:0;height:84px;background:#fff;border-top:1px solid #F0E9DD;border-radius:26px 26px 0 0;box-shadow:0 -6px 20px rgba(80,100,100,.06);display:flex;justify-content:space-around;align-items:center;padding:0 12px 14px;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ADB4B1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-6.5 8 6.5"/><path d="M6.5 9.5V19h11V9.5"/></svg><span style="font-family:Nunito;font-weight:600;font-size:10px;color:#ADB4B1;">Home</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ADB4B1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7A2.5 2.5 0 0 1 17.5 16H10l-4 3.5V16H6.5A2.5 2.5 0 0 1 4 13.5z"/></svg><span style="font-family:Nunito;font-weight:600;font-size:10px;color:#ADB4B1;">Chat</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ADB4B1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><span style="font-family:Nunito;font-weight:600;font-size:10px;color:#ADB4B1;">History</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ADB4B1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9.5" r="3"/><path d="M4 18a5 5 0 0 1 10 0"/><circle cx="17" cy="8" r="2.3"/><path d="M16 13.2A4 4 0 0 1 20 17.5"/></svg><span style="font-family:Nunito;font-weight:600;font-size:10px;color:#ADB4B1;">Family</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3F7A86" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="8" x2="12" y2="8"/><line x1="16" y1="8" x2="20" y2="8"/><circle cx="14" cy="8" r="2.2"/><line x1="4" y1="16" x2="8" y2="16"/><line x1="12" y1="16" x2="20" y2="16"/><circle cx="10" cy="16" r="2.2"/></svg><span style="font-family:Nunito;font-weight:700;font-size:10px;color:#3F7A86;">Settings</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1480,&quot;height&quot;:1040},&quot;urgencyDemo&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;See a doctor soon&quot;,&quot;options&quot;:[&quot;Monitor at home&quot;,&quot;See a doctor soon&quot;,&quot;Seek care now&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Demo content&quot;},&quot;greetingName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Maya&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Demo content&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const name = this.props.greetingName ?? "Maya";
+    const key = this.props.urgencyDemo ?? "See a doctor soon";
+    const map = {
+      "Monitor at home": {
+        type: "monitor", color: "#8FB89A", text: "#4F7A5E",
+        label: "Monitor at home",
+        explain: "Your symptoms sound mild and common. They can usually be cared for comfortably at home with rest and plenty of fluids.",
+        next: "Keep an eye on things and check back with me if symptoms get worse or last more than 3 days.",
+        action: "Set a check-in reminder"
+      },
+      "See a doctor soon": {
+        type: "soon", color: "#E8B04B", text: "#B07E17",
+        label: "See a doctor soon",
+        explain: "A fever alongside a sore throat is worth having looked at, but it doesn't sound like an emergency. Booking a visit in the next day or two is sensible.",
+        next: "Contact your GP or a local clinic within the next 24\u201348 hours.",
+        action: "Find care nearby"
+      },
+      "Seek care now": {
+        type: "now", color: "#E07856", text: "#C85A38",
+        label: "Seek care now",
+        explain: "Some of what you've described can change quickly and is best checked without waiting. This isn't a diagnosis \u2014 it's about timing.",
+        next: "Please seek in-person care now, or call your local urgent care line.",
+        action: "Get directions to care"
+      }
+    };
+    const u = map[key] || map["See a doctor soon"];
+    return {
+      greetingName: name,
+      uColor: u.color, uText: u.text, uLabel: u.label,
+      uExplain: u.explain, uNext: u.next, uAction: u.action,
+      isMonitor: u.type === "monitor",
+      isSoon: u.type === "soon",
+      isNow: u.type === "now"
+    };
+  }
+}
+</script>
+<script>
+(async () => {
+  if (!document.title || !document.title.trim()) document.title = "Pulse App";
+  // Prepend so page-supplied @page / break rules (deck-stage's margin:0,
+  // author CSS) keep source-order precedence over the baseline.
+  const baseCss = document.createElement('style');
+  baseCss.textContent = "@media print {\n  figure, table { break-inside: avoid; }\n  *, *::before, *::after {\n    print-color-adjust: exact; -webkit-print-color-adjust: exact;\n    backdrop-filter: none !important; -webkit-backdrop-filter: none !important;\n    animation-delay: -99s !important; animation-duration: .001s !important;\n    animation-iteration-count: 1 !important; animation-fill-mode: both !important;\n    animation-play-state: running !important; transition-duration: 0s !important;\n  }\n}";
+  document.head.prepend(baseCss);
+  if (document.readyState === 'loading') {
+    await new Promise((r) => document.addEventListener('DOMContentLoaded', r, { once: true }));
+  }
+  let ds = document.querySelector('deck-stage');
+  // whenDefined never resolves when nothing registers the element, so only
+  // await it when a <deck-stage> tag exists (and race a timeout regardless).
+  if (ds && !customElements.get('deck-stage')) {
+    try {
+      await Promise.race([
+        customElements.whenDefined('deck-stage'),
+        new Promise((r) => setTimeout(r, 3000)),
+      ]);
+    } catch (e) {}
+    ds = document.querySelector('deck-stage');
+  }
+  // dc-runtime assigns window.DCLogic at init and mounts into #dc-root on
+  // DOMContentLoaded; settle on that subtree so React has rendered before
+  // print(). Non-DC pages fall through to weighing body.
+  const isDc = !ds && 'DCLogic' in window;
+  const settleRoot = ds || (isDc ? document.getElementById('dc-root') : null) || document.body;
+  if (settleRoot) {
+    // Weigh only content children — skip script/style/template so inline
+    // Babel/CSS doesn't register as stable "content" before the framework
+    // has mounted anything.
+    const MEDIA = 'img,svg,canvas,video,picture,iframe,embed,object';
+    const weigh = () => {
+      let text = 0, media = 0;
+      for (const c of settleRoot.children) {
+        const t = c.tagName;
+        if (t === 'SCRIPT' || t === 'STYLE' || t === 'TEMPLATE') continue;
+        text += (c.textContent || '').trim().length;
+        media += c.querySelectorAll(MEDIA).length + (c.matches(MEDIA) ? 1 : 0);
+      }
+      return text + media * 100;
+    };
+    // "Non-zero and stable" alone is not sufficient to mean rendered: generic
+    // body can carry a static shell while async main content is pending, and
+    // #dc-root can carry the root DC's static text while child refs are still
+    // .sc-placeholder boxes. Gate generic on readyState 'complete', and never
+    // accept stability while a dc-runtime placeholder is present.
+    const isGeneric = settleRoot === document.body;
+    const deadline = Date.now() + 15000;
+    let last = -1, stable = 0;
+    while (Date.now() < deadline) {
+      const n = weigh();
+      const ready =
+        (!isGeneric || document.readyState === 'complete') &&
+        !settleRoot.querySelector('.sc-placeholder');
+      if (n > 0 && n === last && ready) { if (++stable >= 2) break; } else { stable = 0; }
+      last = n;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+  }
+  // Project support.js may predate runtime default-seeding; push via bridge.
+  if (isDc && window.__dcSetProps && window.__dcRootName) {
+    try {
+      const dpEl = document.querySelector('script[data-dc-script]');
+      const meta = JSON.parse((dpEl && dpEl.getAttribute('data-props')) || '{}');
+      const bag = {};
+      for (const k in meta)
+        if (k[0] !== '$' && meta[k] && meta[k].default !== undefined)
+          bag[k] = meta[k].default;
+      if (Object.keys(bag).length) {
+        window.__dcSetProps(window.__dcRootName(), bag);
+        await new Promise((r) => setTimeout(r, 50));
+      }
+    } catch (e) {}
+  }
+  // Reveal content gated on scroll or visibility before printing. Lazy <img>,
+  // IntersectionObserver fade-ins, and collapsed <details> don't render while
+  // off-screen, so a long page would print with them blank or closed. Open
+  // every <details>, force native-lazy images eager, and scroll the document
+  // through its full height to trip lazy-load + IO; then wait (bounded) for the
+  // newly-triggered images. Inert for deck-stage (slides aren't scroll-gated).
+  try {
+    for (const d of document.querySelectorAll('details')) d.open = true;
+    for (const img of document.querySelectorAll('img[loading="lazy"]'))
+      img.loading = 'eager';
+    const scroller = document.scrollingElement || document.documentElement;
+    const full = Math.max(scroller.scrollHeight, document.body.scrollHeight);
+    const step = window.innerHeight || 800;
+    for (let y = 0; y <= full; y += step) {
+      window.scrollTo(0, y);
+      await new Promise((r) => requestAnimationFrame(r));
+    }
+    window.scrollTo(0, 0);
+    await Promise.race([
+      Promise.all(
+        [...document.images].map((img) =>
+          img.complete
+            ? null
+            : new Promise((res) => {
+                img.addEventListener('load', res, { once: true });
+                img.addEventListener('error', res, { once: true });
+              })
+        )
+      ),
+      new Promise((r) => setTimeout(r, 4000)),
+    ]);
+  } catch (e) {}
+  try { await document.fonts.ready; } catch (e) {}
+  // Jump every animation to its end state so print() never captures a slide
+  // mid-entrance. Ordering matters: the 0s-transition style must be live
+  // BEFORE data-deck-active is set so attribute-keyed transitions don't
+  // start a (now-0s) run from the pre-active base.
+  const st = document.createElement('style');
+  st.textContent = '*,*::before,*::after{animation-delay:-99s !important;animation-duration:.001s !important;animation-iteration-count:1 !important;animation-fill-mode:both !important;animation-play-state:running !important;transition-duration:0s !important}';
+  document.head.appendChild(st);
+  for (const d of document.querySelectorAll('deck-stage')) {
+    for (const c of d.children) {
+      const t = c.tagName;
+      if (t === 'SCRIPT' || t === 'STYLE' || t === 'TEMPLATE') continue;
+      c.setAttribute('data-deck-active', '');
+    }
+  }
+  // Re-append deck-stage's @page last so no author @page can add a margin and
+  // spill each full-bleed slide onto two sheets. Backstop for old copies.
+  if (ds) {
+    let pg = document.getElementById('deck-stage-print-page');
+    if (!pg) {
+      pg = document.createElement('style');
+      pg.textContent = '@page{size:' + (+ds.getAttribute('width') || 1920) +
+        'px ' + (+ds.getAttribute('height') || 1080) + 'px;margin:0}';
+    }
+    document.body.appendChild(pg);
+  }
+  try {
+    const sweep = () => {
+      for (const a of document.getAnimations()) {
+        try { a.finish(); } catch (e) {
+          try { a.currentTime = (a.effect && a.effect.getComputedTiming().duration) || 0; a.pause(); } catch (e2) {}
+        }
+      }
+    };
+    sweep();
+    await new Promise((r) => requestAnimationFrame(r));
+    sweep();
+    await new Promise((r) => requestAnimationFrame(r));
+  } catch (e) {}
+  // Size the PDF page to the rendered design unless the file opted into
+  // standard paper via @page{size:letter|A4|…}. Decks own their own @page.
+  // Wrappers (body, …) lose padding+margin so the frame sits at (0,0); the
+  // frame itself loses only margin — its padding is INSIDE the measured
+  // rect and must stay, or content shifts and leaves a gap at bottom/right.
+  var __m = null;
+  try { __m = (() => {
+  var STAMP = true;
+  var docEl = document.documentElement;
+  var doc = { width: docEl.scrollWidth, height: docEl.scrollHeight };
+
+  var ds = document.querySelector('deck-stage');
+  if (ds) {
+    var dw = Number(ds.getAttribute('width')) || 1920;
+    var dh = Number(ds.getAttribute('height')) || 1080;
+    var n = typeof ds.length === 'number' ? ds.length : ds.children.length;
+    var idx = typeof ds.index === 'number' ? ds.index : 0;
+    var frames = [];
+    for (var i = 0; i < n; i++) frames.push({ left: 0, top: 0, width: dw, height: dh });
+    return { kind: 'deck', source: 'declared', doc: doc, frames: frames,
+      authored: frames.map(function(){return{width:true,height:true}}),
+      deck: { width: dw, height: dh, slideCount: n, index: idx },
+      signals: { paperPage: false, pxPage: false } };
+  }
+
+  // Declared kind: a doc-page tag names the kind outright, so no signal
+  // heuristics run (like the deck branch above, signals report false —
+  // they describe inferred classifications only). The tag alone is not
+  // trusted: the element must have upgraded (shadowRoot present), so a
+  // leftover tag whose script was deleted falls through to the heuristics
+  // that handle plain markup.
+  var stageSx = window.scrollX || 0, stageSy = window.scrollY || 0;
+  var dp = document.querySelector('doc-page');
+  if (dp && dp.shadowRoot) {
+    // Crop to the sheet, not the host — the desk around it is screen-only
+    // chrome that must not land in PNG exports.
+    var sheet = dp.shadowRoot.querySelector('.sheet');
+    var sr = (sheet || dp).getBoundingClientRect();
+    return { kind: 'paper-doc', source: 'declared', doc: doc,
+      frames: [{ left: sr.left + stageSx, top: sr.top + stageSy,
+        width: sr.width, height: sr.height }],
+      authored: [{ width: false, height: false }],
+      signals: { paperPage: false, pxPage: false } };
+  }
+  var paperPage = false, pxPage = false;
+  var eachRule = function (fn) {
+    for (var s = 0; s < document.styleSheets.length; s++) {
+      var rs; try { rs = document.styleSheets[s].cssRules; } catch (e) { continue; }
+      for (var r = 0; r < rs.length; r++) {
+        fn(rs[r]);
+        if (rs[r].cssRules) for (var n = 0; n < rs[r].cssRules.length; n++) fn(rs[r].cssRules[n]);
+      }
+    }
+  };
+  eachRule(function (r) {
+    if (r.type !== 6) return;
+    var m = /\bsize\s*:\s*([^;}]+)/i.exec(r.cssText || '');
+    if (!m) return;
+    if (/\b(letter|a[3-5]|legal|ledger)\b/i.test(m[1])) paperPage = true;
+    if (/\d+(?:\.\d+)?px\b/i.test(m[1])) pxPage = true;
+  });
+  var signals = { paperPage: paperPage, pxPage: pxPage };
+
+  var pxVal = function (v) {
+    var m = /^(\d+(?:\.\d+)?)px$/.exec(v || ''); return m ? +m[1] : 0;
+  };
+  var authoredPx = function (el, prop) {
+    if (pxVal(el.style[prop])) return true;
+    var attr = el.getAttribute(prop);
+    if (attr && /^\d+$/.test(attr)) return true;
+    var hit = false;
+    eachRule(function (r) {
+      if (hit || r.type !== 1 || !r.style) return;
+      try { if (el.matches(r.selectorText) && pxVal(r.style[prop])) hit = true; } catch (e) {}
+    });
+    return hit;
+  };
+
+  var el = document.body, rootPxW = false;
+  for (;;) {
+    var kids = [];
+    for (var c = 0; c < el.children.length; c++) {
+      var t = el.children[c].tagName;
+      if (t !== 'SCRIPT' && t !== 'STYLE' && t !== 'TEMPLATE') kids.push(el.children[c]);
+    }
+    if (kids.length !== 1 || !(kids[0] instanceof HTMLElement)) break;
+    if (STAMP) el.setAttribute('data-om-frame-wrap', '');
+    el = kids[0];
+    rootPxW = authoredPx(el, 'width');
+    if (rootPxW) break;
+  }
+  if (!rootPxW) rootPxW = authoredPx(el, 'width');
+
+  // @page{size:letter} alone is a flowing doc; with a px-width root it's a
+  // fixed sheet pretending to be paper — fall through and size to render.
+  if (paperPage && !rootPxW) {
+    return { kind: 'paper-doc', source: 'inferred', doc: doc, signals: signals,
+      frames: [{ left: 0, top: 0, width: doc.width, height: doc.height }],
+      authored: [{ width: false, height: false }] };
+  }
+
+  var sx = window.scrollX || 0, sy = window.scrollY || 0;
+  var rectOf = function (e) {
+    var r = e.getBoundingClientRect();
+    var oy; try { oy = getComputedStyle(e).overflowY; } catch (err) {}
+    var h = oy === 'visible' ? Math.max(r.height, e.scrollHeight || 0) : r.height;
+    return { left: r.left + sx, top: r.top + sy, width: r.width, height: h };
+  };
+
+  // Multi-frame: ≥2 visible non-fixed children, each with authored px width
+  // AND height, all within ±2px of each other. Off unless the page opts in
+  // via data-om-multi-frame on the stop element — guards against card grids
+  // and pricing tables that match the geometry but aren't separate canvases.
+  if (el.hasAttribute('data-om-multi-frame')) {
+    var cands = [];
+    for (var k = 0; k < el.children.length; k++) {
+      var ch = el.children[k];
+      var cs; try { cs = getComputedStyle(ch); } catch (e) { continue; }
+      if (cs.display === 'none' || cs.visibility === 'hidden' || cs.position === 'fixed') continue;
+      var rc = rectOf(ch);
+      if (rc.width < 2 || rc.height < 2) continue;
+      if (!authoredPx(ch, 'width') || !authoredPx(ch, 'height')) continue;
+      cands.push(rc);
+    }
+    if (cands.length >= 2) {
+      var w0 = cands[0].width, h0 = cands[0].height, ok = true;
+      for (var q = 1; q < cands.length; q++)
+        if (Math.abs(cands[q].width - w0) > 2 || Math.abs(cands[q].height - h0) > 2) ok = false;
+      if (ok) return { kind: 'multi-frame', source: 'inferred', doc: doc, signals: signals,
+        frames: cands, authored: cands.map(function(){return{width:true,height:true}}) };
+    }
+  }
+
+  if (STAMP) el.setAttribute('data-om-frame', '');
+  return { kind: 'single-canvas', source: 'inferred', doc: doc, signals: signals,
+    frames: [rectOf(el)],
+    authored: [{ width: rootPxW, height: authoredPx(el, 'height') }] };
+})(); } catch (e) {}
+  var frame = null;
+  if (__m && __m.kind === 'single-canvas') {
+    var f = __m.frames && __m.frames[0];
+    if (f && f.width >= 200 && f.height >= 200) {
+      frame = f;
+      var fst = document.createElement('style');
+      fst.textContent = '@media print{@page{size:' + Math.ceil(f.width) + 'px ' +
+        Math.ceil(f.height) + 'px;margin:0}' +
+        'html,body,[data-om-frame-wrap]{padding:0!important;margin:0!important;background:none!important}' +
+        '[data-om-frame]{margin:0!important}}';
+      document.body.appendChild(fst);
+    }
+  }
+  // Relax break-inside on oversized elements. An element taller than a
+  // printable page can't honor break-inside: avoid — browsers either overflow
+  // it or push it whole to the next page, leaving a blank gap, then break it
+  // anyway at an arbitrary point. After the final layout (content revealed,
+  // animations jumped), find elements taller than a page that still compute
+  // break-inside: avoid and reset them to auto, so the browser breaks them at
+  // their children's boundaries instead (children keep their own avoid). PAGE_PX
+  // is a conservative portrait estimate at 96 CSS px/in — Letter/A4 usable
+  // height minus our 0.5in margins — so only clearly-oversized elements are
+  // touched and under-page elements still stay whole. Skipped for decks (slides
+  // are sized to the page) and for fixed-size canvases (frame set, or an author
+  // px-based @page) — runs as before for flowing docs on letter/A4.
+  try {
+    if (!ds && !frame && !(__m && __m.signals && __m.signals.pxPage)) {
+      const PAGE_PX = 1024;
+      // Our print defaults add a real @page margin only when the source has
+      // no @page of its own; computed style can't tell us (it reports screen
+      // media), so read the injected rule directly.
+      const defaults = document.querySelector('style[data-omelette-print-defaults]');
+      const pageInset = /@page\s*\{[^}]*margin/.test(defaults ? defaults.textContent || '' : '');
+      const SEL = 'section,article,figure,table,pre,blockquote,[class~="card" i],[class~="page" i],[class~="sheet" i]';
+      for (const el of document.body.querySelectorAll(SEL)) {
+        if (el instanceof HTMLElement && el.offsetHeight > PAGE_PX) {
+          el.setAttribute('data-om-oversized', '');
+          // Fake-paged docs simulate sheets with over-tall break-after:page
+          // boxes; honoring the break spills half-blank pages and ends a
+          // colored box mid-sheet. Flow them, and (only when we own the page
+          // inset) drop the redundant padding/background via the rule below.
+          const cs = getComputedStyle(el);
+          if (cs.breakAfter === 'page' || cs.pageBreakAfter === 'always') {
+            el.setAttribute('data-om-fakepage', '');
+          }
+        }
+      }
+      const ost = document.createElement('style');
+      ost.textContent = '@media print{' +
+        '[data-om-oversized]{break-inside:auto !important;page-break-inside:auto !important}' +
+        '[data-om-fakepage]{break-after:auto !important;page-break-after:auto !important}' +
+        (pageInset ? '[data-om-fakepage]{padding:0 !important;background:none !important}' : '') +
+        '}';
+      document.head.appendChild(ost);
+    }
+  } catch (e) {}
+  // macOS Preview renders Skia-PDF Luminosity soft-masks as opaque grey boxes;
+  // swap the CSS that triggers them for Preview-safe forms.
+  try {
+    for (const el of document.body.querySelectorAll('*')) {
+      const cs = getComputedStyle(el);
+
+      if (cs.boxShadow !== 'none' && cs.filter === 'none') {
+        const outs = [], kept = [];
+        for (const s of cs.boxShadow.split(/,(?![^(]*[)])/)) {
+          const t = s.trim();
+          const m = t.match(/^(rgba?[(][^)]+[)]) (-?[0-9.]+px) (-?[0-9.]+px) ([0-9.]+px) -?[0-9.]+px$/);
+          if (m && parseFloat(m[4]) > 0) outs.push('drop-shadow(' + m[2] + ' ' + m[3] + ' ' + m[4] + ' ' + m[1] + ')');
+          else kept.push(t);
+        }
+        if (outs.length) {
+          el.style.setProperty('filter', outs.join(' '), 'important');
+          el.style.setProperty('box-shadow', kept.join(', ') || 'none', 'important');
+        }
+      }
+
+      const mask = cs.maskImage && cs.maskImage !== 'none' ? cs.maskImage : cs.webkitMaskImage;
+      if (mask && mask !== 'none' && cs.filter === 'none') el.style.setProperty('filter', 'opacity(1)', 'important');
+    }
+  } catch (e) {}
+  setTimeout(() => { try { window.print(); } catch (e) {} }, 200);
+})();
+</script>
+</body>
+</html>

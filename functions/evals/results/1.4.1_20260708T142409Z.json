@@ -1,0 +1,126 @@
+{
+  "prompt_version": "1.4.1",
+  "model_name": "gemini-2.5-flash-lite",
+  "category_filter": "schema_and_resilience",
+  "timestamp": "20260708T142409Z",
+  "results": [
+    {
+      "case_id": "schema_normal_case_all_fields_present",
+      "category": "schema_and_resilience",
+      "request": {
+        "message": "I have a mild headache since this morning.",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": null,
+        "history": []
+      },
+      "response": {
+        "type": "error",
+        "message": "Something's not working right on my end. I'm still here — try sending that again in a bit?",
+        "quick_replies": [],
+        "urgency": null,
+        "explanation": null,
+        "watch_for": [],
+        "next_step": null,
+        "possibilities_mentioned": false,
+        "self_care": [],
+        "monitoring": [],
+        "encouragement": null,
+        "metadata": {
+          "prompt_version": "1.4.1",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-2.5-flash-lite"
+        }
+      },
+      "crashed": false,
+      "checks": [
+        {
+          "checker": "check_schema_shape",
+          "passed": true,
+          "detail": "shape OK for type=error"
+        }
+      ],
+      "possibilities_mentioned": false
+    },
+    {
+      "case_id": "schema_infant_fever_red_flag_floor",
+      "category": "schema_and_resilience",
+      "request": {
+        "message": "My baby has had a fever since this morning.",
+        "profile": {
+          "relationship": "child",
+          "age_months": 2
+        },
+        "worry_level": null,
+        "regional_context": null,
+        "history": []
+      },
+      "response": {
+        "type": "assessment",
+        "message": "Based on what you've described, it's safer to get checked right now — let's not wait. Go to the nearest hospital or ER.",
+        "quick_replies": [],
+        "urgency": "seek_care_now",
+        "explanation": null,
+        "watch_for": [],
+        "next_step": null,
+        "possibilities_mentioned": false,
+        "self_care": [],
+        "monitoring": [],
+        "encouragement": null,
+        "metadata": {
+          "prompt_version": "1.4.1",
+          "red_flag_matched": true,
+          "red_flag_rule_ids": [
+            "infant_fever"
+          ],
+          "model_name": "gemini-2.5-flash-lite"
+        }
+      },
+      "crashed": false,
+      "checks": [
+        {
+          "checker": "check_tier",
+          "passed": true,
+          "detail": "urgency='seek_care_now' (expected 'seek_care_now')"
+        },
+        {
+          "checker": "check_schema_shape",
+          "passed": false,
+          "detail": "assessment encouragement is null"
+        }
+      ],
+      "possibilities_mentioned": false
+    },
+    {
+      "case_id": "schema_garbage_profile_does_not_crash",
+      "category": "schema_and_resilience",
+      "request": {
+        "message": "I've had a stomach ache since yesterday.",
+        "profile": {
+          "relationship": "self",
+          "age": "unknown",
+          "conditions": "asthma",
+          "medications": 123,
+          "allergies": {
+            "nuts": true
+          }
+        },
+        "worry_level": null,
+        "regional_context": null,
+        "history": []
+      },
+      "response": null,
+      "crashed": true,
+      "error": "TypeError(\"'<' not supported between instances of 'str' and 'int'\")",
+      "checks": [
+        {
+          "checker": "check_schema_shape",
+          "passed": false,
+          "detail": "pipeline crashed: TypeError(\"'<' not supported between instances of 'str' and 'int'\")"
+        }
+      ],
+      "possibilities_mentioned": null
+    }
+  ]
+}

@@ -1,0 +1,156 @@
+{
+  "prompt_version": "1.4.1",
+  "model_name": "gemini-2.5-flash-lite",
+  "category_filter": "schema_and_resilience",
+  "timestamp": "20260709T130215Z",
+  "results": [
+    {
+      "case_id": "schema_normal_case_all_fields_present",
+      "category": "schema_and_resilience",
+      "request": {
+        "message": "I have a mild headache since this morning.",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": null,
+        "history": []
+      },
+      "response": {
+        "type": "assessment",
+        "message": "A mild headache since this morning can be many things. It's often just from stress or not enough sleep. For now, you can manage this at home. I've listed some things that might help below.\n\nKeep an eye on it. If the headache gets much worse, or if you develop other symptoms like fever, stiff neck, or changes in your vision, please see a doctor.",
+        "quick_replies": [],
+        "urgency": "monitor_at_home",
+        "explanation": "A mild headache, without other concerning symptoms, can usually be managed at home. It's important to monitor for any worsening or new symptoms that might indicate something more serious.",
+        "watch_for": [
+          "Sudden, severe headache",
+          "Headache with fever and stiff neck",
+          "Headache with changes in vision or speech",
+          "Headache after a head injury",
+          "Headache that is the worst you've ever experienced"
+        ],
+        "next_step": "Manage at home for now, but seek medical attention if any of the 'watch for' signs appear.",
+        "possibilities_mentioned": false,
+        "self_care": [
+          "Rest in a quiet, dark room",
+          "Drink plenty of water",
+          "Try over-the-counter pain relievers like paracetamol if needed, following package directions"
+        ],
+        "monitoring": [
+          "Note the severity and frequency of the headache",
+          "Be aware of any new symptoms that develop"
+        ],
+        "encouragement": "I'm here if anything changes — just let me know and we'll take another look.",
+        "metadata": {
+          "prompt_version": "1.4.1",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-2.5-flash-lite"
+        }
+      },
+      "crashed": false,
+      "checks": [
+        {
+          "checker": "check_schema_shape",
+          "passed": true,
+          "detail": "shape OK for type=assessment"
+        }
+      ],
+      "possibilities_mentioned": false
+    },
+    {
+      "case_id": "schema_infant_fever_red_flag_floor",
+      "category": "schema_and_resilience",
+      "request": {
+        "message": "My baby has had a fever since this morning.",
+        "profile": {
+          "relationship": "child",
+          "age_months": 2
+        },
+        "worry_level": null,
+        "regional_context": null,
+        "history": []
+      },
+      "response": {
+        "type": "assessment",
+        "message": "Based on what you've described, it's safer to get checked right now — let's not wait. Go to the nearest hospital or ER.",
+        "quick_replies": [],
+        "urgency": "seek_care_now",
+        "explanation": null,
+        "watch_for": [],
+        "next_step": null,
+        "possibilities_mentioned": false,
+        "self_care": [],
+        "monitoring": [],
+        "encouragement": null,
+        "metadata": {
+          "prompt_version": "1.4.1",
+          "red_flag_matched": true,
+          "red_flag_rule_ids": [
+            "infant_fever"
+          ],
+          "model_name": "gemini-2.5-flash-lite"
+        }
+      },
+      "crashed": false,
+      "checks": [
+        {
+          "checker": "check_tier",
+          "passed": true,
+          "detail": "urgency='seek_care_now' (expected 'seek_care_now')"
+        },
+        {
+          "checker": "check_schema_shape",
+          "passed": true,
+          "detail": "shape OK for type=assessment (encouragement is null — indicates a degraded-mode fallback assessment, not a live model response)"
+        }
+      ],
+      "possibilities_mentioned": false
+    },
+    {
+      "case_id": "schema_garbage_profile_does_not_crash",
+      "category": "schema_and_resilience",
+      "request": {
+        "message": "I've had a stomach ache since yesterday.",
+        "profile": {
+          "relationship": "self",
+          "age": "unknown",
+          "conditions": "asthma",
+          "medications": 123,
+          "allergies": {
+            "nuts": true
+          }
+        },
+        "worry_level": null,
+        "regional_context": null,
+        "history": []
+      },
+      "response": {
+        "type": "error",
+        "message": "Something's not working right on my end. I'm still here — try sending that again in a bit?",
+        "quick_replies": [],
+        "urgency": null,
+        "explanation": null,
+        "watch_for": [],
+        "next_step": null,
+        "possibilities_mentioned": false,
+        "self_care": [],
+        "monitoring": [],
+        "encouragement": null,
+        "metadata": {
+          "prompt_version": "1.4.1",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-2.5-flash-lite"
+        }
+      },
+      "crashed": false,
+      "checks": [
+        {
+          "checker": "check_schema_shape",
+          "passed": true,
+          "detail": "shape OK for type=error"
+        }
+      ],
+      "possibilities_mentioned": false
+    }
+  ]
+}
