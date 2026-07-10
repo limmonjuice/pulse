@@ -4,6 +4,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart' show StateProvider;
 
 import '../models/message.dart';
 import '../models/urgency_result.dart';
@@ -23,6 +24,20 @@ final chatRepositoryProvider = Provider<ChatRepository>((ref) {
   return CallableChatRepository();
 });
 
+/// Whether a send is currently in flight — drives the typing indicator
+/// in ChatScreen (Task 17). A plain flag, not part of chatControllerProvider's
+/// own AsyncValue: Riverpod 3.x's `AsyncLoading().copyWithPrevious(...)`
+/// (the framework's own mechanism for "loading, but keep showing the
+/// previous value") is `@internal` to package:riverpod as of 3.3.2 — not
+/// callable from application code, confirmed by reading
+/// riverpod-3.3.2/lib/src/core/async_value.dart directly. Without it,
+/// there's no way to make chatControllerProvider's AsyncValue report
+/// `isLoading` while still exposing the in-progress message list, so
+/// this narrow, deliberately-scoped exception to AGENTS.md's "not manual
+/// isLoading booleans" guidance exists only because the framework's own
+/// intended mechanism isn't reachable here.
+final chatIsSendingProvider = StateProvider<bool>((ref) => false);
+
 /// Holds the conversation's turn list. No Firestore persistence this
 /// pass — conversation lives in memory only. TODO(episode model): once
 /// conversations are persisted server-side, this becomes a stream over
@@ -37,21 +52,17 @@ class ChatController extends AsyncNotifier<List<Message>> {
 
     final history = state.value ?? <Message>[];
     final withUser = [...history, Message.user(trimmed)];
-    // Deliberately stays AsyncData (not AsyncLoading) while the request is
-    // in flight: AsyncNotifier's public API has no supported way to build
-    // an AsyncLoading that still exposes a previous value — the method
-    // that does (`copyWithPrevious`) is `@internal` to package:riverpod as
-    // of 3.x, and AGENTS.md requires a clean `flutter analyze`. Consumers
-    // that need a "sending" indicator should track it separately rather
-    // than reading `.isLoading` off this provider.
     state = AsyncData(withUser);
 
+    ref.read(chatIsSendingProvider.notifier).state = true;
     final repository = ref.read(chatRepositoryProvider);
     try {
       final reply = await repository.send(text: trimmed, history: history);
       state = AsyncData([...withUser, reply]);
     } catch (_) {
       state = AsyncData([...withUser, _errorMessage()]);
+    } finally {
+      ref.read(chatIsSendingProvider.notifier).state = false;
     }
   }
 
