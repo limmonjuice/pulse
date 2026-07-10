@@ -90,6 +90,14 @@ class ChatController extends AsyncNotifier<List<Message>> {
   /// The error bubble's retry affordance: drops the failed exchange
   /// (the last user message and whatever followed it) and resends.
   Future<void> retryLast() async {
+    // Same guard as send(): without it, a double-tap on the error
+    // bubble's retry link (which has no disabled state of its own) can
+    // truncate `state` a second time while the first retry is still in
+    // flight, visibly wiping the in-flight user message from the list
+    // until the first call resolves and self-heals it. Found during
+    // Task 9 code review (empirically reproduced, not just traced).
+    if (ref.read(chatIsSendingProvider)) return;
+
     final messages = state.value ?? <Message>[];
     final lastUserIndex = messages.lastIndexWhere(
       (m) => m.role == MessageRole.user,

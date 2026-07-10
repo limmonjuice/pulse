@@ -239,6 +239,47 @@ void main() {
       expect(messages.first.text, 'first');
     },
   );
+
+  test(
+    'retryLast() while a send is already in flight does not truncate the in-flight message',
+    () async {
+      final completer = Completer<Message>();
+      final container = ProviderContainer(
+        overrides: [
+          chatRepositoryProvider.overrideWithValue(
+            _CompleterRepository(completer),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final sendFuture = container
+          .read(chatControllerProvider.notifier)
+          .send('hello');
+      // A send is now in flight (chatIsSendingProvider is true, state has
+      // exactly one user message). A retry attempt here — e.g. a
+      // double-tap on an error bubble from a PREVIOUS turn — must not
+      // truncate that in-flight message.
+      await container.read(chatControllerProvider.notifier).retryLast();
+
+      final messagesWhileInFlight = container
+          .read(chatControllerProvider)
+          .value!;
+      expect(messagesWhileInFlight.length, 1);
+      expect(messagesWhileInFlight.first.text, 'hello');
+
+      completer.complete(
+        Message.assistant(
+          const UrgencyResult(type: ChatTurnType.question, message: 'reply'),
+        ),
+      );
+      await sendFuture;
+
+      final messagesAfter = container.read(chatControllerProvider).value!;
+      expect(messagesAfter.length, 2);
+      expect(messagesAfter.first.text, 'hello');
+    },
+  );
 }
 
 class _CountingRepository implements ChatRepository {
