@@ -188,6 +188,10 @@ source of truth rather than drifting behind the code.
 | `cardEyebrow` (implemented as `textTheme.labelMedium`) | Inter 600 | 10.5px | The "PULSE GUIDANCE" meta-label on the assessment card. Distinct from the Section 3 "Section eyebrow" style (Nunito 700, 12-13px, `--label-eyebrow`) — this is a smaller, Inter-based card meta-label, not a section header. Uppercase, letter-spacing 0.6px, `--text-faint`. |
 | `cardSectionHeading` (implemented as `textTheme.titleSmall`) | Nunito 700 | 13.5px | In-card group headers ("Things you can do today", "Check in on yourself", "Get care if…"). Falls between the existing 15px (`titleMedium`) and 12.5px (`labelSmall`/eyebrow) slots, so needed its own entry rather than reusing either. `--text` color. |
 
+Note: `titleSmall` is also Material's default for `TabBar`/`DataTable` heading
+styles — if either is added later, give it its own explicit theme override
+rather than relying on this default.
+
 ### Shadows
 | Token | Value | Justification |
 |---|---|---|

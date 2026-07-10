@@ -357,6 +357,23 @@ class AppTheme {
         thickness: 1,
         space: 1,
       ),
+      // Chat-screen extension (2026-07-10) follow-up: pins the bottom
+      // nav's label style explicitly. Needed because NavigationBar's
+      // Material 3 default resolves label text style from
+      // textTheme.labelMedium (only the color gets overridden via
+      // .apply()) — without this override, adding a chat-specific
+      // labelMedium style above would silently restyle the live bottom
+      // nav bar. Values match PULSE_DESIGN_SYSTEM.md §5 "Bottom nav".
+      navigationBarTheme: NavigationBarThemeData(
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return GoogleFonts.nunito(
+            fontSize: 10,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+            color: selected ? AppColors.primaryInk : AppColors.navInactive,
+          );
+        }),
+      ),
       extensions: const [UrgencyColors.standard],
     );
   }
