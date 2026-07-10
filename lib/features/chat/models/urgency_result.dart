@@ -58,12 +58,12 @@ class UrgencyResult {
       message: message,
       quickReplies: _stringList(json['quick_replies']),
       urgency: urgency,
-      explanation: json['explanation'] as String?,
+      explanation: _stringOrNull(json['explanation']),
       watchFor: _stringList(json['watch_for']),
-      nextStep: json['next_step'] as String?,
+      nextStep: _stringOrNull(json['next_step']),
       selfCare: _stringList(json['self_care']),
       monitoring: _stringList(json['monitoring']),
-      encouragement: json['encouragement'] as String?,
+      encouragement: _stringOrNull(json['encouragement']),
     );
   }
 
@@ -150,4 +150,6 @@ class UrgencyResult {
     if (value is! List) return const [];
     return value.whereType<String>().toList();
   }
+
+  static String? _stringOrNull(dynamic value) => value is String ? value : null;
 }

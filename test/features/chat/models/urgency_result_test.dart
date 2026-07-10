@@ -98,6 +98,21 @@ void main() {
       );
     });
 
+    test('a non-string value for explanation/next_step/encouragement is '
+        'dropped, not thrown', () {
+      expect(
+        () => UrgencyResult.fromJson({
+          'type': 'assessment',
+          'message': 'm',
+          'urgency': 'see_doctor_soon',
+          'explanation': 42,
+          'next_step': {'nested': true},
+          'encouragement': ['a', 'list'],
+        }),
+        returnsNormally,
+      );
+    });
+
     test(
       'type == assessment with a missing/invalid urgency falls back to '
       'unparseable rather than crashing a urgency-tier renderer downstream',
