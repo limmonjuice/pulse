@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse_app/core/theme/app_theme.dart';
@@ -150,6 +152,93 @@ void main() {
       expect(messages.first.text, 'hello');
     },
   );
+
+  test(
+    'chatIsSendingProvider is true only while a send is in flight, on both success and failure paths',
+    () async {
+      final completer = Completer<Message>();
+      final container = ProviderContainer(
+        overrides: [
+          chatRepositoryProvider.overrideWithValue(
+            _CompleterRepository(completer),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      expect(container.read(chatIsSendingProvider), isFalse);
+
+      final sendFuture = container
+          .read(chatControllerProvider.notifier)
+          .send('hello');
+      // The synchronous prefix of send() has run (up to the first await);
+      // the flag must already be true before the repository call resolves.
+      expect(container.read(chatIsSendingProvider), isTrue);
+
+      completer.complete(
+        Message.assistant(
+          const UrgencyResult(type: ChatTurnType.question, message: 'reply'),
+        ),
+      );
+      await sendFuture;
+
+      expect(container.read(chatIsSendingProvider), isFalse);
+    },
+  );
+
+  test(
+    'chatIsSendingProvider resets to false even when the repository throws',
+    () async {
+      final container = ProviderContainer(
+        overrides: [
+          chatRepositoryProvider.overrideWithValue(_ThrowingRepository()),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await container.read(chatControllerProvider.notifier).send('hello');
+
+      expect(container.read(chatIsSendingProvider), isFalse);
+    },
+  );
+
+  test(
+    'a second send() while one is already in flight is ignored (no clobbered state)',
+    () async {
+      var callCount = 0;
+      final completer = Completer<Message>();
+      final container = ProviderContainer(
+        overrides: [
+          chatRepositoryProvider.overrideWithValue(
+            _CompleterRepository(completer, onCall: () => callCount++),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final first = container
+          .read(chatControllerProvider.notifier)
+          .send('first');
+      // Fires while the first send is still awaiting the completer —
+      // must be a no-op, not a second concurrent repository call.
+      final second = container
+          .read(chatControllerProvider.notifier)
+          .send('second');
+
+      completer.complete(
+        Message.assistant(
+          const UrgencyResult(type: ChatTurnType.question, message: 'reply'),
+        ),
+      );
+      await first;
+      await second;
+
+      expect(callCount, 1);
+      final messages = container.read(chatControllerProvider).value!;
+      expect(messages.where((m) => m.role == MessageRole.user).length, 1);
+      expect(messages.first.text, 'first');
+    },
+  );
 }
 
 class _CountingRepository implements ChatRepository {
@@ -165,5 +254,20 @@ class _CountingRepository implements ChatRepository {
     return Message.assistant(
       const UrgencyResult(type: ChatTurnType.question, message: 'reply'),
     );
+  }
+}
+
+/// Lets a test control exactly when send() resolves, to observe
+/// mid-flight state (chatIsSendingProvider, re-entrancy) deterministically.
+class _CompleterRepository implements ChatRepository {
+  _CompleterRepository(this._completer, {void Function()? onCall})
+    : _onCall = onCall;
+  final Completer<Message> _completer;
+  final void Function()? _onCall;
+
+  @override
+  Future<Message> send({required String text, required List<Message> history}) {
+    _onCall?.call();
+    return _completer.future;
   }
 }

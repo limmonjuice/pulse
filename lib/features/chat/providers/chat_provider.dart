@@ -52,14 +52,32 @@ class ChatController extends AsyncNotifier<List<Message>> {
   Future<void> send(String text) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
+    // Re-entrancy guard: without this, two overlapping sends (a double
+    // tap before the UI's `enabled: !isLoading` gate takes effect on the
+    // next frame, or retryLast() racing a fresh send()) can each capture
+    // their own stale `withUser` snapshot and silently clobber each
+    // other's result when their awaits resolve out of order — found
+    // during Task 9 code review, not hypothetical.
+    if (ref.read(chatIsSendingProvider)) return;
 
     final history = state.value ?? <Message>[];
     final withUser = [...history, Message.user(trimmed)];
     state = AsyncData(withUser);
 
+    // Everything from here through the reply/error assignment must stay
+    // inside the try — including resolving the repository — so ANY
+    // exception on this path (not just ones thrown by repository.send()
+    // itself) still hits the catch/finally below. A prior version read
+    // `ref.read(chatRepositoryProvider)` above the try; if that read
+    // ever threw, chatIsSendingProvider would stay stuck `true` forever
+    // (permanently disabling the input) and the exception would become
+    // an unhandled Future rejection, since the planned call site
+    // (`onSend: (text) => ref.read(...).send(text)`) never awaits this
+    // Future. Found during Task 9 code review — keep the repository
+    // read inside the try.
     ref.read(chatIsSendingProvider.notifier).state = true;
-    final repository = ref.read(chatRepositoryProvider);
     try {
+      final repository = ref.read(chatRepositoryProvider);
       final reply = await repository.send(text: trimmed, history: history);
       state = AsyncData([...withUser, reply]);
     } catch (_) {
