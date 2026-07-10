@@ -44,6 +44,11 @@ class AppColors {
   // Toggle
   static const Color toggleOff = Color(0xFFE4DDD0);
 
+  // --- Chat-screen extensions (2026-07-10) — see PULSE_DESIGN_SYSTEM.md §8 ---
+  static const Color crisisHeading = Color(0xFF2F4A4F);
+  static const Color crisisBody = Color(0xFF3F5559);
+  static const Color crisisFooterText = Color(0xFF7C9296);
+
   /// Household-profile avatar accents. Cycle through these in order as
   /// profiles are created — do not assign colors arbitrarily.
   static const List<Color> avatarAccents = [
@@ -146,6 +151,11 @@ class AppRadii {
   static const double pill = 999;
   static const double iconChip = 15;
   static const double navBarTop = 26;
+
+  // --- Chat-screen extensions (2026-07-10) — see PULSE_DESIGN_SYSTEM.md §8 ---
+  static const double crisisCard = 28;
+  static const double cardRowRadius = 14;
+  static const double pillRowRadius = 13;
 }
 
 /// Spacing scale matching the design system's stated values.
@@ -203,6 +213,23 @@ class AppShadows {
       offset: const Offset(0, -6),
     ),
   ];
+
+  // --- Chat-screen extensions (2026-07-10) — see PULSE_DESIGN_SYSTEM.md §8 ---
+  static List<BoxShadow> crisisCard = [
+    BoxShadow(
+      color: AppColors.primary.withOpacity(0.18),
+      blurRadius: 30,
+      offset: const Offset(0, 12),
+    ),
+  ];
+
+  static List<BoxShadow> userBubble = [
+    BoxShadow(
+      color: AppColors.primary.withOpacity(0.28),
+      blurRadius: 16,
+      offset: const Offset(0, 6),
+    ),
+  ];
 }
 
 /// Assembled ThemeData for Pulse.
@@ -257,6 +284,23 @@ class AppTheme {
           fontWeight: FontWeight.w700,
           fontSize: 15,
           color: AppColors.text,
+        ),
+        // Chat-screen extension (2026-07-10): in-card group headers
+        // ("Things you can do today", "Check in on yourself", "Get
+        // care if…") — see PULSE_DESIGN_SYSTEM.md §8.
+        titleSmall: headingFont.titleSmall?.copyWith(
+          fontWeight: FontWeight.w700,
+          fontSize: 13.5,
+          color: AppColors.text,
+        ),
+        // Chat-screen extension (2026-07-10): the "PULSE GUIDANCE"
+        // meta-label on the assessment card — distinct from the
+        // Section-eyebrow style below (Inter, not Nunito; smaller).
+        labelMedium: bodyFont.labelMedium?.copyWith(
+          fontWeight: FontWeight.w600,
+          fontSize: 10.5,
+          letterSpacing: 0.6,
+          color: AppColors.textFaint,
         ),
         // Section eyebrows (UPPERCASE) — apply
         // `.copyWith(letterSpacing: 0.55)` + manual uppercase in the widget

@@ -158,3 +158,42 @@ Minimum body size on mobile: **12px**. Prefer 14px+ for anything a user reads wh
 - Plain language, no jargon; acknowledge feelings ("I'm sorry you're feeling rough").
 - Always frame results as **urgency guidance**, and keep the disclaimer reachable: *"Guidance on urgency — not a diagnosis."*
 - Reassure, don't alarm — even the "Seek care now" copy is about *timing*, not fear.
+
+---
+
+## 8. Chat-screen extensions (added 2026-07-10)
+
+Tokens added to `app_theme.dart` while implementing the Chat screen —
+values pulled from the approved `Pulse Chat.dc.html` mockup that weren't
+yet covered by the sections above. Added here so the doc stays the
+source of truth rather than drifting behind the code.
+
+### Radii
+| Token | Value | Justification |
+|---|---|---|
+| `AppRadii.crisisCard` | 28px | Crisis card is deliberately more spacious than the standard 24px assessment/urgency card — part of its "teal-tint, no tier machinery" distinct treatment. |
+| `AppRadii.cardRowRadius` | 14px | Self-care checklist rows and monitoring rows inside the assessment card. |
+| `AppRadii.pillRowRadius` | 13px | "Get care if…" (watch-for) warning pills inside the assessment card. |
+
+### Colors
+| Token | Hex | Justification |
+|---|---|---|
+| `AppColors.crisisHeading` | `#2F4A4F` | Crisis card's opening line ("I'm really glad you told me") — darker than any existing text token, unique to the crisis card. |
+| `AppColors.crisisBody` | `#3F5559` | Crisis card body copy, and the softer teal-tint Pulse bubble used for subsequent messages once a conversation is crisis-locked. |
+| `AppColors.crisisFooterText` | `#7C9296` | Crisis card's closing reassurance line — distinct from (slightly cooler than) `--text-muted`. |
+
+### Type
+| Style | Font / weight | Size | Notes |
+|---|---|---|---|
+| `cardEyebrow` (implemented as `textTheme.labelMedium`) | Inter 600 | 10.5px | The "PULSE GUIDANCE" meta-label on the assessment card. Distinct from the Section 3 "Section eyebrow" style (Nunito 700, 12-13px, `--label-eyebrow`) — this is a smaller, Inter-based card meta-label, not a section header. Uppercase, letter-spacing 0.6px, `--text-faint`. |
+| `cardSectionHeading` (implemented as `textTheme.titleSmall`) | Nunito 700 | 13.5px | In-card group headers ("Things you can do today", "Check in on yourself", "Get care if…"). Falls between the existing 15px (`titleMedium`) and 12.5px (`labelSmall`/eyebrow) slots, so needed its own entry rather than reusing either. `--text` color. |
+
+### Shadows
+| Token | Value | Justification |
+|---|---|---|
+| Crisis card shadow | `0 12px 30px rgba(111,168,181,.18)` | Close to but distinct from the existing "Card (raised)" shadow (`0 10px 26px rgba(111,168,181,.16)`) — kept as its own token rather than reusing, since the two didn't match exactly in the mockup.
+| `AppShadows.userBubble` | `0 6px 16px rgba(111,168,181,.28)` | User chat-bubble shadow — found while implementing (not in the original spec pass). Color is exactly `--primary` at 28% opacity, distinct enough from every existing teal shadow to warrant its own token. |
+
+Pulse (assistant) bubble shadow (`0 6px 16px rgba(80,100,100,.08)`) reuses the
+existing "Card (resting)" shadow rather than adding a third token — same
+color/opacity, blur/offset close enough (16/6 vs. 22/8) not to duplicate.
