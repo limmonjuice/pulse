@@ -1,4 +1,5 @@
 # Miscellaneous
+.worktrees/
 *.class
 *.env
 *.env.local
