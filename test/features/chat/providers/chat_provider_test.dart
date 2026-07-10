@@ -280,6 +280,85 @@ void main() {
       expect(messagesAfter.first.text, 'hello');
     },
   );
+
+  test(
+    'a self-care checkbox toggled while a later send is in flight is not reverted when that send resolves',
+    () async {
+      final firstCompleter = Completer<Message>();
+      final secondCompleter = Completer<Message>();
+      final container = ProviderContainer(
+        overrides: [
+          chatRepositoryProvider.overrideWithValue(
+            _QueuedCompleterRepository([firstCompleter, secondCompleter]),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final firstSend = container
+          .read(chatControllerProvider.notifier)
+          .send('hello');
+      firstCompleter.complete(
+        Message.assistant(
+          const UrgencyResult(
+            type: ChatTurnType.assessment,
+            message: 'msg',
+            urgency: UrgencyLevel.monitorAtHome,
+            selfCare: ['Rest', 'Fluids'],
+          ),
+        ),
+      );
+      await firstSend;
+
+      final assistantMessage = container
+          .read(chatControllerProvider)
+          .value!
+          .last;
+
+      final secondSend = container
+          .read(chatControllerProvider.notifier)
+          .send('a follow-up question');
+      // Toggle a self-care box on the EARLIER assessment message while the
+      // second send is still in flight — must not be reverted when the
+      // second send's completion merges its reply into state.
+      container
+          .read(chatControllerProvider.notifier)
+          .toggleSelfCare(assistantMessage.id, 0);
+      final midFlight = container.read(chatControllerProvider).value!;
+      expect(
+        midFlight
+            .firstWhere((m) => m.id == assistantMessage.id)
+            .checkedSelfCare,
+        {0},
+      );
+
+      secondCompleter.complete(
+        Message.assistant(
+          const UrgencyResult(type: ChatTurnType.question, message: 'reply 2'),
+        ),
+      );
+      await secondSend;
+
+      final after = container.read(chatControllerProvider).value!;
+      expect(
+        after.firstWhere((m) => m.id == assistantMessage.id).checkedSelfCare,
+        {0},
+      );
+    },
+  );
+}
+
+/// Resolves each successive send() call from the next completer in the
+/// queue — lets a test control multiple in-flight calls independently.
+class _QueuedCompleterRepository implements ChatRepository {
+  _QueuedCompleterRepository(this._completers);
+  final List<Completer<Message>> _completers;
+  int _i = 0;
+
+  @override
+  Future<Message> send({required String text, required List<Message> history}) {
+    return _completers[_i++].future;
+  }
 }
 
 class _CountingRepository implements ChatRepository {

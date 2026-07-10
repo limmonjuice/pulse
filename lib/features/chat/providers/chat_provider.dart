@@ -79,9 +79,22 @@ class ChatController extends AsyncNotifier<List<Message>> {
     try {
       final repository = ref.read(chatRepositoryProvider);
       final reply = await repository.send(text: trimmed, history: history);
-      state = AsyncData([...withUser, reply]);
+      // Merge onto the LIVE state.value here, not the captured `withUser`
+      // snapshot: toggleSelfCare() is synchronous, deliberately unguarded
+      // (checking a self-care box on an earlier message must stay
+      // possible while a later send is in flight), and can run during
+      // this await. Both guards above only stop another async mutator
+      // (send()/retryLast()) from entering — they don't protect against
+      // a synchronous edit landing mid-await. state.value at this point
+      // is always `withUser` with zero or more messages copyWith'd in
+      // place (same length/order — toggleSelfCare never adds/removes),
+      // so it's always safe to append onto. Using `withUser` directly
+      // here would silently revert any checkbox toggled during the
+      // await — found during Task 9 code review by reproducing the
+      // exact sequence (toggle mid-flight, then let the send resolve).
+      state = AsyncData([...(state.value ?? withUser), reply]);
     } catch (_) {
-      state = AsyncData([...withUser, _errorMessage()]);
+      state = AsyncData([...(state.value ?? withUser), _errorMessage()]);
     } finally {
       ref.read(chatIsSendingProvider.notifier).state = false;
     }
