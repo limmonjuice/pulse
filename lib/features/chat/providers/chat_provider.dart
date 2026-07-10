@@ -4,6 +4,9 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+// StateProvider moved to the "legacy" surface in Riverpod 3.x — not
+// exported from the main flutter_riverpod.dart barrel. Confirmed by
+// reading flutter_riverpod-3.3.2/lib/legacy.dart directly.
 import 'package:flutter_riverpod/legacy.dart' show StateProvider;
 
 import '../models/message.dart';
