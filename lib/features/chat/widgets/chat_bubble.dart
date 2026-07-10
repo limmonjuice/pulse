@@ -54,7 +54,10 @@ class ChatBubble extends StatelessWidget {
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+        // sizeOf (not MediaQuery.of(context).size) scopes the rebuild
+        // dependency to just the size field — MediaQuery.of would
+        // rebuild every bubble in the list on keyboard open/close too.
+        constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.78),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
           decoration: decoration,
