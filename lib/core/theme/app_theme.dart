@@ -175,6 +175,14 @@ class AppRadii {
   static const double crisisCard = 28;
   static const double cardRowRadius = 14;
   static const double pillRowRadius = 13;
+  // The design system doc (§5) specifies a fixed "radius 22px" for the
+  // input bar, not the generic 999px pill token (that's for chips/badges
+  // whose height is fixed and small; the input bar can grow to 4 lines,
+  // where a true 999 stadium and a fixed 22 corner look different).
+  // Numerically equal to chatBubble but kept as its own token since the
+  // two are semantically distinct components — found during Task 16
+  // code review.
+  static const double inputBar = 22;
 }
 
 /// Spacing scale matching the design system's stated values.

@@ -174,6 +174,7 @@ source of truth rather than drifting behind the code.
 | `AppRadii.crisisCard` | 28px | Crisis card is deliberately more spacious than the standard 24px assessment/urgency card — part of its "teal-tint, no tier machinery" distinct treatment. |
 | `AppRadii.cardRowRadius` | 14px | Self-care checklist rows and monitoring rows inside the assessment card. |
 | `AppRadii.pillRowRadius` | 13px | "Get care if…" (watch-for) warning pills inside the assessment card. |
+| `AppRadii.inputBar` | 22px | The message input bar's own fixed radius (§5 says "radius 22px" explicitly, not the generic 999px pill token — the input bar can grow to 4 lines, where a true stadium and a fixed 22px corner look different). Numerically equal to `chatBubble` but kept separate — different component, coincidental match. Found during Task 16 code review. |
 
 ### Colors
 | Token | Hex | Justification |
