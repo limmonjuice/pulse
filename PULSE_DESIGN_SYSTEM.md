@@ -181,6 +181,10 @@ source of truth rather than drifting behind the code.
 | `AppColors.crisisHeading` | `#2F4A4F` | Crisis card's opening line ("I'm really glad you told me") — darker than any existing text token, unique to the crisis card. |
 | `AppColors.crisisBody` | `#3F5559` | Crisis card body copy, and the softer teal-tint Pulse bubble used for subsequent messages once a conversation is crisis-locked. |
 | `AppColors.crisisFooterText` | `#7C9296` | Crisis card's closing reassurance line — distinct from (slightly cooler than) `--text-muted`. |
+| `AppColors.selfCareRowBg` | `#F8F5EE` | Self-care checklist row background inside the assessment card. Found while implementing Task 14 — missed in the original Task 4 pass. |
+| `AppColors.selfCareChecked` | `#8FB89A` | Checked-off self-care row's check-icon background. Numerically equal to `UrgencyColors.monitorAtHome.solid` (sage) but kept as its own token — a "done" state, not an urgency read; the mockup happens to reuse the same green. |
+| `AppColors.selfCareUncheckedBorder` | `#CFD9D1` | Unchecked self-care row's checkbox border. |
+| `AppColors.selfCareCheckedText` | `#9BA6A2` | Checked-off self-care row's strikethrough text color. |
 
 ### Type
 | Style | Font / weight | Size | Notes |

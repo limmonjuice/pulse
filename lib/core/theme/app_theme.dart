@@ -49,6 +49,19 @@ class AppColors {
   static const Color crisisBody = Color(0xFF3F5559);
   static const Color crisisFooterText = Color(0xFF7C9296);
 
+  // --- AssessmentCard self-care checklist (2026-07-10, found while
+  // implementing Task 14 — these 4 mockup colors were never tokenized
+  // in the original Task 4 pass) — see PULSE_DESIGN_SYSTEM.md §8.
+  static const Color selfCareRowBg = Color(0xFFF8F5EE);
+  // Numerically equal to UrgencyColors.monitorAtHome.solid (sage) — kept
+  // as its own token rather than reusing that extension, since a
+  // checked-off self-care item is a "done" state, not an urgency read;
+  // the two concepts should stay decoupled even though the mockup
+  // happens to reuse the same green.
+  static const Color selfCareChecked = Color(0xFF8FB89A);
+  static const Color selfCareUncheckedBorder = Color(0xFFCFD9D1);
+  static const Color selfCareCheckedText = Color(0xFF9BA6A2);
+
   /// Household-profile avatar accents. Cycle through these in order as
   /// profiles are created — do not assign colors arbitrarily.
   static const List<Color> avatarAccents = [
