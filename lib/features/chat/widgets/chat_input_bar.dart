@@ -59,7 +59,12 @@ class _ChatInputBarState extends State<ChatInputBar> {
           padding: const EdgeInsets.fromLTRB(18, 8, 8, 8),
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(AppRadii.pill),
+            // inputBar, not the generic pill token — the design doc
+            // specifies a fixed 22px radius here, distinct from the
+            // 999px stadium used for chips/badges. Found during code
+            // review: with maxLines: 4, a true 999 stadium and a fixed
+            // 22px corner look different once the field grows.
+            borderRadius: BorderRadius.circular(AppRadii.inputBar),
             boxShadow: AppShadows.card,
           ),
           child: Row(
