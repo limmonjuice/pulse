@@ -48,8 +48,8 @@ class ChatBubble extends StatelessWidget {
     final Color textColor = softVariant
         ? AppColors.crisisBody
         : isUser
-            ? Colors.white
-            : AppColors.text;
+        ? Colors.white
+        : AppColors.text;
 
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -57,7 +57,9 @@ class ChatBubble extends StatelessWidget {
         // sizeOf (not MediaQuery.of(context).size) scopes the rebuild
         // dependency to just the size field — MediaQuery.of would
         // rebuild every bubble in the list on keyboard open/close too.
-        constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.78),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width * 0.78,
+        ),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
           decoration: decoration,

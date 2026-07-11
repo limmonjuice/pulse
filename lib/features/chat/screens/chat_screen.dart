@@ -9,10 +9,7 @@ class ChatScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Chat')),
       body: Center(
-        child: Text(
-          'Chat screen — TODO',
-          style: theme.textTheme.titleLarge,
-        ),
+        child: Text('Chat screen — TODO', style: theme.textTheme.titleLarge),
       ),
     );
   }

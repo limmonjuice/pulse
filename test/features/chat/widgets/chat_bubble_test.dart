@@ -3,11 +3,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse_app/core/theme/app_theme.dart';
 import 'package:pulse_app/features/chat/widgets/chat_bubble.dart';
 
-Widget _wrap(Widget child) => MaterialApp(theme: AppTheme.light, home: Scaffold(body: child));
+Widget _wrap(Widget child) => MaterialApp(
+  theme: AppTheme.light,
+  home: Scaffold(body: child),
+);
 
 void main() {
   testWidgets('renders the message text', (tester) async {
-    await tester.pumpWidget(_wrap(const ChatBubble(text: 'hello', isUser: true)));
+    await tester.pumpWidget(
+      _wrap(const ChatBubble(text: 'hello', isUser: true)),
+    );
     expect(find.text('hello'), findsOneWidget);
   });
 
@@ -25,7 +30,9 @@ void main() {
 
   testWidgets('softVariant renders without throwing', (tester) async {
     await tester.pumpWidget(
-      _wrap(const ChatBubble(text: 'still here', isUser: false, softVariant: true)),
+      _wrap(
+        const ChatBubble(text: 'still here', isUser: false, softVariant: true),
+      ),
     );
     expect(find.text('still here'), findsOneWidget);
   });

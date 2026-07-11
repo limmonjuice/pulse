@@ -7,12 +7,17 @@ import 'package:pulse_app/features/chat/widgets/error_bubble.dart';
 void main() {
   testWidgets('renders the message and a retry tap resends', (tester) async {
     var retried = false;
-    await tester.pumpWidget(MaterialApp(
-      theme: AppTheme.light,
-      home: Scaffold(
-        body: ErrorBubble(message: 'Something went wrong', onRetry: () => retried = true),
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Scaffold(
+          body: ErrorBubble(
+            message: 'Something went wrong',
+            onRetry: () => retried = true,
+          ),
+        ),
       ),
-    ));
+    );
 
     expect(find.text('Something went wrong'), findsOneWidget);
 

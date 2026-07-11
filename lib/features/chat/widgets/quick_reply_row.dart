@@ -6,7 +6,11 @@ import '../../../core/theme/app_theme.dart';
 /// chips shown below a question turn. Tapping a chip sends its label as
 /// the user's next message.
 class QuickReplyRow extends StatelessWidget {
-  const QuickReplyRow({super.key, required this.options, required this.onSelect});
+  const QuickReplyRow({
+    super.key,
+    required this.options,
+    required this.onSelect,
+  });
 
   final List<String> options;
   final ValueChanged<String> onSelect;
@@ -16,7 +20,8 @@ class QuickReplyRow extends StatelessWidget {
     final theme = Theme.of(context);
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      reverse: true, // anchors to the right, matching the design, even if it overflows
+      reverse:
+          true, // anchors to the right, matching the design, even if it overflows
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -30,7 +35,10 @@ class QuickReplyRow extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppRadii.pill),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 13,
+                  vertical: 8,
+                ),
                 textStyle: theme.textTheme.titleMedium?.copyWith(fontSize: 13),
               ),
               child: Text(option),

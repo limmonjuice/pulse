@@ -21,7 +21,9 @@ class ErrorBubble extends StatelessWidget {
       child: ConstrainedBox(
         // sizeOf, not MediaQuery.of(context).size — see Task 10's
         // ChatBubble for why.
-        constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.88),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width * 0.88,
+        ),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
           decoration: BoxDecoration(
@@ -41,7 +43,10 @@ class ErrorBubble extends StatelessWidget {
                 width: 24,
                 height: 24,
                 margin: const EdgeInsets.only(top: 1),
-                decoration: BoxDecoration(color: honey.tint, shape: BoxShape.circle),
+                decoration: BoxDecoration(
+                  color: honey.tint,
+                  shape: BoxShape.circle,
+                ),
                 child: Icon(Icons.error_outline, size: 14, color: honey.text),
               ),
               const SizedBox(width: 11),

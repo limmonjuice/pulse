@@ -6,7 +6,10 @@ import 'package:pulse_app/features/chat/widgets/typing_indicator.dart';
 void main() {
   testWidgets('renders three dots and animates without error', (tester) async {
     await tester.pumpWidget(
-      MaterialApp(theme: AppTheme.light, home: const Scaffold(body: TypingIndicator())),
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const Scaffold(body: TypingIndicator()),
+      ),
     );
 
     // Do NOT use pumpAndSettle — the animation repeats forever by design.
