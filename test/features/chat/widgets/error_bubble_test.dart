@@ -26,4 +26,20 @@ void main() {
 
     expect(retried, isTrue);
   });
+
+  testWidgets('the retry tap target meets the 44px minimum touch target', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Scaffold(
+          body: ErrorBubble(message: 'msg', onRetry: () {}),
+        ),
+      ),
+    );
+
+    final inkWell = tester.getSize(find.byType(InkWell));
+    expect(inkWell.height, greaterThanOrEqualTo(AppSpacing.minTouchTarget));
+  });
 }

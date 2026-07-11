@@ -14,7 +14,10 @@ class ErrorBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final honey = Theme.of(context).extension<UrgencyColors>()!.seeDoctorSoon;
+    // Amber accent reused purely for its warm, non-alarming color — an
+    // ErrorBubble is a parse/network failure, not a clinical urgency
+    // signal. Do not read this as UrgencyLevel.seeDoctorSoon triage.
+    final honey = theme.extension<UrgencyColors>()!.seeDoctorSoon;
 
     return Align(
       alignment: Alignment.centerLeft,
@@ -58,13 +61,26 @@ class ErrorBubble extends StatelessWidget {
                     const SizedBox(height: 8),
                     InkWell(
                       onTap: onRetry,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Text(
-                          'Tap to try again',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: AppColors.primaryInk,
-                            fontWeight: FontWeight.w600,
+                      borderRadius: BorderRadius.circular(
+                        AppRadii.buttonInCard,
+                      ),
+                      child: ConstrainedBox(
+                        // Genuinely hit AppSpacing.minTouchTarget (44),
+                        // not just an incremental improvement — this is
+                        // a retry-after-failure affordance, arguably
+                        // higher-stakes to get right than an ordinary
+                        // link. Found during Task 13 code review.
+                        constraints: const BoxConstraints(
+                          minHeight: AppSpacing.minTouchTarget,
+                        ),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Tap to try again',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: AppColors.primaryInk,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ),
