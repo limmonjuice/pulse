@@ -25,6 +25,8 @@ class CrisisCard extends StatelessWidget {
     final theme = Theme.of(context);
     return Container(
       width: double.infinity,
+      // 22 is exactly AppSpacing.cardPaddingMax — use the token, not the
+      // literal, matching AssessmentCard's own use of the same constant.
       padding: const EdgeInsets.all(AppSpacing.cardPaddingMax),
       decoration: BoxDecoration(
         color: AppColors.tintTeal,
@@ -39,7 +41,7 @@ class CrisisCard extends StatelessWidget {
               Container(
                 width: 40,
                 height: 40,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
                       AppColors.companionGradientLight,
