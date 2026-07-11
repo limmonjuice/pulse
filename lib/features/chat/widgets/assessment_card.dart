@@ -80,8 +80,12 @@ class AssessmentCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(_tierLabel[urgency]!,
-                        style: theme.textTheme.titleLarge?.copyWith(color: palette.text)),
+                    Text(
+                      _tierLabel[urgency]!,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        color: palette.text,
+                      ),
+                    ),
                     const SizedBox(height: 4),
                     Text('PULSE GUIDANCE', style: theme.textTheme.labelMedium),
                   ],
@@ -148,7 +152,9 @@ class AssessmentCard extends StatelessWidget {
             Text(
               result.encouragement!,
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textFaintAlt),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppColors.textFaintAlt,
+              ),
             ),
           ],
         ],
@@ -158,7 +164,11 @@ class AssessmentCard extends StatelessWidget {
 }
 
 class _SelfCareRow extends StatelessWidget {
-  const _SelfCareRow({required this.text, required this.done, required this.onTap});
+  const _SelfCareRow({
+    required this.text,
+    required this.done,
+    required this.onTap,
+  });
   final String text;
   final bool done;
   final VoidCallback onTap;
@@ -187,16 +197,23 @@ class _SelfCareRow extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                   border: done
                       ? null
-                      : Border.all(color: AppColors.selfCareUncheckedBorder, width: 2),
+                      : Border.all(
+                          color: AppColors.selfCareUncheckedBorder,
+                          width: 2,
+                        ),
                 ),
-                child: done ? const Icon(Icons.check, size: 15, color: Colors.white) : null,
+                child: done
+                    ? const Icon(Icons.check, size: 15, color: Colors.white)
+                    : null,
               ),
               const SizedBox(width: 11),
               Expanded(
                 child: Text(
                   text,
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: done ? AppColors.selfCareCheckedText : AppColors.text,
+                    color: done
+                        ? AppColors.selfCareCheckedText
+                        : AppColors.text,
                     decoration: done ? TextDecoration.lineThrough : null,
                   ),
                 ),
@@ -225,9 +242,15 @@ class _MonitoringRow extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const Icon(Icons.history_rounded, size: 15, color: AppColors.primaryInk),
+            const Icon(
+              Icons.history_rounded,
+              size: 15,
+              color: AppColors.primaryInk,
+            ),
             const SizedBox(width: 11),
-            Expanded(child: Text(text, style: Theme.of(context).textTheme.bodyMedium)),
+            Expanded(
+              child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
+            ),
           ],
         ),
       ),
@@ -258,7 +281,9 @@ class _WatchForPill extends StatelessWidget {
             Expanded(
               child: Text(
                 text,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: coral.text),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: coral.text),
               ),
             ),
           ],
