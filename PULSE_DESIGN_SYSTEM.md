@@ -185,6 +185,7 @@ source of truth rather than drifting behind the code.
 | `AppColors.selfCareChecked` | `#8FB89A` | Checked-off self-care row's check-icon background. Numerically equal to `UrgencyColors.monitorAtHome.solid` (sage) but kept as its own token — a "done" state, not an urgency read; the mockup happens to reuse the same green. |
 | `AppColors.selfCareUncheckedBorder` | `#CFD9D1` | Unchecked self-care row's checkbox border. |
 | `AppColors.selfCareCheckedText` | `#9BA6A2` | Checked-off self-care row's strikethrough text color. |
+| `AppColors.companionGradientLight` | `#8FC3CD` | Lighter stop of the companion-blob gradient (§6: "teal gradient #8FC3CD → #6FA8B5"); `--primary` is the darker stop. Found while implementing Task 15 (crisis card blob); also used by Task 17's chat header avatar. |
 
 ### Type
 | Style | Font / weight | Size | Notes |

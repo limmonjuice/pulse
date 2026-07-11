@@ -62,6 +62,12 @@ class AppColors {
   static const Color selfCareUncheckedBorder = Color(0xFFCFD9D1);
   static const Color selfCareCheckedText = Color(0xFF9BA6A2);
 
+  /// The lighter stop of the companion-blob gradient (design doc §6:
+  /// "teal gradient #8FC3CD → #6FA8B5"). `primary` is already the darker
+  /// stop; this was the missing half, found while implementing Task 15
+  /// (the crisis card's blob) and reused by Task 17's chat header avatar.
+  static const Color companionGradientLight = Color(0xFF8FC3CD);
+
   /// Household-profile avatar accents. Cycle through these in order as
   /// profiles are created — do not assign colors arbitrarily.
   static const List<Color> avatarAccents = [
