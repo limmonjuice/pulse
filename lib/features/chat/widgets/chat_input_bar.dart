@@ -1,0 +1,121 @@
+// lib/features/chat/widgets/chat_input_bar.dart
+import 'package:flutter/material.dart';
+
+import '../../../core/theme/app_theme.dart';
+
+/// The message input pill: text field with a 2000-char client-side cap
+/// (matching functions/main.py's MAX_MESSAGE_LENGTH), a friendly counter
+/// shown only near the limit, a mic icon (TODO: visual only this pass —
+/// no voice input yet), and a circular send button.
+class ChatInputBar extends StatefulWidget {
+  const ChatInputBar({super.key, required this.onSend, this.enabled = true});
+
+  final ValueChanged<String> onSend;
+  final bool enabled;
+
+  @override
+  State<ChatInputBar> createState() => _ChatInputBarState();
+}
+
+class _ChatInputBarState extends State<ChatInputBar> {
+  static const _maxLength = 2000;
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (!widget.enabled) return;
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
+    widget.onSend(text);
+    setState(_controller.clear);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final remaining = _maxLength - _controller.text.length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        if (remaining <= 200)
+          Padding(
+            padding: const EdgeInsets.only(right: 8, bottom: 4),
+            child: Text(
+              '$remaining left',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: remaining <= 0
+                    ? AppColors.crisisFooterText
+                    : AppColors.textFaint,
+              ),
+            ),
+          ),
+        Container(
+          padding: const EdgeInsets.fromLTRB(18, 8, 8, 8),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppRadii.pill),
+            boxShadow: AppShadows.card,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _controller,
+                  maxLength: _maxLength,
+                  enabled: widget.enabled,
+                  minLines: 1,
+                  maxLines: 4,
+                  onChanged: (_) => setState(() {}),
+                  onSubmitted: (_) => _submit(),
+                  buildCounter:
+                      (
+                        _, {
+                        required currentLength,
+                        required isFocused,
+                        maxLength,
+                      }) => null,
+                  decoration: InputDecoration(
+                    border: InputBorder.none,
+                    isDense: true,
+                    hintText: 'Message Pulse…',
+                    hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textFaintAlt,
+                    ),
+                  ),
+                ),
+              ),
+              // Mic — TODO: visual only this pass, wire voice input later.
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 6),
+                child: Icon(Icons.mic_none_rounded, color: AppColors.primary),
+              ),
+              InkWell(
+                onTap: widget.enabled ? _submit : null,
+                borderRadius: BorderRadius.circular(21),
+                child: Container(
+                  width: 42,
+                  height: 42,
+                  decoration: const BoxDecoration(
+                    color: AppColors.primaryDeep,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.arrow_upward_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
