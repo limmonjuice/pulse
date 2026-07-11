@@ -48,4 +48,23 @@ void main() {
 
     expect(launched, Uri.parse(crisisResources.first.phoneUri));
   });
+
+  testWidgets(
+    'shows a fallback message with the number spelled out when the launcher fails',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: Scaffold(
+            body: CrisisCard(message: 'msg', launcher: (_) async => false),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text(crisisResources.first.name));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining(crisisResources.first.number), findsWidgets);
+    },
+  );
 }

@@ -100,7 +100,32 @@ class CrisisCard extends StatelessWidget {
                 // visually-different value; a real gap worth tokenizing
                 // in a follow-up pass alongside the rest of §8.
                 borderRadius: BorderRadius.circular(18),
-                onTap: () => launcher(Uri.parse(resource.phoneUri)),
+                // This is the single highest-stakes tap target in the
+                // whole feature — a hotline row for a user the app has
+                // just flagged as possibly in crisis. A silent no-op if
+                // launchUrl returns false (no dialer app) or throws
+                // (platform exception) is the worst failure mode to
+                // leave unhandled here. Found during code review — fall
+                // back to a visible message with the number spelled out
+                // rather than fire-and-forget.
+                onTap: () async {
+                  var launched = false;
+                  try {
+                    launched = await launcher(Uri.parse(resource.phoneUri));
+                  } catch (_) {
+                    launched = false;
+                  }
+                  if (!launched && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        backgroundColor: AppColors.primaryDeep,
+                        content: Text(
+                          "Couldn't reach your dialer. ${resource.number}.",
+                        ),
+                      ),
+                    );
+                  }
+                },
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 15,
