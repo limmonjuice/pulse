@@ -43,18 +43,35 @@ class _ChatInputBarState extends State<ChatInputBar> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        if (remaining <= 200)
-          Padding(
-            padding: const EdgeInsets.only(right: 8, bottom: 4),
-            child: Text(
-              '$remaining left',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: remaining <= 0
-                    ? AppColors.crisisFooterText
-                    : AppColors.textFaint,
+        // Fixed-height slot (not a conditionally-inserted sibling): this
+        // widget sits directly above the scrolling transcript's Expanded
+        // ListView in Task 17's Column, so if the counter's presence
+        // changed ChatInputBar's total height, the transcript viewport
+        // would instantly snap taller/shorter the moment a message
+        // crosses 1800 chars — jarring mid-typing. AnimatedOpacity keeps
+        // the height constant and fades the text in/out instead. Found
+        // during Task 16 code review.
+        SizedBox(
+          height: 20,
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 8, bottom: 4),
+              child: AnimatedOpacity(
+                opacity: remaining <= 200 ? 1 : 0,
+                duration: const Duration(milliseconds: 150),
+                child: Text(
+                  '$remaining left',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: remaining <= 0
+                        ? AppColors.crisisFooterText
+                        : AppColors.textFaint,
+                  ),
+                ),
               ),
             ),
           ),
+        ),
         Container(
           padding: const EdgeInsets.fromLTRB(18, 8, 8, 8),
           decoration: BoxDecoration(
@@ -106,8 +123,14 @@ class _ChatInputBarState extends State<ChatInputBar> {
                 child: Container(
                   width: 42,
                   height: 42,
-                  decoration: const BoxDecoration(
-                    color: AppColors.primaryDeep,
+                  decoration: BoxDecoration(
+                    // Dimmed when disabled so the button doesn't look
+                    // tappable while chatIsSendingProvider is true and
+                    // onTap is silently null — found during Task 16
+                    // code review (Task 17 wires enabled: !isLoading).
+                    color: widget.enabled
+                        ? AppColors.primaryDeep
+                        : AppColors.primaryDeep.withValues(alpha: 0.4),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(

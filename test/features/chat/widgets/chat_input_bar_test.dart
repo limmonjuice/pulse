@@ -43,4 +43,32 @@ void main() {
 
     expect(called, isFalse);
   });
+
+  testWidgets('a disabled ChatInputBar dims the send button and ignores taps', (
+    tester,
+  ) async {
+    var called = false;
+    await tester.pumpWidget(
+      _wrap(ChatInputBar(onSend: (_) => called = true, enabled: false)),
+    );
+
+    final container = tester.widget<Container>(
+      find
+          .ancestor(
+            of: find.byIcon(Icons.arrow_upward_rounded),
+            matching: find.byType(Container),
+          )
+          .first,
+    );
+    final decoration = container.decoration! as BoxDecoration;
+    expect(decoration.color, AppColors.primaryDeep.withValues(alpha: 0.4));
+
+    await tester.tap(
+      find.byIcon(Icons.arrow_upward_rounded),
+      warnIfMissed: false,
+    );
+    await tester.pump();
+
+    expect(called, isFalse);
+  });
 }
