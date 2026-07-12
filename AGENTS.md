@@ -37,7 +37,20 @@ Use the following stack. Do not introduce alternatives without asking first.
 - Flutter (Dart, null-safety strict)
 - State management: `flutter_riverpod`
 - Routing: `go_router`
-- Chat UI: `flutter_chat_ui`
+- Chat UI: hand-rolled `ListView.builder` + custom per-turn widgets (see
+  `features/chat/widgets/`). Originally slated for `flutter_chat_ui`;
+  reversed 2026-07-10 during the Chat-screen design pass — the approved
+  design's per-turn cards (quick-reply chip rows, an assessment card with
+  a checklist, a teal-tint crisis card) go well beyond flutter_chat_ui's
+  message-bubble model, and its own bubble/composer theming would need
+  near-total overriding anyway to hit pixel fidelity. `flutter_chat_ui`
+  remains in `pubspec.yaml` but is unused as of this decision.
+  Concrete removal trigger: once the History and Household screens are
+  both built, if neither adopted it either, run `flutter pub remove
+  flutter_chat_ui` and delete this paragraph.
+- Tap-to-dial (crisis resources only): `url_launcher` — approved
+  2026-07-10 for the Chat screen's crisis-card hotline rows (dial the
+  number on tap). Not used anywhere else yet.
 - Auth: Firebase Authentication (`firebase_auth`) — email/password
 - Database: Cloud Firestore (`cloud_firestore`) — profiles, conversations,
   messages. Relies on Firestore's built-in offline cache; no separate local
