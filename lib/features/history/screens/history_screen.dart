@@ -9,10 +9,7 @@ class HistoryScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('History')),
       body: Center(
-        child: Text(
-          'History screen — TODO',
-          style: theme.textTheme.titleLarge,
-        ),
+        child: Text('History screen — TODO', style: theme.textTheme.titleLarge),
       ),
     );
   }
