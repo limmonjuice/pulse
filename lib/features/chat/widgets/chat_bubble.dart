@@ -45,11 +45,14 @@ class ChatBubble extends StatelessWidget {
             boxShadow: isUser ? AppShadows.userBubble : AppShadows.card,
           );
 
-    final Color textColor = softVariant
-        ? AppColors.crisisBody
-        : isUser
-        ? Colors.white
-        : AppColors.text;
+    // User bubble text is now AppColors.text, not Colors.white —
+    // white-on-primary measured ~2.64:1, failing WCAG AA (4.5:1 needed at
+    // this bodyMedium size/weight). AppColors.text on the unchanged teal
+    // fill measures ~4.08:1: a large improvement, but still short of
+    // 4.5:1 for normal-size text (it does clear the AA large-text/
+    // UI-component 3:1 bar). Flagged, not silently resolved further — see
+    // PULSE_DESIGN_SYSTEM.md's chat-bubble entry.
+    final Color textColor = softVariant ? AppColors.crisisBody : AppColors.text;
 
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,

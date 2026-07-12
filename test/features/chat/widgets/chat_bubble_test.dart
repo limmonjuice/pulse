@@ -28,6 +28,17 @@ void main() {
     expect(align.alignment, Alignment.centerLeft);
   });
 
+  testWidgets(
+    'a user bubble renders dark text, not white, for WCAG AA contrast',
+    (tester) async {
+      await tester.pumpWidget(
+        _wrap(const ChatBubble(text: 'hi', isUser: true)),
+      );
+      final text = tester.widget<Text>(find.text('hi'));
+      expect(text.style?.color, AppColors.text);
+    },
+  );
+
   testWidgets('softVariant renders without throwing', (tester) async {
     await tester.pumpWidget(
       _wrap(

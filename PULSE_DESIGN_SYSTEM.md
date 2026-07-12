@@ -123,7 +123,7 @@ Minimum body size on mobile: **12px**. Prefer 14px+ for anything a user reads wh
 
 **Chat bubbles**
 - *Pulse (assistant):* white surface, radius `22 22 22 8`, resting shadow, `--text` body.
-- *User:* `--primary` fill, white text, radius `22 22 8 22`, teal shadow, right-aligned, max-width ~78%.
+- *User:* `--primary` fill, **`--text` body (not white)** — white-on-`--primary` measures ~2.64:1, failing WCAG AA; `--text` on the same fill measures ~4.08:1, a large improvement, though still short of the 4.5:1 normal-text threshold at this bodyMedium size/weight (it clears the 3:1 large-text/UI-component bar). Fixed 2026-07-12 — users read this screen while unwell, and legible-while-unwell is this design system's own stated principle (§ UI Quality Bar). Fill and shape unchanged: radius `22 22 8 22`, teal shadow, right-aligned, max-width ~78%.
 
 **Quick-reply chips** — pill, Nunito 700 13px. Unselected: white fill, `--chip-border` outline, `--primary-ink` text. Selected: `--primary` fill, white text. Kept on a single non-wrapping row above the input.
 
