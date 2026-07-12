@@ -130,6 +130,62 @@ void main() {
       findsOneWidget,
     ); // exactly one, not duplicated
   });
+
+  testWidgets(
+    'toggling a self-care checkbox does not trigger an auto-scroll-to-bottom',
+    (tester) async {
+      // A shrunk physical viewport (rather than relying on a single
+      // assessment card's natural height) guarantees the transcript is
+      // genuinely scrollable — without this, maxScrollExtent can be 0
+      // in the default test viewport, silently making the assertion
+      // below pass even with the bug this test exists to catch
+      // reintroduced (verified: this exact test, unmodified except for
+      // this viewport shrink, fails against the pre-fix code and passes
+      // against the fix).
+      tester.view.physicalSize = const Size(400, 500);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await _pump(
+        tester,
+        _ScriptedRepository([
+          const UrgencyResult(
+            type: ChatTurnType.assessment,
+            message: 'msg',
+            urgency: UrgencyLevel.monitorAtHome,
+            selfCare: ['Rest', 'Fluids'],
+          ),
+        ]),
+      );
+
+      await tester.enterText(find.byType(TextField), 'I have a mild cold');
+      await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
+      await tester.pumpAndSettle();
+
+      final controller = tester
+          .widget<ListView>(find.byType(ListView))
+          .controller!;
+      expect(
+        controller.position.maxScrollExtent,
+        greaterThan(0),
+        reason: 'test setup must produce a genuinely scrollable transcript',
+      );
+
+      // Simulate the user having scrolled up from the bottom to read
+      // something earlier, then toggling a checkbox — this must not
+      // yank them back down.
+      final midpoint = controller.position.maxScrollExtent / 2;
+      controller.jumpTo(midpoint);
+      await tester.pump();
+      final offsetBeforeToggle = controller.offset;
+
+      await tester.tap(find.text('Rest'));
+      await tester.pumpAndSettle();
+
+      expect(controller.offset, offsetBeforeToggle);
+    },
+  );
 }
 
 class _CountingThenSucceedingRepository implements ChatRepository {

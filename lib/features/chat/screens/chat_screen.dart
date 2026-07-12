@@ -43,7 +43,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(chatControllerProvider, (_, __) => _scrollToBottom());
+    // Only scroll when a turn was actually appended (list length grew),
+    // not on every state change — chatControllerProvider also emits a
+    // new state on toggleSelfCare() (checking a self-care box), which
+    // uses the exact same provider. Without this guard, ticking a
+    // checklist item on an AssessmentCard that isn't the last thing on
+    // screen would yank the viewport to the bottom mid-interaction.
+    // Found during Task 17 code review.
+    ref.listen(chatControllerProvider, (previous, next) {
+      final previousLength = previous?.value?.length ?? 0;
+      final nextLength = next.value?.length ?? 0;
+      if (nextLength > previousLength) _scrollToBottom();
+    });
     final state = ref.watch(chatControllerProvider);
     final messages = state.value ?? const <Message>[];
     // Not state.isLoading: see chatIsSendingProvider's doc comment in
