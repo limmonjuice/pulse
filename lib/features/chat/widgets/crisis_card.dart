@@ -89,94 +89,20 @@ class CrisisCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 11),
-          for (final resource in crisisResources)
+          for (final resource in crisisResources) ...[
             Padding(
-              padding: const EdgeInsets.only(bottom: 9),
-              child: InkWell(
-                // Note: 18 doesn't map to an existing AppRadii token (the
-                // closest named row radii are cardRowRadius/14 and
-                // pillRowRadius/13 from AssessmentCard's rows) — left as
-                // an inline literal rather than reusing a
-                // visually-different value; a real gap worth tokenizing
-                // in a follow-up pass alongside the rest of §8.
-                borderRadius: BorderRadius.circular(18),
-                // This is the single highest-stakes tap target in the
-                // whole feature — a hotline row for a user the app has
-                // just flagged as possibly in crisis. A silent no-op if
-                // launchUrl returns false (no dialer app) or throws
-                // (platform exception) is the worst failure mode to
-                // leave unhandled here. Found during code review — fall
-                // back to a visible message with the number spelled out
-                // rather than fire-and-forget.
-                onTap: () async {
-                  var launched = false;
-                  try {
-                    launched = await launcher(Uri.parse(resource.phoneUri));
-                  } catch (_) {
-                    launched = false;
-                  }
-                  if (!launched && context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        backgroundColor: AppColors.primaryDeep,
-                        content: Text(
-                          "Couldn't reach your dialer. ${resource.number}.",
-                        ),
-                      ),
-                    );
-                  }
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 15,
-                    vertical: 14,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: AppShadows.card,
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: const BoxDecoration(
-                          color: AppColors.tintTeal,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.phone_outlined,
-                          color: AppColors.primaryInk,
-                          size: 19,
-                        ),
-                      ),
-                      const SizedBox(width: 13),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              resource.name,
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontSize: 14.5,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              resource.number,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(
+                resource.name,
+                style: theme.textTheme.titleMedium?.copyWith(fontSize: 14.5),
               ),
             ),
+            for (final contact in resource.contacts)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 9),
+                child: _ContactRow(contact: contact, launcher: launcher),
+              ),
+          ],
           const SizedBox(height: 4),
           Text(
             "No pressure at all. I'll still be here whenever you want to keep talking.",
@@ -186,6 +112,103 @@ class CrisisCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// One tappable way to reach a [CrisisResource] — a call, text, or email
+/// contact. Icon and launch scheme (tel:/sms:/mailto:) vary by
+/// [CrisisContact.type]; visual treatment is identical across all three.
+class _ContactRow extends StatelessWidget {
+  const _ContactRow({required this.contact, required this.launcher});
+
+  final CrisisContact contact;
+  final Future<bool> Function(Uri) launcher;
+
+  static const _icons = {
+    ContactType.call: Icons.phone_outlined,
+    ContactType.text: Icons.sms_outlined,
+    ContactType.email: Icons.email_outlined,
+  };
+
+  // What to call the app that failed to open, in the fallback message —
+  // "dialer" for a phone call reads oddly for an SMS or email attempt.
+  static const _appNouns = {
+    ContactType.call: 'dialer',
+    ContactType.text: 'messages',
+    ContactType.email: 'email app',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final display = contact.label == null
+        ? contact.value
+        : '${contact.value} (${contact.label})';
+
+    return InkWell(
+      // Note: 18 doesn't map to an existing AppRadii token (the closest
+      // named row radii are cardRowRadius/14 and pillRowRadius/13 from
+      // AssessmentCard's rows) — left as an inline literal rather than
+      // reusing a visually-different value; a real gap worth tokenizing
+      // in a follow-up pass alongside the rest of §8.
+      borderRadius: BorderRadius.circular(18),
+      // This is the single highest-stakes tap target in the whole
+      // feature — a hotline row for a user the app has just flagged as
+      // possibly in crisis. A silent no-op if launchUrl returns false
+      // (no matching app) or throws (platform exception) is the worst
+      // failure mode to leave unhandled here — fall back to a visible
+      // message with the contact spelled out rather than fire-and-forget.
+      onTap: () async {
+        var launched = false;
+        try {
+          launched = await launcher(contact.uri);
+        } catch (_) {
+          launched = false;
+        }
+        if (!launched && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: AppColors.primaryDeep,
+              content: Text(
+                "Couldn't open your ${_appNouns[contact.type]}. $display.",
+              ),
+            ),
+          );
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: AppShadows.card,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(
+                color: AppColors.tintTeal,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                _icons[contact.type],
+                color: AppColors.primaryInk,
+                size: 19,
+              ),
+            ),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Text(
+                display,
+                style: theme.textTheme.titleMedium?.copyWith(fontSize: 14.5),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
