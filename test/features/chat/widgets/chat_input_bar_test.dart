@@ -68,20 +68,33 @@ void main() {
   });
 
   testWidgets(
-    'ChatInputBar is the same total height whether or not the char counter is showing',
+    'the char-counter row height is constant across remaining values, isolated from '
+    'TextField wrapping and ambient parent constraints',
     (tester) async {
-      await tester.pumpWidget(_wrap(ChatInputBar(onSend: (_) {})));
-      final heightWithoutCounter = tester
-          .getSize(find.byType(ChatInputBar))
-          .height;
+      // Deliberately does NOT measure ChatInputBar's outer size: under
+      // Scaffold(body: ChatInputBar(...)), the root Column receives a
+      // bounded height and (mainAxisSize.max, the default) fills it
+      // regardless of content, so the outer size tracks the viewport,
+      // not the widget's real content height — that earlier version of
+      // this test passed even with the original bug reintroduced.
+      // Measuring the counter row's own keyed size sidesteps that, and
+      // also avoids conflating the counter with the TextField's
+      // separate up-to-4-line growth as more text is typed.
+      Future<double> counterRowHeightFor(int length) async {
+        await tester.pumpWidget(_wrap(ChatInputBar(onSend: (_) {})));
+        await tester.enterText(find.byType(TextField), 'x' * length);
+        await tester.pump();
+        return tester
+            .getSize(find.byKey(const Key('chatInputBar.counterRow')))
+            .height;
+      }
 
-      await tester.enterText(find.byType(TextField), 'x' * 1850);
-      await tester.pump();
-      final heightWithCounter = tester
-          .getSize(find.byType(ChatInputBar))
-          .height;
+      final hidden = await counterRowHeightFor(0); // remaining = 2000
+      final visible = await counterRowHeightFor(1850); // remaining = 150
+      final atZero = await counterRowHeightFor(2000); // remaining = 0
 
-      expect(heightWithCounter, heightWithoutCounter);
+      expect(visible, hidden);
+      expect(atZero, hidden);
     },
   );
 }

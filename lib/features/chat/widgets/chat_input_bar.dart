@@ -59,6 +59,16 @@ class _ChatInputBarState extends State<ChatInputBar> {
         // the same intrinsic height regardless of which digits it
         // shows — found during Task 16 code review.
         Align(
+          // Keyed so a test can measure this row's own height in
+          // isolation from the surrounding ambient layout (a Column's
+          // resolved size depends on its parent's constraints, and the
+          // TextField below can itself grow up to maxLines: 4 — neither
+          // should be conflated with whether this specific row's height
+          // is stable). Found during Task 16 code review, after an
+          // earlier regression test measuring the whole widget's outer
+          // size turned out to pass even with the original bug
+          // reintroduced.
+          key: const Key('chatInputBar.counterRow'),
           alignment: Alignment.centerRight,
           child: Padding(
             padding: const EdgeInsets.only(right: 8, bottom: 4),
