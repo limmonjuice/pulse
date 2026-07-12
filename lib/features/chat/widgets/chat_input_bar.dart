@@ -43,30 +43,34 @@ class _ChatInputBarState extends State<ChatInputBar> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        // Fixed-height slot (not a conditionally-inserted sibling): this
-        // widget sits directly above the scrolling transcript's Expanded
-        // ListView in Task 17's Column, so if the counter's presence
-        // changed ChatInputBar's total height, the transcript viewport
-        // would instantly snap taller/shorter the moment a message
-        // crosses 1800 chars — jarring mid-typing. AnimatedOpacity keeps
-        // the height constant and fades the text in/out instead. Found
-        // during Task 16 code review.
-        SizedBox(
-          height: 20,
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: Padding(
-              padding: const EdgeInsets.only(right: 8, bottom: 4),
-              child: AnimatedOpacity(
-                opacity: remaining <= 200 ? 1 : 0,
-                duration: const Duration(milliseconds: 150),
-                child: Text(
-                  '$remaining left',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: remaining <= 0
-                        ? AppColors.crisisFooterText
-                        : AppColors.textFaint,
-                  ),
+        // Always rendered (never a conditionally-inserted sibling), only
+        // opacity toggles: this widget sits directly above the scrolling
+        // transcript's Expanded ListView in Task 17's Column, so if the
+        // counter's presence changed ChatInputBar's total height, the
+        // transcript viewport would instantly snap taller/shorter the
+        // moment a message crosses 1800 chars — jarring mid-typing.
+        // Deliberately NOT wrapped in a fixed-height SizedBox: an
+        // earlier version of this fix used SizedBox(height: 20), which
+        // clips the text at larger accessibility text-scale settings
+        // (Android "Large"/iOS "Larger Text", both mainstream, not edge
+        // cases — verified against Flutter's RenderParagraph/Align
+        // layout behavior). Letting Text size itself naturally still
+        // eliminates the jank, since a single-line "N left" string has
+        // the same intrinsic height regardless of which digits it
+        // shows — found during Task 16 code review.
+        Align(
+          alignment: Alignment.centerRight,
+          child: Padding(
+            padding: const EdgeInsets.only(right: 8, bottom: 4),
+            child: AnimatedOpacity(
+              opacity: remaining <= 200 ? 1 : 0,
+              duration: const Duration(milliseconds: 150),
+              child: Text(
+                '$remaining left',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: remaining <= 0
+                      ? AppColors.crisisFooterText
+                      : AppColors.textFaint,
                 ),
               ),
             ),
@@ -121,6 +125,13 @@ class _ChatInputBarState extends State<ChatInputBar> {
                 onTap: widget.enabled ? _submit : null,
                 borderRadius: BorderRadius.circular(21),
                 child: Container(
+                  // Keyed so tests target this exact Container by
+                  // identity rather than "nearest Container ancestor of
+                  // the icon" — that ancestor-position match would
+                  // silently start matching a different Container if
+                  // one were ever added between the icon and this one.
+                  // Found during Task 16 code review.
+                  key: const Key('chatInputBar.sendButtonFill'),
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(

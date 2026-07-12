@@ -53,12 +53,7 @@ void main() {
     );
 
     final container = tester.widget<Container>(
-      find
-          .ancestor(
-            of: find.byIcon(Icons.arrow_upward_rounded),
-            matching: find.byType(Container),
-          )
-          .first,
+      find.byKey(const Key('chatInputBar.sendButtonFill')),
     );
     final decoration = container.decoration! as BoxDecoration;
     expect(decoration.color, AppColors.primaryDeep.withValues(alpha: 0.4));
@@ -71,4 +66,22 @@ void main() {
 
     expect(called, isFalse);
   });
+
+  testWidgets(
+    'ChatInputBar is the same total height whether or not the char counter is showing',
+    (tester) async {
+      await tester.pumpWidget(_wrap(ChatInputBar(onSend: (_) {})));
+      final heightWithoutCounter = tester
+          .getSize(find.byType(ChatInputBar))
+          .height;
+
+      await tester.enterText(find.byType(TextField), 'x' * 1850);
+      await tester.pump();
+      final heightWithCounter = tester
+          .getSize(find.byType(ChatInputBar))
+          .height;
+
+      expect(heightWithCounter, heightWithoutCounter);
+    },
+  );
 }
