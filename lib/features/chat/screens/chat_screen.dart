@@ -33,16 +33,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) return;
-      // jumpTo, not animateTo: ListView.separated only lays out items
-      // within the viewport (plus a small cache extent), so a new
-      // off-screen message isn't actually built until the scroll
-      // position that reveals it has been applied. An animated scroll
-      // reaches that position only after its full duration elapses —
-      // fine in the running app, but it also means any test would need
-      // to pump for that entire duration (or pumpAndSettle) just to see
-      // the newest message. Snapping instantly keeps "the latest turn
-      // is visible" true on the very next frame.
-      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
     });
   }
 

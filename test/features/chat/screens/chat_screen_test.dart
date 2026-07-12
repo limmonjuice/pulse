@@ -53,11 +53,7 @@ void main() {
 
       await tester.enterText(find.byType(TextField), 'I have a fever');
       await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
-      await tester.pump(); // user bubble + loading
-      await tester.pump(
-        const Duration(milliseconds: 50),
-      ); // let the future resolve
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       expect(find.text('38–39°'), findsOneWidget);
       await tester.tap(find.text('38–39°'));
@@ -89,9 +85,7 @@ void main() {
 
       await tester.enterText(find.byType(TextField), 'I feel hopeless');
       await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 50));
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       expect(
         find.text('Someone to talk to'),
@@ -100,9 +94,7 @@ void main() {
 
       await tester.enterText(find.byType(TextField), 'still feeling this way');
       await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 50));
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       // Still exactly one full crisis card (resource list), even though a
       // second crisis-type message arrived — it rendered as the soft bubble.
@@ -124,17 +116,13 @@ void main() {
 
     await tester.enterText(find.byType(TextField), 'I have a fever');
     await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     expect(find.text('Tap to try again'), findsOneWidget);
     expect(calls, 1);
 
     await tester.tap(find.text('Tap to try again'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     expect(calls, 2);
     expect(
