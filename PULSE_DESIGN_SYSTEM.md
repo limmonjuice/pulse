@@ -20,9 +20,9 @@
 |---|---|---|
 | `--bg-cream` | `#FBF7F0` | App background (warm off-white, never stark white) |
 | `--surface` | `#FFFFFF` | Cards, bubbles, sheets |
-| `--primary` | `#6FA8B5` | Brand teal — user bubbles, active accents, mic |
+| `--primary` | `#6FA8B5` | Brand teal — active accents, mic |
 | `--primary-deep` | `#4E8A97` | Primary CTA buttons, send button |
-| `--primary-ink` | `#3F7A86` | Teal text (labels, wordmark, active nav) |
+| `--primary-ink` | `#3F7A86` | Teal text (labels, wordmark, active nav); also the user chat-bubble fill (§5) — the only combination of existing tokens that clears WCAG AA contrast against white body text |
 | `--tint-teal` | `#EAF3F4` | Soft teal fill (invitation card, chips) |
 
 ### Text
@@ -123,7 +123,19 @@ Minimum body size on mobile: **12px**. Prefer 14px+ for anything a user reads wh
 
 **Chat bubbles**
 - *Pulse (assistant):* white surface, radius `22 22 22 8`, resting shadow, `--text` body.
-- *User:* `--primary` fill, **`--text` body (not white)** — white-on-`--primary` measures ~2.64:1, failing WCAG AA; `--text` on the same fill measures ~4.08:1, a large improvement, though still short of the 4.5:1 normal-text threshold at this bodyMedium size/weight (it clears the 3:1 large-text/UI-component bar). Fixed 2026-07-12 — users read this screen while unwell, and legible-while-unwell is this design system's own stated principle (§ UI Quality Bar). Fill and shape unchanged: radius `22 22 8 22`, teal shadow, right-aligned, max-width ~78%.
+- *User:* `--primary-ink` fill, **white body text**, radius `22 22 8 22`, teal shadow, right-aligned, max-width ~78%.
+
+  Contrast derivation (2026-07-12, superseding the 2026-07-12 `--text`-on-`--primary` attempt below) — every candidate computed programmatically via WCAG 2.x relative luminance (`lib/core/theme/contrast.dart`), not estimated by eye, tried in this order until one cleared 4.5:1 (AA, normal-size text):
+  | Candidate | Computed ratio | Result |
+  |---|---|---|
+  | White on `--primary` (`#6FA8B5`) — original | 2.6434:1 | fail |
+  | `--text` on `--primary` — first attempt's fix | 4.0825:1 | fail (short of 4.5) |
+  | White on `--primary-deep` (`#4E8A97`) | 3.8844:1 | fail |
+  | **White on `--primary-ink` (`#3F7A86`)** | **4.8394:1** | **pass — shipped** |
+
+  No new color had to be derived — the second existing token tried (`--primary-ink`) already cleared the bar. Pinned permanently by `test/features/chat/widgets/chat_bubble_test.dart`'s "PINNED" test, which recomputes the ratio from the widget's actual rendered colors (not hardcoded constants) and fails if it ever drops below 4.5 again; `test/core/theme/contrast_test.dart` unit-tests the underlying formula against known reference values (black/white = 21:1, `#767676`-on-white ≈ 4.5:1).
+
+  Note: `--primary-ink` was previously documented only as "teal text (labels, wordmark, active nav)" — this is its first use as a fill color. `AppShadows.userBubble` (still `--primary` at 28% opacity) was left unchanged since the fix was scoped to the fill/text pairing only; the shadow is a faint, desaturated accent and the mismatch is not visually significant, but it's a known, flagged loose end rather than a deliberate re-match.
 
 **Quick-reply chips** — pill, Nunito 700 13px. Unselected: white fill, `--chip-border` outline, `--primary-ink` text. Selected: `--primary` fill, white text. Kept on a single non-wrapping row above the input.
 

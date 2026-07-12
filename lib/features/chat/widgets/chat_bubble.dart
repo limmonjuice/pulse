@@ -31,7 +31,15 @@ class ChatBubble extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppRadii.card),
           )
         : BoxDecoration(
-            color: isUser ? AppColors.primary : AppColors.surface,
+            // User fill is primaryInk, not primary — white text on
+            // primary measured ~2.64:1 (fails AA), white on primaryDeep
+            // measured ~3.88:1 (still fails), white on primaryInk
+            // measures ~4.84:1 (passes the 4.5:1 AA threshold for
+            // normal-size text). See ContrastGuard in
+            // test/core/theme/contrast_test.dart, which pins this ratio
+            // so it can't silently regress. PULSE_DESIGN_SYSTEM.md's
+            // chat-bubble entry has the full derivation.
+            color: isUser ? AppColors.primaryInk : AppColors.surface,
             borderRadius: BorderRadius.only(
               topLeft: const Radius.circular(AppRadii.chatBubble),
               topRight: const Radius.circular(AppRadii.chatBubble),
@@ -45,14 +53,11 @@ class ChatBubble extends StatelessWidget {
             boxShadow: isUser ? AppShadows.userBubble : AppShadows.card,
           );
 
-    // User bubble text is now AppColors.text, not Colors.white —
-    // white-on-primary measured ~2.64:1, failing WCAG AA (4.5:1 needed at
-    // this bodyMedium size/weight). AppColors.text on the unchanged teal
-    // fill measures ~4.08:1: a large improvement, but still short of
-    // 4.5:1 for normal-size text (it does clear the AA large-text/
-    // UI-component 3:1 bar). Flagged, not silently resolved further — see
-    // PULSE_DESIGN_SYSTEM.md's chat-bubble entry.
-    final Color textColor = softVariant ? AppColors.crisisBody : AppColors.text;
+    final Color textColor = softVariant
+        ? AppColors.crisisBody
+        : isUser
+        ? Colors.white
+        : AppColors.text;
 
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
