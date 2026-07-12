@@ -1,16 +1,178 @@
+// lib/features/chat/screens/chat_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class ChatScreen extends StatelessWidget {
+import '../../../core/theme/app_theme.dart';
+import '../models/message.dart';
+import '../models/urgency_result.dart';
+import '../providers/chat_provider.dart';
+import '../widgets/assessment_card.dart';
+import '../widgets/chat_bubble.dart';
+import '../widgets/chat_input_bar.dart';
+import '../widgets/crisis_card.dart';
+import '../widgets/error_bubble.dart';
+import '../widgets/quick_reply_row.dart';
+import '../widgets/typing_indicator.dart';
+
+class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key});
 
   @override
+  ConsumerState<ChatScreen> createState() => _ChatScreenState();
+}
+
+class _ChatScreenState extends ConsumerState<ChatScreen> {
+  final _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      // jumpTo, not animateTo: ListView.separated only lays out items
+      // within the viewport (plus a small cache extent), so a new
+      // off-screen message isn't actually built until the scroll
+      // position that reveals it has been applied. An animated scroll
+      // reaches that position only after its full duration elapses —
+      // fine in the running app, but it also means any test would need
+      // to pump for that entire duration (or pumpAndSettle) just to see
+      // the newest message. Snapping instantly keeps "the latest turn
+      // is visible" true on the very next frame.
+      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    ref.listen(chatControllerProvider, (_, __) => _scrollToBottom());
+    final state = ref.watch(chatControllerProvider);
+    final messages = state.value ?? const <Message>[];
+    // Not state.isLoading: see chatIsSendingProvider's doc comment in
+    // chat_provider.dart for why (AsyncLoading.copyWithPrevious is
+    // @internal in this Riverpod version, so chatControllerProvider's
+    // own AsyncValue never actually enters a loading state).
+    final isLoading = ref.watch(chatIsSendingProvider);
+    final firstCrisisIndex = messages.indexWhere(
+      (m) => m.payload?.type == ChatTurnType.crisis,
+    );
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Chat')),
-      body: Center(
-        child: Text('Chat screen — TODO', style: theme.textTheme.titleLarge),
+      backgroundColor: AppColors.bgCream,
+      appBar: AppBar(
+        backgroundColor: AppColors.bgCream,
+        elevation: 0,
+        title: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [AppColors.companionGradientLight, AppColors.primary],
+                ),
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Pulse',
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontSize: 16),
+            ),
+          ],
+        ),
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.separated(
+              controller: _scrollController,
+              padding: const EdgeInsets.all(18),
+              itemCount: messages.length + (isLoading ? 1 : 0),
+              separatorBuilder: (_, __) => const SizedBox(height: 9),
+              itemBuilder: (context, index) {
+                if (index >= messages.length) {
+                  return const TypingIndicator();
+                }
+                return _buildTurn(messages[index], index, firstCrisisIndex);
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 8, 18, 16),
+            child: ChatInputBar(
+              enabled: !isLoading,
+              onSend: (text) =>
+                  ref.read(chatControllerProvider.notifier).send(text),
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  Widget _buildTurn(Message message, int index, int firstCrisisIndex) {
+    if (message.role == MessageRole.user) {
+      return ChatBubble(text: message.text, isUser: true);
+    }
+
+    final payload = message.payload;
+    if (payload == null) {
+      // Defensive only: every assistant Message in this codebase is built
+      // via Message.assistant(payload), which always sets a non-null
+      // payload (see message.dart) — there's currently no code path that
+      // reaches this branch. Kept because Message.payload is legitimately
+      // typed nullable at the model level (a future direct Message(...)
+      // construction, e.g. from a persisted/rehydrated turn, could produce
+      // one), and rendering the raw text as a plain bubble is a strictly
+      // better failure mode here than a null-check crash.
+      return ChatBubble(text: message.text, isUser: false);
+    }
+
+    switch (payload.type) {
+      case ChatTurnType.crisis:
+        if (index == firstCrisisIndex) {
+          return CrisisCard(message: payload.message);
+        }
+        return ChatBubble(
+          text: payload.message,
+          isUser: false,
+          softVariant: true,
+        );
+      case ChatTurnType.question:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ChatBubble(text: payload.message, isUser: false),
+            if (payload.quickReplies.isNotEmpty) ...[
+              const SizedBox(height: 9),
+              QuickReplyRow(
+                options: payload.quickReplies,
+                onSelect: (option) =>
+                    ref.read(chatControllerProvider.notifier).send(option),
+              ),
+            ],
+          ],
+        );
+      case ChatTurnType.assessment:
+        return AssessmentCard(
+          result: payload,
+          checkedSelfCare: message.checkedSelfCare,
+          onToggleSelfCare: (i) => ref
+              .read(chatControllerProvider.notifier)
+              .toggleSelfCare(message.id, i),
+        );
+      case ChatTurnType.error:
+      case ChatTurnType.unparseable:
+        return ErrorBubble(
+          message: payload.message,
+          onRetry: () => ref.read(chatControllerProvider.notifier).retryLast(),
+        );
+    }
   }
 }
