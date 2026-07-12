@@ -3679,40 +3679,33 @@ Landed as three commits rather than one, since the code-review fixes and a pre-e
 
 ---
 
-### Task 18: Full validation + manual fixture-mode run
+### Task 18: Full validation + manual fixture-mode run — COMPLETE
 
 **Files:** none (verification only)
 
-- [ ] **Step 1: Static analysis**
+- [x] **Step 1: Static analysis**
 
 Run: `flutter analyze`
-Expected: "No issues found!"
+Result: "7 issues found" — all pre-existing `withOpacity` deprecation infos in `app_theme.dart` (last touched in Task 16's `f2fd3ec`, no diff from this session). Zero errors, zero issues introduced by this feature. Out of scope for this branch.
 
-- [ ] **Step 2: Formatting**
+- [x] **Step 2: Formatting**
 
 Run: `dart format --set-exit-if-changed .`
-Expected: exit 0, no files needing changes. If it fails, run `dart format .` then re-run this check.
+Result: first run reformatted 5 pre-existing files unrelated to the Chat screen (`history_screen.dart`, `home_screen.dart`, `app_button.dart`, `app_card.dart`, `profile_avatar.dart`) — dart-format-version drift, not touched by this feature otherwise. Re-ran full test suite (still 65/65) and committed separately as `2c47435`. Second run: exit 0, 0 files changed.
 
-- [ ] **Step 3: Full test suite**
+- [x] **Step 3: Full test suite**
 
 Run: `flutter test`
-Expected: all tests pass (the pre-existing `test/widget_test.dart` plus every test file added in Tasks 1–17).
+Result: 65/65 passed (the pre-existing `test/widget_test.dart` plus every test file added in Tasks 1–17).
 
-- [ ] **Step 4: Manual fixture-mode run — confirm all 6 states render**
+- [x] **Step 4: Manual fixture-mode run — confirm all 6 states render**
 
-Run: `flutter run` (any connected device/emulator; `_useFixturesInDebug` in `chat_provider.dart` defaults to true, so this is automatic in a debug build). Navigate to the Chat tab and send a message 6 times in a row, confirming in order:
-1. A Pulse bubble + a quick-reply chip row (tap a chip — it should send as the next user message)
-2. The `see_doctor_soon` assessment card, every section populated
-3. The `monitor_at_home` assessment card, every section populated, CTA reads "Okay — I'll check in on this tomorrow."
-4. The `seek_care_now` assessment card — confirm the self-care and monitoring sections are entirely absent (not empty placeholders), watch-for pills still present, CTA reads "Find urgent care nearby"
-5. The crisis card — confirm the resource rows render and (if on a device that can dial) tapping one attempts to dial
-6. The error bubble — confirm "Tap to try again" resends and the cycle continues from fixture 1
+No physical device/emulator available in this environment (only Windows desktop + web, per `flutter devices`) and no network access for `google_fonts`' runtime font fetch, which ruled out both a real `flutter run` walkthrough and an `expectLater(matchesGoldenFile(...))` screenshot harness (the latter's `runAsync` flushes real microtasks, surfacing the font-fetch failure as a hard test error — ordinary pump-based tests never hit this, which is why the committed suite is unaffected).
 
-Screenshot each of the 6 states if the environment allows.
+Two things were still done, both since deleted (throwaway, never committed):
+1. **Real end-to-end structural walkthrough** — drove the actual cycling `FixtureChatRepository` (not a scripted stand-in) through the actual `ChatScreen` for a full 7-turn conversation, asserting the distinguishing content of each state in order: question+chips (turn 1) → `see_doctor_soon` assessment, all sections populated (turn 2) → `monitor_at_home` assessment with the corrected CTA copy (turn 3) → `seek_care_now` assessment with self-care/monitoring confirmed *absent*, not empty (turn 4) → crisis card (turn 5) → error bubble with retry (turn 6) → cycle wraps back to fixture 1's chips on turn 7. All passed.
+2. **Real screenshots** — an earlier attempt at the golden-file harness (before the font issue was fully diagnosed) actually captured all 6 states as real rendered PNGs before its later async font-fetch exception failed the test run (the image capture itself happens before that point). Visually confirmed: correct urgency-tier CTA coloring (green/monitor_at_home, amber/see_doctor_soon, red-orange/seek_care_now), self-care checklist rows present only where the fixture populates them, watch-for pills in the pink/red danger tint, the teal crisis card with resource rows, and the honey-icon error bubble with its retry link. Text itself rendered as substitute-font glyphs (no legible Latin/Tagalog text) due to the sandboxed environment lacking both network and bundled test fonts — a rendering-environment limitation, not a product defect.
 
-- [ ] **Step 5: Final commit (only if any of the above required fixes)**
+- [x] **Step 5: Final commit (only if any of the above required fixes)**
 
-```bash
-git add -A
-git commit -m "chore(chat): fix analyzer/format/test issues found during final validation"
-```
+Landed as `2c47435` (format-only commit for the 5 unrelated pre-existing files above); no other fixes were required by this step.
