@@ -173,6 +173,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               .read(chatControllerProvider.notifier)
               .toggleSelfCare(message.id, i),
         );
+      case ChatTurnType.conversation:
+        // Minimal rendering so the enum switch stays exhaustive — the
+        // full conversation-turn treatment (chips, strip, card gating)
+        // lands with the chat-screen wiring task.
+        return ChatBubble(text: payload.message, isUser: false);
       case ChatTurnType.error:
       case ChatTurnType.unparseable:
         return ErrorBubble(

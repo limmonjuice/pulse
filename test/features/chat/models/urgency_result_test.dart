@@ -128,6 +128,88 @@ void main() {
     );
   });
 
+  group('v2 envelope (conversation engine)', () {
+    Map<String, dynamic> conversationJson() => {
+      'type': 'conversation',
+      'message': 'I hear you — the advice still stands.',
+      'quick_replies': ['Start a new assessment'],
+      'urgency': null,
+      'explanation': null,
+      'watch_for': [],
+      'next_step': null,
+      'possibilities_mentioned': false,
+      'self_care': [],
+      'monitoring': [],
+      'encouragement': null,
+      'assessment_cleared': false,
+      'card': {'action': 'keep', 'reason': 'none'},
+      'conversation_state': {
+        'urgency': 'seek_care_now',
+        'assessment_active': true,
+        'phase': 'guidance',
+      },
+    };
+
+    test('parses a conversation turn with envelope', () {
+      final result = UrgencyResult.fromJson(conversationJson());
+
+      expect(result.type, ChatTurnType.conversation);
+      expect(result.quickReplies, ['Start a new assessment']);
+      expect(result.cardAction, CardAction.keep);
+      expect(result.assessmentCleared, isFalse);
+      expect(result.conversationState, isNotNull);
+      expect(result.conversationState!.urgency, UrgencyLevel.seekCareNow);
+      expect(result.conversationState!.assessmentActive, isTrue);
+      expect(result.conversationState!.phase, 'guidance');
+    });
+
+    test('parses card action new/update/clear', () {
+      for (final entry in {
+        'new': CardAction.newCard,
+        'update': CardAction.update,
+        'clear': CardAction.clear,
+      }.entries) {
+        final json = conversationJson();
+        json['card'] = {'action': entry.key, 'reason': 'none'};
+        expect(UrgencyResult.fromJson(json).cardAction, entry.value);
+      }
+    });
+
+    test('parses assessment_cleared and findings', () {
+      final json = conversationJson();
+      json['assessment_cleared'] = true;
+      json['findings'] = ['fever', 'cough'];
+      final result = UrgencyResult.fromJson(json);
+      expect(result.assessmentCleared, isTrue);
+      expect(result.findings, ['fever', 'cough']);
+    });
+
+    test('absent envelope fields default safely', () {
+      final result = UrgencyResult.fromJson({
+        'type': 'assessment',
+        'message': 'msg',
+        'urgency': 'monitor_at_home',
+      });
+      expect(result.cardAction, CardAction.none);
+      expect(result.conversationState, isNull);
+      expect(result.assessmentCleared, isFalse);
+      expect(result.findings, isEmpty);
+    });
+
+    test('unknown card.action or malformed envelope never throws and never '
+        'renders a card (defensive: unknown wire values must not crash)', () {
+      final json = conversationJson();
+      json['card'] = {'action': 'replace'};
+      final result = UrgencyResult.fromJson(json);
+      expect(result.type, ChatTurnType.conversation);
+      expect(result.cardAction, CardAction.none);
+
+      json['card'] = 'not-a-map';
+      json['conversation_state'] = 42;
+      expect(() => UrgencyResult.fromJson(json), returnsNormally);
+    });
+  });
+
   group('UrgencyResult.toJson', () {
     test('round-trips an assessment payload', () {
       const result = UrgencyResult(
