@@ -26,6 +26,12 @@ VALID_ASSESSMENT = {
     "self_care": ["Rest", "Drink plenty of fluids"],
     "monitoring": ["Check temperature once or twice a day"],
     "encouragement": "I'm here if anything changes — just let me know.",
+    "intents": ["reporting_new_symptom"],
+    "requires_clinical_reassessment": True,
+    "change_type": "new_symptom",
+    "reassessment_reason": None,
+    "proposed_card_action": "new",
+    "findings": ["mild fever"],
 }
 
 VALID_QUESTION = {
@@ -40,6 +46,12 @@ VALID_QUESTION = {
     "self_care": [],
     "monitoring": [],
     "encouragement": None,
+    "intents": ["reporting_new_symptom"],
+    "requires_clinical_reassessment": True,
+    "change_type": "new_symptom",
+    "reassessment_reason": None,
+    "proposed_card_action": "keep",
+    "findings": [],
 }
 
 VALID_CRISIS = {
@@ -54,6 +66,34 @@ VALID_CRISIS = {
     "self_care": [],
     "monitoring": [],
     "encouragement": None,
+    "intents": ["emotional_support"],
+    "requires_clinical_reassessment": False,
+    "change_type": "none",
+    "reassessment_reason": None,
+    "proposed_card_action": "keep",
+    "findings": [],
+}
+
+# v2 (conversation engine): a plain reply turn — answers the person's
+# message without re-triaging. No card fields, no urgency.
+VALID_CONVERSATION = {
+    "type": "conversation",
+    "message": "I'm glad you're feeling okay at times — the advice still stands.",
+    "quick_replies": [],
+    "urgency": None,
+    "explanation": None,
+    "watch_for": [],
+    "next_step": None,
+    "possibilities_mentioned": False,
+    "self_care": [],
+    "monitoring": [],
+    "encouragement": None,
+    "intents": ["reassurance_seeking"],
+    "requires_clinical_reassessment": False,
+    "change_type": "none",
+    "reassessment_reason": None,
+    "proposed_card_action": "keep",
+    "findings": [],
 }
 
 REQUIRED_FIELDS = list(VALID_ASSESSMENT.keys())
@@ -129,7 +169,9 @@ def test_accepts_plain_json_with_no_fence(monkeypatch):
 # Accepting each valid type
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("payload", [VALID_ASSESSMENT, VALID_QUESTION, VALID_CRISIS])
+@pytest.mark.parametrize(
+    "payload", [VALID_ASSESSMENT, VALID_QUESTION, VALID_CRISIS, VALID_CONVERSATION]
+)
 def test_accepts_each_valid_type(monkeypatch, payload):
     _install_fake_genai(monkeypatch, [json.dumps(payload)])
     result = get_assessment("system prompt", [], "some message")
@@ -202,7 +244,7 @@ def test_accepts_question_with_boundary_quick_reply_counts(monkeypatch, count):
     assert _strip_meta(result) == payload
 
 
-@pytest.mark.parametrize("base", [VALID_QUESTION, VALID_CRISIS])
+@pytest.mark.parametrize("base", [VALID_QUESTION, VALID_CRISIS, VALID_CONVERSATION])
 def test_rejects_non_empty_self_care_outside_assessment(monkeypatch, base):
     bad = {**base, "self_care": ["Rest"]}
     _install_fake_genai(monkeypatch, [json.dumps(bad), json.dumps(base)])
@@ -210,7 +252,7 @@ def test_rejects_non_empty_self_care_outside_assessment(monkeypatch, base):
     assert _strip_meta(result) == base
 
 
-@pytest.mark.parametrize("base", [VALID_QUESTION, VALID_CRISIS])
+@pytest.mark.parametrize("base", [VALID_QUESTION, VALID_CRISIS, VALID_CONVERSATION])
 def test_rejects_non_empty_monitoring_outside_assessment(monkeypatch, base):
     bad = {**base, "monitoring": ["Check in tomorrow"]}
     _install_fake_genai(monkeypatch, [json.dumps(bad), json.dumps(base)])
@@ -218,7 +260,7 @@ def test_rejects_non_empty_monitoring_outside_assessment(monkeypatch, base):
     assert _strip_meta(result) == base
 
 
-@pytest.mark.parametrize("base", [VALID_QUESTION, VALID_CRISIS])
+@pytest.mark.parametrize("base", [VALID_QUESTION, VALID_CRISIS, VALID_CONVERSATION])
 def test_rejects_non_null_encouragement_outside_assessment(monkeypatch, base):
     bad = {**base, "encouragement": "I'm here for you."}
     _install_fake_genai(monkeypatch, [json.dumps(bad), json.dumps(base)])
@@ -257,6 +299,112 @@ def test_rejects_malformed_json_then_retries(monkeypatch):
     result = get_assessment("system prompt", [], "some message")
     assert _strip_meta(result) == VALID_ASSESSMENT
     assert len(fake_models.calls) == 2
+
+
+# ---------------------------------------------------------------------------
+# v2 proposal fields (conversation engine)
+# ---------------------------------------------------------------------------
+
+def test_conversation_accepts_up_to_four_quick_replies(monkeypatch):
+    payload = {**VALID_CONVERSATION, "quick_replies": ["a", "b", "c", "d"]}
+    _install_fake_genai(monkeypatch, [json.dumps(payload)])
+    result = get_assessment("system prompt", [], "some message")
+    assert _strip_meta(result) == payload
+
+
+def test_conversation_rejects_five_quick_replies(monkeypatch):
+    bad = {**VALID_CONVERSATION, "quick_replies": ["a", "b", "c", "d", "e"]}
+    _install_fake_genai(monkeypatch, [json.dumps(bad), json.dumps(VALID_CONVERSATION)])
+    result = get_assessment("system prompt", [], "some message")
+    assert _strip_meta(result) == VALID_CONVERSATION
+
+
+@pytest.mark.parametrize("field,value", [
+    ("urgency", "monitor_at_home"),
+    ("explanation", "an explanation"),
+    ("next_step", "a next step"),
+])
+def test_conversation_rejects_card_fields(monkeypatch, field, value):
+    bad = {**VALID_CONVERSATION, field: value}
+    _install_fake_genai(monkeypatch, [json.dumps(bad), json.dumps(VALID_CONVERSATION)])
+    result = get_assessment("system prompt", [], "some message")
+    assert _strip_meta(result) == VALID_CONVERSATION
+
+
+@pytest.mark.parametrize("intents", [
+    [],                                          # empty
+    ["bogus_intent"],                            # unknown value
+    ["asking_why", "thanking", "joke", "greeting"],  # more than 3
+    "asking_why",                                # not a list
+])
+def test_rejects_invalid_intents(monkeypatch, intents):
+    bad = {**VALID_CONVERSATION, "intents": intents}
+    _install_fake_genai(monkeypatch, [json.dumps(bad), json.dumps(VALID_CONVERSATION)])
+    result = get_assessment("system prompt", [], "some message")
+    assert _strip_meta(result) == VALID_CONVERSATION
+
+
+def test_accepts_three_valid_intents(monkeypatch):
+    payload = {
+        **VALID_CONVERSATION,
+        "intents": ["emotional_support", "asking_about_recommendation", "asking_why"],
+    }
+    _install_fake_genai(monkeypatch, [json.dumps(payload)])
+    result = get_assessment("system prompt", [], "some message")
+    assert _strip_meta(result) == payload
+
+
+def test_rejects_unknown_change_type(monkeypatch):
+    bad = {**VALID_CONVERSATION, "change_type": "bogus"}
+    _install_fake_genai(monkeypatch, [json.dumps(bad), json.dumps(VALID_CONVERSATION)])
+    result = get_assessment("system prompt", [], "some message")
+    assert _strip_meta(result) == VALID_CONVERSATION
+
+
+@pytest.mark.parametrize("change", [
+    "new_symptom", "resolved_symptom", "worsening",
+    "new_history", "treatment_update", "none",
+])
+def test_accepts_each_valid_change_type(monkeypatch, change):
+    payload = {**VALID_CONVERSATION, "change_type": change}
+    _install_fake_genai(monkeypatch, [json.dumps(payload)])
+    result = get_assessment("system prompt", [], "some message")
+    assert _strip_meta(result) == payload
+
+
+def test_rejects_non_bool_requires_clinical_reassessment(monkeypatch):
+    bad = {**VALID_CONVERSATION, "requires_clinical_reassessment": "yes"}
+    _install_fake_genai(monkeypatch, [json.dumps(bad), json.dumps(VALID_CONVERSATION)])
+    result = get_assessment("system prompt", [], "some message")
+    assert _strip_meta(result) == VALID_CONVERSATION
+
+
+def test_rejects_unknown_proposed_card_action(monkeypatch):
+    bad = {**VALID_CONVERSATION, "proposed_card_action": "replace"}
+    _install_fake_genai(monkeypatch, [json.dumps(bad), json.dumps(VALID_CONVERSATION)])
+    result = get_assessment("system prompt", [], "some message")
+    assert _strip_meta(result) == VALID_CONVERSATION
+
+
+def test_rejects_non_string_reassessment_reason(monkeypatch):
+    bad = {**VALID_CONVERSATION, "reassessment_reason": 42}
+    _install_fake_genai(monkeypatch, [json.dumps(bad), json.dumps(VALID_CONVERSATION)])
+    result = get_assessment("system prompt", [], "some message")
+    assert _strip_meta(result) == VALID_CONVERSATION
+
+
+def test_rejects_findings_outside_assessment(monkeypatch):
+    bad = {**VALID_QUESTION, "findings": ["fever"]}
+    _install_fake_genai(monkeypatch, [json.dumps(bad), json.dumps(VALID_QUESTION)])
+    result = get_assessment("system prompt", [], "some message")
+    assert _strip_meta(result) == VALID_QUESTION
+
+
+def test_rejects_non_list_findings(monkeypatch):
+    bad = {**VALID_ASSESSMENT, "findings": "fever"}
+    _install_fake_genai(monkeypatch, [json.dumps(bad), json.dumps(VALID_ASSESSMENT)])
+    result = get_assessment("system prompt", [], "some message")
+    assert _strip_meta(result) == VALID_ASSESSMENT
 
 
 # ---------------------------------------------------------------------------

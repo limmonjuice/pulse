@@ -24,6 +24,8 @@ import re
 from google import genai
 from google.genai import types
 
+from wire_contract import VALID_CARD_ACTIONS, VALID_CHANGE_TYPES, VALID_INTENTS
+
 # gemini-flash-lite is the free-tier model as of this writing. This is a
 # cost/quota decision, not a capability one — revisit if free-tier terms
 # or model availability change. Pinned to a specific version (not the
@@ -86,10 +88,19 @@ REQUIRED_FIELDS = frozenset(
         "self_care",
         "monitoring",
         "encouragement",
+        # v2 proposal fields (conversation engine — spec §5). The model
+        # proposes; safety_engine.py disposes. Vocabulary lives in
+        # wire_contract.py so prompt text and validation can't drift.
+        "intents",
+        "requires_clinical_reassessment",
+        "change_type",
+        "reassessment_reason",
+        "proposed_card_action",
+        "findings",
     }
 )
-VALID_TYPES = frozenset({"question", "assessment", "crisis"})
-# The model only ever emits these three types. main.py adds a 4th,
+VALID_TYPES = frozenset({"question", "assessment", "crisis", "conversation"})
+# The model only ever emits these four types. main.py adds a 5th,
 # locally-constructed "error" type for its own degraded-mode responses —
 # that type must never come from the model itself.
 VALID_URGENCIES = frozenset({"monitor_at_home", "see_doctor_soon", "seek_care_now"})
@@ -141,6 +152,16 @@ def _validate_payload(payload: object) -> dict:
         quick_replies = payload["quick_replies"]
         if not isinstance(quick_replies, list) or not (2 <= len(quick_replies) <= 4):
             raise ValueError("question responses require 2-4 quick_replies")
+    if response_type == "conversation":
+        quick_replies = payload["quick_replies"]
+        if not isinstance(quick_replies, list) or len(quick_replies) > 4:
+            raise ValueError("conversation responses allow at most 4 quick_replies")
+        if urgency is not None:
+            raise ValueError("conversation responses require a null urgency")
+        if payload["explanation"] is not None:
+            raise ValueError("conversation responses require a null explanation")
+        if payload["next_step"] is not None:
+            raise ValueError("conversation responses require a null next_step")
 
     self_care = payload["self_care"]
     monitoring = payload["monitoring"]
@@ -152,7 +173,7 @@ def _validate_payload(payload: object) -> dict:
     if encouragement is not None and not isinstance(encouragement, str):
         raise ValueError("encouragement must be a string or null")
 
-    if response_type in ("question", "crisis"):
+    if response_type in ("question", "crisis", "conversation"):
         if self_care:
             raise ValueError(f"{response_type} responses require an empty self_care")
         if monitoring:
@@ -161,6 +182,31 @@ def _validate_payload(payload: object) -> dict:
             raise ValueError(f"{response_type} responses require a null encouragement")
     elif encouragement is None:  # response_type == "assessment"
         raise ValueError("assessment responses require a non-null encouragement")
+
+    # v2 proposal fields (spec §5). reassessment_reason's conditional
+    # non-null rule is NOT checked here — it needs current_urgency, which
+    # this stateless validator doesn't have; safety_engine's clamp gate
+    # enforces it by rejecting the de-escalation instead (never a retry).
+    intents = payload["intents"]
+    if (not isinstance(intents, list) or not (1 <= len(intents) <= 3)
+            or not all(i in VALID_INTENTS for i in intents)):
+        raise ValueError("intents must be 1-3 values from the intent vocabulary")
+    if not isinstance(payload["requires_clinical_reassessment"], bool):
+        raise ValueError("requires_clinical_reassessment must be a boolean")
+    if payload["change_type"] not in VALID_CHANGE_TYPES:
+        raise ValueError(f"invalid change_type: {payload['change_type']!r}")
+    reason = payload["reassessment_reason"]
+    if reason is not None and not isinstance(reason, str):
+        raise ValueError("reassessment_reason must be a string or null")
+    if payload["proposed_card_action"] not in VALID_CARD_ACTIONS:
+        raise ValueError(
+            f"invalid proposed_card_action: {payload['proposed_card_action']!r}"
+        )
+    findings = payload["findings"]
+    if not isinstance(findings, list) or not all(isinstance(f, str) for f in findings):
+        raise ValueError("findings must be an array of strings")
+    if response_type != "assessment" and findings:
+        raise ValueError(f"{response_type} responses require empty findings")
 
     return payload
 
