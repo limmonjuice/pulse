@@ -13,6 +13,12 @@ Fail-closed rule: if check_red_flags raises while scanning a history
 turn, we cannot rule an emergency out for that turn, so the latch floor
 engages ("history_scan_failed") — but unlike main.py's current-message
 crash path, the model still runs; the clamp enforces the floor.
+
+self_harm_risk is the one rule_id that, like an assistant "crisis" turn,
+is scanned over the FULL history — a reset marker must not un-flag a
+prior suicidal statement. Every OTHER rule_id (and history_scan_failed
+itself) stays scoped to turns after the reset marker, since those
+legitimately reset along with the rest of the floor bookkeeping.
 """
 
 from __future__ import annotations
@@ -70,27 +76,44 @@ def derive_episode_state(history: list | None, profile: dict | None) -> EpisodeS
             state.reset_index = i
     effective = history[state.reset_index + 1:]
 
-    for turn in effective:
+    self_harm_seen_full_history = False
+    for i, turn in enumerate(history):
         if not isinstance(turn, dict) or turn.get("role") != "user":
             continue
         content = turn.get("content")
         if not isinstance(content, str):
             continue
+        pre_reset = i <= state.reset_index
         try:
             result = red_flags.check_red_flags(content, profile)
         except Exception:
-            logger.exception(
-                "episode_state: red-flag scan raised on a history turn — latching fail-closed"
-            )
-            if HISTORY_SCAN_FAILED_RULE_ID not in state.latched_rule_ids:
-                state.latched_rule_ids.append(HISTORY_SCAN_FAILED_RULE_ID)
+            if pre_reset:
+                # history_scan_failed is floor-scoped to post-reset turns
+                # only — a crash on a pre-reset turn just gets logged; it
+                # cannot flip self_harm_seen_full_history either way, so
+                # there's nothing to fail closed about here.
+                logger.exception(
+                    "episode_state: red-flag scan raised on a pre-reset history "
+                    "turn (self-harm check) — not latching history_scan_failed"
+                )
+            else:
+                logger.exception(
+                    "episode_state: red-flag scan raised on a history turn — latching fail-closed"
+                )
+                if HISTORY_SCAN_FAILED_RULE_ID not in state.latched_rule_ids:
+                    state.latched_rule_ids.append(HISTORY_SCAN_FAILED_RULE_ID)
             continue
-        if result.matched:
+        if not result.matched:
+            continue
+        if pre_reset:
+            if "self_harm_risk" in result.rule_ids:
+                self_harm_seen_full_history = True
+        else:
             for rule_id in result.rule_ids:
                 if rule_id not in state.latched_rule_ids:
                     state.latched_rule_ids.append(rule_id)
 
-    if "self_harm_risk" in state.latched_rule_ids:
+    if self_harm_seen_full_history or "self_harm_risk" in state.latched_rule_ids:
         crisis_locked = True  # sticky, same rank as a crisis assistant turn
 
     non_self_harm = [r for r in state.latched_rule_ids if r != "self_harm_risk"]

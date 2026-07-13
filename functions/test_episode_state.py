@@ -111,3 +111,57 @@ def test_malformed_turns_are_tolerated():
     s = derive_episode_state(history, None)  # must not raise
     assert s.current_urgency is None          # 7 is not a tier
     assert s.active_findings == []            # non-list dropped
+
+
+def test_self_harm_crisis_survives_reset_marker():
+    history = [U("I want to kill myself"),
+               A("assessment", urgency="seek_care_now"),  # model failed to tag crisis
+               U("just kidding, testing lang"),
+               A("conversation", assessment_cleared=True)]
+    s = derive_episode_state(history, None)
+    assert s.phase == "crisis"
+    # but the reset still clears the ordinary floor bookkeeping:
+    assert s.min_safe_urgency is None
+
+
+def test_multiple_reset_markers_uses_last_one():
+    history = [U("a"), A("conversation", assessment_cleared=True),
+               U("b"), A("conversation", assessment_cleared=True),
+               U("c")]
+    s = derive_episode_state(history, None)
+    assert s.reset_index == 3
+
+
+def test_reset_marker_as_final_turn_is_idle():
+    history = [U(RED_FLAG_TEXT), A("assessment", urgency="seek_care_now"),
+               A("conversation", assessment_cleared=True)]
+    s = derive_episode_state(history, None)
+    assert s.phase == "idle"
+    assert s.current_urgency is None
+    assert s.min_safe_urgency is None
+    assert s.active_findings == []
+    assert s.last_assessment is None
+
+
+def test_assessment_missing_optional_fields_defaults_safely():
+    history = [U("fever po"),
+               {"role": "assistant", "content": "...", "type": "assessment",
+                "urgency": "monitor_at_home"}]
+    s = derive_episode_state(history, None)
+    assert s.current_urgency == "monitor_at_home"
+    assert s.active_findings == []
+    assert s.last_assessment == {
+        "findings": [],
+        "explanation": None,
+        "next_step": None,
+        "urgency": "monitor_at_home",
+    }
+
+
+def test_history_scan_crash_latches_failure_once_across_multiple_turns(monkeypatch):
+    def boom(message, profile=None):
+        raise RuntimeError("boom")
+    monkeypatch.setattr(episode_state.red_flags, "check_red_flags", boom)
+    history = [U("one"), U("two"), U("three")]
+    s = derive_episode_state(history, None)
+    assert s.latched_rule_ids.count("history_scan_failed") == 1
