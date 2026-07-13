@@ -18,7 +18,7 @@ import '../repositories/fixture_chat_repository.dart';
 /// Flip to false to wire the real backend once fixture-mode UI review is
 /// complete. Guarded by kDebugMode below so a release build can never
 /// accidentally ship fixture mode regardless of this const's value.
-const bool _useFixturesInDebug = true;
+const bool _useFixturesInDebug = false;
 
 final chatRepositoryProvider = Provider<ChatRepository>((ref) {
   if (kDebugMode && _useFixturesInDebug) {
