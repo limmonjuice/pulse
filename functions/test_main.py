@@ -41,6 +41,12 @@ VALID_ASSESSMENT = {
     "self_care": ["Rest", "Drink plenty of fluids"],
     "monitoring": ["Check temperature once or twice a day"],
     "encouragement": "I'm here if anything changes — just let me know.",
+    "intents": ["reporting_new_symptom"],
+    "requires_clinical_reassessment": True,
+    "change_type": "new_symptom",
+    "reassessment_reason": None,
+    "proposed_card_action": "new",
+    "findings": ["mild headache"],
 }
 
 VALID_QUESTION = {
@@ -55,6 +61,12 @@ VALID_QUESTION = {
     "self_care": [],
     "monitoring": [],
     "encouragement": None,
+    "intents": ["reporting_new_symptom"],
+    "requires_clinical_reassessment": True,
+    "change_type": "new_symptom",
+    "reassessment_reason": None,
+    "proposed_card_action": "keep",
+    "findings": [],
 }
 
 VALID_CRISIS = {
@@ -69,6 +81,32 @@ VALID_CRISIS = {
     "self_care": [],
     "monitoring": [],
     "encouragement": None,
+    "intents": ["emotional_support"],
+    "requires_clinical_reassessment": False,
+    "change_type": "none",
+    "reassessment_reason": None,
+    "proposed_card_action": "keep",
+    "findings": [],
+}
+
+VALID_CONVERSATION = {
+    "type": "conversation",
+    "message": "I hear you — the advice from before still stands.",
+    "quick_replies": [],
+    "urgency": None,
+    "explanation": None,
+    "watch_for": [],
+    "next_step": None,
+    "possibilities_mentioned": False,
+    "self_care": [],
+    "monitoring": [],
+    "encouragement": None,
+    "intents": ["reassurance_seeking"],
+    "requires_clinical_reassessment": False,
+    "change_type": "none",
+    "reassessment_reason": None,
+    "proposed_card_action": "keep",
+    "findings": [],
 }
 
 NON_SELF_HARM_RED_FLAG_MESSAGE = "I have chest pain and I'm having trouble breathing"
@@ -693,3 +731,149 @@ def test_deployed_function_id_is_assess_symptoms():
     endpoint = main.assess_symptoms.__firebase_endpoint__
     assert endpoint.entryPoint == "assess_symptoms"
     assert re.fullmatch(r"[a-zA-Z][a-zA-Z0-9_-]{0,62}", endpoint.entryPoint)
+
+
+
+# ---------------------------------------------------------------------------
+# v2 conversation engine (Task 7): envelope, episode gates end-to-end,
+# history windows, and the acceptance ceiling
+# ---------------------------------------------------------------------------
+
+def _guidance_history(urgency="see_doctor_soon"):
+    """A benign two-turn history with an active card, echoed the way
+    Message.toHistoryJson() v2 does."""
+    return [
+        {"role": "user", "content": BENIGN_MESSAGE},
+        {
+            "role": "assistant",
+            "content": "Worth a check within 1-2 days.",
+            "type": "assessment",
+            "urgency": urgency,
+            "findings": ["mild headache"],
+            "explanation": "Worth a check within 1-2 days.",
+            "next_step": "See a doctor within 1-2 days.",
+        },
+    ]
+
+
+def test_first_assessment_gets_new_card_envelope(monkeypatch):
+    _mock_get_assessment(monkeypatch, VALID_ASSESSMENT)
+    result = run_pipeline(message=BENIGN_MESSAGE)
+    assert result["card"] == {"action": "new", "reason": "first_assessment"}
+    assert result["conversation_state"] == {
+        "urgency": "monitor_at_home",
+        "assessment_active": True,
+        "phase": "guidance",
+    }
+    assert result["assessment_cleared"] is False
+
+
+def test_conversation_turn_keeps_card(monkeypatch):
+    _mock_get_assessment(monkeypatch, VALID_CONVERSATION)
+    result = run_pipeline(message="But I feel okay sometimes.",
+                          history=_guidance_history())
+    assert result["type"] == "conversation"
+    assert result["card"]["action"] == "keep"
+    assert result["conversation_state"]["urgency"] == "see_doctor_soon"
+    assert result["conversation_state"]["assessment_active"] is True
+
+
+def test_same_tier_contentless_reassessment_demotes(monkeypatch):
+    redundant = {
+        **VALID_ASSESSMENT,
+        "urgency": "see_doctor_soon",
+        "requires_clinical_reassessment": False,
+        "change_type": "none",
+    }
+    _mock_get_assessment(monkeypatch, redundant)
+    result = run_pipeline(message="Is it really necessary?",
+                          history=_guidance_history())
+    assert result["type"] == "conversation"          # demoted
+    assert result["card"]["action"] == "keep"
+    assert result["urgency"] is None                  # card fields stripped
+    assert result["message"] == redundant["message"]  # text survives
+
+
+def test_red_flag_mid_guidance_forces_card_update(monkeypatch):
+    # The model wrongly stays conversational on a new emergency — the
+    # floor guard must substitute the static fallback and update the card.
+    _mock_get_assessment(monkeypatch, VALID_CONVERSATION)
+    result = run_pipeline(message=NON_SELF_HARM_RED_FLAG_MESSAGE,
+                          history=_guidance_history("monitor_at_home"))
+    assert result["type"] == "assessment"
+    assert result["urgency"] == "seek_care_now"
+    assert result["message"] == main.STATIC_SEEK_CARE_FALLBACK_EN
+    assert result["card"] == {"action": "update", "reason": "urgency_raised"}
+    assert result["conversation_state"]["urgency"] == "seek_care_now"
+
+
+def test_reset_clears_assessment(monkeypatch):
+    reset_reply = {
+        **VALID_CONVERSATION,
+        "message": "No worries — thanks for telling me you were testing!",
+        "intents": ["testing_system"],
+        "proposed_card_action": "clear",
+    }
+    _mock_get_assessment(monkeypatch, reset_reply)
+    result = run_pipeline(message="I was just testing", history=_guidance_history())
+    assert result["assessment_cleared"] is True
+    assert result["card"]["action"] == "clear"
+    assert result["conversation_state"] == {
+        "urgency": None, "assessment_active": False, "phase": "idle",
+    }
+
+
+def test_degraded_mid_guidance_keeps_card_and_state(monkeypatch):
+    _mock_get_assessment(monkeypatch, _raise_generic_gemini_error)
+    result = run_pipeline(message=BENIGN_MESSAGE, history=_guidance_history())
+    assert result["type"] == "error"
+    assert result["card"]["action"] == "keep"
+    assert result["conversation_state"]["urgency"] == "see_doctor_soon"
+    assert result["conversation_state"]["assessment_active"] is True
+
+
+def test_model_history_window_caps_turns_but_latch_sees_everything(monkeypatch):
+    captured = {}
+
+    def fake(prompt, history, message):
+        captured["history"] = history
+        return dict(VALID_CONVERSATION)
+
+    _mock_get_assessment(monkeypatch, fake)
+    history = [{"role": "user", "content": NON_SELF_HARM_RED_FLAG_MESSAGE}]
+    for i in range(29):
+        role = "user" if i % 2 == 0 else "assistant"
+        turn = {"role": role, "content": f"benign filler {i}"}
+        if role == "assistant":
+            turn["type"] = "conversation"
+        history.append(turn)
+    result = run_pipeline(message="thanks", history=history)
+    assert len(captured["history"]) <= main.MODEL_HISTORY_WINDOW
+    # The red-flag turn fell outside the model window but the latch —
+    # scanned over the FULL history — still forces the floor.
+    assert result["urgency"] == "seek_care_now"
+    assert result["message"] == main.STATIC_SEEK_CARE_FALLBACK_EN
+
+
+def test_history_over_acceptance_ceiling_is_rejected(monkeypatch):
+    _mock_get_assessment(monkeypatch, VALID_ASSESSMENT)
+    too_long = [{"role": "user", "content": "hi"}] * (main.MAX_ACCEPTED_HISTORY_TURNS + 1)
+    with pytest.raises(InvalidRequestError):
+        run_pipeline(message=BENIGN_MESSAGE, history=too_long)
+    at_limit = [{"role": "user", "content": "hi"}] * main.MAX_ACCEPTED_HISTORY_TURNS
+    result = run_pipeline(message=BENIGN_MESSAGE, history=at_limit)
+    assert result["type"] == "assessment"
+
+
+def test_logging_includes_v2_structured_fields(monkeypatch, caplog):
+    _mock_get_assessment(monkeypatch, VALID_CONVERSATION)
+    with caplog.at_level(logging.INFO, logger=main.logger.name):
+        run_pipeline(message="thanks!", history=_guidance_history())
+    record = caplog.records[0]
+    assert record.intents == ["reassurance_seeking"]
+    assert record.change_type == "none"
+    assert record.requires_clinical_reassessment is False
+    assert record.card_action == "keep"
+    assert record.demoted is False
+    assert record.reset_accepted is False
+    assert record.deescalation_accepted is False

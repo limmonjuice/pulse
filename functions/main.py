@@ -2,28 +2,37 @@
 Cloud Functions entry point for Pulse.
 
 Defines the one Callable Function the Flutter client invokes via the
-`cloud_functions` package (never raw HTTP): `assess_symptoms`. This is the
-only layer allowed to orchestrate a Gemini call — it runs the
-deterministic red-flag check (red_flags.py) before or alongside the
-Gemini call (gemini_client.py), merges the two per the truth table in
-`_merge_with_red_flags`, and returns a plain-language insight + urgency
-tag + next step — never a confirmed single diagnosis. The AI never gets
-the final say on emergencies; this module's merge logic does.
+`cloud_functions` package (never raw HTTP): `assess_symptoms`. This is
+the only layer allowed to orchestrate a Gemini call, composing the five
+components of the conversation engine (spec §3):
 
-The pipeline is factored into `run_pipeline`, a pure function with no
-Firebase/Flask dependency, so it's unit-testable without the emulator
-(see test_main.py). `_handle_request` does the request-shape plumbing;
-`assess_symptoms` just wraps it with the `on_call` decorator.
+    State Builder    episode_state.derive_episode_state — episode state
+                     from client-echoed history (red-flag latch, resets)
+    Prompt Builder   system_prompt.build_system_prompt (+ the
+                     CONVERSATION STATE block built here)
+    LLM              gemini_client.get_assessment — ONE call per message;
+                     its structured outputs are proposals, never decisions
+    Safety Engine    safety_engine.apply_gates — crisis force, urgency
+                     clamp, floor guard, reset gate, card directive matrix
+    Response Builder this module — the client envelope (turn payload +
+                     card directive + conversation_state snapshot)
 
-Client-facing response has 4 possible "type" values: the 3 the model can
-emit ("question", "assessment", "crisis" — see gemini_client.VALID_TYPES)
-plus a 4th, "error", constructed only here for degraded mode when Gemini
-itself is unavailable. The model must never emit "error" itself.
+The AI never gets the final say on emergencies; the deterministic layers
+(red_flags.py via the State Builder and Safety Engine) do.
+
+Client-facing response has 5 possible "type" values: the 4 the model can
+emit ("question", "assessment", "crisis", "conversation" — see
+gemini_client.VALID_TYPES) plus a 5th, "error", constructed only here
+for degraded mode when Gemini itself is unavailable. The model must
+never emit "error" itself.
 
 History trust (v1 limitation): `history` is client-supplied and not
 verified against Firestore. A malicious client could fabricate turns
-(including a fake prior "crisis" turn, or a fabricated assistant reply).
-Accepted for v1; revisit once conversations are persisted server-side.
+(including a fake prior "crisis" turn, a fabricated assistant reply, or
+a forged reset marker). Accepted for v1; revisit once conversations are
+persisted server-side. The client contract for assistant-turn echoes
+(type, urgency, findings, explanation, next_step, assessment_cleared)
+is documented in episode_state.py and Message.toHistoryJson().
 
 No Firestore writes this pass — the client persists messages for now;
 server-side persistence lands with the episode model.
@@ -38,12 +47,13 @@ import time
 import firebase_admin
 from firebase_functions import https_fn
 
+import episode_state
 import fallbacks
 import gemini_client
 import mirror_probes
 import red_flags
+import safety_engine
 import system_prompt
-import wire_contract
 
 # Required once per process: firebase_functions' App Check/auth token
 # verification (used by the enforce_app_check=True below) reads through
@@ -52,6 +62,24 @@ import wire_contract
 firebase_admin.initialize_app()
 
 MAX_MESSAGE_LENGTH = 2000
+
+# The model sees at most this many history turns (token cost); episode
+# derivation and the language directive always scan the FULL accepted
+# history — truncation is safe for the model because the CONVERSATION
+# STATE block carries the active card's context forward regardless of
+# which turns fell out of the window (spec §10).
+MODEL_HISTORY_WINDOW = 20
+
+# Hard acceptance ceiling on client-supplied history (episode_state
+# quality review, 2026-07-14): the latch scan and _conversation_language
+# are O(history) per request and nothing else bounds the input. Reject
+# rather than silently truncate — truncation could drop an old red-flag
+# turn and weaken the latch.
+MAX_ACCEPTED_HISTORY_TURNS = 200
+HISTORY_TOO_LONG_MESSAGE = (
+    "This conversation has gotten quite long — please start a new chat "
+    "so I can help properly."
+)
 
 # Re-exported for test compatibility — the copy itself lives in
 # fallbacks.py now (see that module's docstring for why).
@@ -110,24 +138,26 @@ logger = logging.getLogger("pulse.assess_symptoms")
 
 
 class InvalidRequestError(Exception):
-    """Raised for malformed client input (missing/oversized message). The
-    handler converts this to an https_fn.HttpsError; it never reaches
-    run_pipeline's caller as a bare payload."""
+    """Raised for malformed client input (missing/oversized message,
+    over-ceiling history). The handler converts this to an
+    https_fn.HttpsError; it never reaches run_pipeline's caller as a
+    bare payload."""
 
 
 # ---------------------------------------------------------------------------
-# Small payload builders
+# Small builders (degraded mode + envelope)
 # ---------------------------------------------------------------------------
-
-def _force_crisis(payload: dict) -> dict:
-    return {**payload, "type": "crisis", "urgency": None}
-
 
 def _select_degraded_payload(*, message: str, force_crisis: bool, floor_active: bool) -> dict:
     """Shared by every Gemini-call failure mode — schema-validation failures
     (ModelResponseError) and raw API/network failures alike. gemini_client's
     contract is that callers never see a malformed payload; this is the one
-    place that promise is kept regardless of why the call failed."""
+    place that promise is kept regardless of why the call failed.
+
+    floor_active is deliberately scoped to THIS turn's signals (current
+    red-flag match, crisis force, or a crashed check) — an episode latch
+    from earlier turns alone does not re-emit the static fallback, because
+    the guidance it forced is already on the person's screen (spec §9)."""
     if force_crisis:
         return fallbacks.crisis_fallback_payload(message)
     if floor_active:
@@ -135,47 +165,68 @@ def _select_degraded_payload(*, message: str, force_crisis: bool, floor_active: 
     return fallbacks.degraded_error_payload(message)
 
 
-def _history_has_crisis_lock(history: list[dict]) -> bool:
-    # ASSUMPTION FLAGGED FOR REVIEW: the spec's history shape is flat
-    # {role, content}, but detecting "a prior assistant turn was type
-    # crisis" needs a type somewhere. This assumes the client also echoes
-    # a "type" key on assistant/model turns (matching the type field of
-    # the payload it originally rendered) — please confirm this matches
-    # the client's actual history shape.
-    #
-    # Client contract: assistant turns in the history payload MUST carry
-    # their type field (question | assessment | crisis). Crisis-state
-    # persistence depends on it until server-side history lands with the
-    # episode model.
-    return any(
-        turn.get("role") in ("assistant", "model") and turn.get("type") == "crisis"
-        for turn in history
-    )
+def _degraded_card(state: episode_state.EpisodeState, payload: dict) -> tuple[str, str]:
+    """Card directive for degraded turns — the Safety Engine never saw a
+    model proposal, so the only card-worthy event is the static fallback
+    newly raising (or setting) the visible urgency."""
+    if payload.get("type") == "assessment":
+        if state.current_urgency is None:
+            return "new", "first_assessment"
+        if payload.get("urgency") != state.current_urgency:
+            return "update", "urgency_raised"
+    return "keep", "none"
 
 
-def _merge_with_red_flags(model_result: dict, message: str) -> dict:
-    """Truth table for red_flags.matched (non-self-harm) + model result.
-    Self-harm and crisis_lock are handled separately (they force crisis
-    outright, upstream of this function) since they outrank this table."""
-    model_type = model_result.get("type")
-    if model_type == "crisis":
-        return model_result  # crisis outranks everything — respected as-is
-    if model_type == "assessment":
+def _conversation_state_summary(state: episode_state.EpisodeState,
+                                history: list[dict]) -> dict | None:
+    """The Prompt Builder's episode snapshot (spec §7). None on a fresh
+    conversation — the block is omitted entirely."""
+    if not history:
+        return None
+    return {
+        "current_urgency": state.current_urgency,
+        "active_findings": state.active_findings,
+        "last_assessment": state.last_assessment,
+        "latch_active": state.min_safe_urgency is not None,
+        "questions_used": state.questions_used,
+    }
+
+
+def _post_turn_state(state: episode_state.EpisodeState, payload: dict,
+                     card_action: str) -> dict:
+    """The envelope's conversation_state snapshot — what is true AFTER
+    this turn. Drives the client's pinned UrgencyStrip; the client applies
+    no urgency logic of its own (AGENTS.md AI/Backend rule 7)."""
+    if payload.get("type") == "crisis":
+        return {"urgency": None, "assessment_active": False, "phase": "crisis"}
+    if card_action == "clear":
+        return {"urgency": None, "assessment_active": False, "phase": "idle"}
+    if payload.get("type") == "assessment" and card_action in ("new", "update"):
         return {
-            **model_result,
-            "urgency": wire_contract.max_urgency(model_result.get("urgency"), "seek_care_now"),
+            "urgency": payload.get("urgency"),
+            "assessment_active": True,
+            "phase": "guidance",
         }
-    # model_type == "question": OVERRIDE to assessment. Whether the
-    # model's own question text "already conveys urgency" (the spec's
-    # alternate branch) isn't reliably detectable from the 8-field
-    # schema without NLP judgment calls, so this always uses the static
-    # fallback — flagged rather than guessed at.
-    return fallbacks.static_fallback_assessment(message)
+    urgency = state.current_urgency
+    if urgency is not None:
+        phase = "guidance"
+    elif payload.get("type") == "question":
+        phase = "assessing"
+    else:
+        phase = "idle"
+    return {
+        "urgency": urgency,
+        "assessment_active": urgency is not None,
+        "phase": phase,
+    }
 
 
 def _log_request(
     *, prompt_version: str, red_flag_rule_ids: list[str], final_urgency: str | None,
-    latency_ms: float, retry_used: bool,
+    latency_ms: float, retry_used: bool, intents: list, change_type: str | None,
+    requires_clinical_reassessment: bool | None, card_action: str, demoted: bool,
+    reset_accepted: bool, deescalation_accepted: bool,
+    proposed_vs_final_urgency: str,
 ) -> None:
     # Structured fields only — never the message text, profile, or key.
     logger.info(
@@ -186,6 +237,14 @@ def _log_request(
             "final_urgency": final_urgency,
             "model_latency_ms": round(latency_ms, 1),
             "retry_used": retry_used,
+            "intents": intents,
+            "change_type": change_type,
+            "requires_clinical_reassessment": requires_clinical_reassessment,
+            "card_action": card_action,
+            "demoted": demoted,
+            "reset_accepted": reset_accepted,
+            "deescalation_accepted": deescalation_accepted,
+            "proposed_vs_final_urgency": proposed_vs_final_urgency,
         },
     )
 
@@ -210,7 +269,13 @@ def run_pipeline(
         )
 
     history = history or []
-    crisis_lock = _history_has_crisis_lock(history)
+    if len(history) > MAX_ACCEPTED_HISTORY_TURNS:
+        raise InvalidRequestError(HISTORY_TOO_LONG_MESSAGE)
+
+    # State Builder: crisis lock (assistant crisis turns OR a self-harm
+    # match anywhere in the full history) plus latch/urgency/scaffolding.
+    state = episode_state.derive_episode_state(history, profile)
+    crisis_lock = state.phase == "crisis"
 
     red_flag_result: red_flags.RedFlagResult | None = None
     force_crisis = crisis_lock
@@ -240,11 +305,12 @@ def run_pipeline(
                 force_crisis = True
 
     # Floor is "active" (must reach the user even if Gemini is down) when
-    # an ordinary red flag matched, this turn is crisis-forced, or the
-    # floor's own check crashed and we can't rule an emergency out —
+    # an ordinary red flag matched THIS turn, this turn is crisis-forced,
+    # or the floor's own check crashed and we can't rule an emergency out —
     # crisis_lock skips the ordinary check above but is itself a stronger
     # floor signal, so it counts too (see the degraded-mode test for why).
     floor_active = force_crisis or bool(red_flag_result and red_flag_result.matched) or red_flags_crashed
+    rule_ids_now = list(red_flag_result.rule_ids) if red_flag_result else []
 
     start = time.perf_counter()
     if red_flags_crashed:
@@ -254,14 +320,20 @@ def run_pipeline(
         retry_used = False
         degraded = True
     else:
+        # Prompt Builder: static persona/rules + the dynamic tail
+        # (language directive + episode snapshot).
         prompt = system_prompt.build_system_prompt(
             profile,
             worry_level,
             regional_context,
             conversation_language=_conversation_language(message, history),
+            conversation_state=_conversation_state_summary(state, history),
         )
+        # LLM: the model sees only the post-reset tail of history, capped
+        # at MODEL_HISTORY_WINDOW turns; derivation above saw all of it.
+        model_history = history[state.reset_index + 1:][-MODEL_HISTORY_WINDOW:]
         try:
-            model_result = gemini_client.get_assessment(prompt, history, message)
+            model_result = gemini_client.get_assessment(prompt, model_history, message)
             retry_used = bool(model_result.pop("_retry_used", False))
             degraded = False
         except gemini_client.ModelResponseError:
@@ -283,30 +355,55 @@ def run_pipeline(
             degraded = True
     latency_ms = (time.perf_counter() - start) * 1000
 
+    proposed_urgency = model_result.get("urgency")
+
+    # Safety Engine: the model proposed; deterministic gates dispose.
     if degraded:
         final_payload = model_result
-    elif force_crisis:
-        final_payload = _force_crisis(model_result)
-    elif red_flag_result and red_flag_result.matched:
-        final_payload = _merge_with_red_flags(model_result, message)
+        card_action, card_reason = _degraded_card(state, final_payload)
+        assessment_cleared = False
+        demoted = reset_accepted = deescalation_accepted = False
     else:
-        final_payload = model_result
+        gate = safety_engine.apply_gates(
+            state=state,
+            message=message,
+            current_match_rule_ids=rule_ids_now,
+            force_crisis=force_crisis,
+            model_result=model_result,
+        )
+        final_payload = gate.payload
+        card_action, card_reason = gate.card_action, gate.card_reason
+        assessment_cleared = gate.assessment_cleared
+        demoted = gate.demoted
+        reset_accepted = gate.reset_accepted
+        deescalation_accepted = gate.deescalation_accepted
 
-    rule_ids = red_flag_result.rule_ids if red_flag_result else []
     _log_request(
         prompt_version=system_prompt.PROMPT_VERSION,
-        red_flag_rule_ids=rule_ids,
+        red_flag_rule_ids=rule_ids_now,
         final_urgency=final_payload.get("urgency"),
         latency_ms=latency_ms,
         retry_used=retry_used,
+        intents=final_payload.get("intents", []),
+        change_type=final_payload.get("change_type"),
+        requires_clinical_reassessment=final_payload.get("requires_clinical_reassessment"),
+        card_action=card_action,
+        demoted=demoted,
+        reset_accepted=reset_accepted,
+        deescalation_accepted=deescalation_accepted,
+        proposed_vs_final_urgency=f"{proposed_urgency}->{final_payload.get('urgency')}",
     )
 
+    # Response Builder: turn payload + card directive + state snapshot.
     return {
         **final_payload,
+        "assessment_cleared": assessment_cleared,
+        "card": {"action": card_action, "reason": card_reason},
+        "conversation_state": _post_turn_state(state, final_payload, card_action),
         "metadata": {
             "prompt_version": system_prompt.PROMPT_VERSION,
             "red_flag_matched": bool(red_flag_result and red_flag_result.matched) or red_flags_crashed,
-            "red_flag_rule_ids": rule_ids,
+            "red_flag_rule_ids": rule_ids_now,
             "model_name": gemini_client.MODEL_NAME,
         },
     }
