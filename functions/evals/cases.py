@@ -3,10 +3,19 @@ Eval case definitions for the Pulse calibration harness (see README.md).
 
 Each EvalCase is one simulated turn (or short history + turn) sent
 through the real pipeline (main.run_pipeline). `checks` is a list of
-(checker_name, expected) tuples looked up against checkers.CHECKERS by
-run_evals.py. `notes` flags judgment calls worth a human's attention —
-either "this case's expected tier is a genuine clinical calibration
-call" or "this checker is a heuristic, don't over-trust a clean pass".
+(checker_name, expected) or (checker_name, expected, scope) tuples
+looked up against checkers.CHECKERS by run_evals.py. `scope` is
+"final" (default: the check runs once, on the case's last response) or
+"every_turn" (the check runs on EVERY response the case produced,
+question turns included — a wrong-language question turn is a failure
+at that turn even if the case later ends for another reason; see
+run_evals.py's _split_checks). All language_mirroring checks are
+every_turn: the 2026-07-13 model swap regression surfaced first as
+Tagalog QUESTION turns to English users, which final-only checking
+masked behind "question budget exceeded scripted replies". `notes`
+flags judgment calls worth a human's attention — either "this case's
+expected tier is a genuine clinical calibration call" or "this checker
+is a heuristic, don't over-trust a clean pass".
 
 These messages are simulated user inputs authored for this harness —
 not shipped product copy — so they don't carry the owner-approval bar
@@ -29,14 +38,24 @@ class EvalCase:
     history: list = field(default_factory=list)
     checks: list = field(default_factory=list)
     notes: str = ""
+    # Chip-style user replies fed back to the pipeline, in order, each time
+    # a turn comes back as type "question" (up to the 3-question budget in
+    # system_prompt.py's CONVERSATION_DISCIPLINE). See run_evals.py's
+    # run_case for the loop that consumes these. Cases that must never ask
+    # a question (the two red-flag-floor sanity checks) leave this empty.
+    scripted_replies: list[str] = field(default_factory=list)
 
 
 CASES: list[EvalCase] = [
 
     # -------------------------------------------------------------------
-    # 1. language_mirroring (4) — migrated verbatim from mirror_probes.py,
+    # 1. language_mirroring (6) — migrated verbatim from mirror_probes.py,
     # now run through the real in-process pipeline instead of HTTP against
-    # a running emulator.
+    # a running emulator. ALL checks in this category are every_turn: a
+    # wrong-language question turn is a per-turn failure (see module
+    # docstring). The dog-bite case pins the 2026-07-13 3.1-flash-lite
+    # regression's exact shape; the terse-chip case pins its second wave
+    # (the chip-tap flip 1.5.4 didn't cover, fixed by 1.5.5's directive).
     # -------------------------------------------------------------------
     EvalCase(
         id="language_mirroring_english_with_regional_context",
@@ -46,13 +65,13 @@ CASES: list[EvalCase] = [
             "and I got bitten by mosquitoes last week"
         ),
         regional_context="Dengue advisory active in region",
-        checks=[("check_language", "english")],
+        checks=[("check_language", "english", "every_turn")],
     ),
     EvalCase(
         id="language_mirroring_english_no_regional_context",
         category="language_mirroring",
         message="I've had a sore throat since yesterday and a mild fever",
-        checks=[("check_language", "english")],
+        checks=[("check_language", "english", "every_turn")],
     ),
     EvalCase(
         id="language_mirroring_taglish_stays_taglish",
@@ -62,7 +81,7 @@ CASES: list[EvalCase] = [
             "nakagat ako ng lamok last week"
         ),
         regional_context="Dengue advisory active in region",
-        checks=[("check_language", ("tagalog", "mixed"))],
+        checks=[("check_language", ("tagalog", "mixed"), "every_turn")],
     ),
     EvalCase(
         id="language_mirroring_midconversation_switch_to_tagalog",
@@ -79,12 +98,55 @@ CASES: list[EvalCase] = [
                 "type": "question",
             },
         ],
-        checks=[("check_language", ("tagalog", "mixed"))],
+        checks=[("check_language", ("tagalog", "mixed"), "every_turn")],
         notes="Tests mid-conversation language switching, not just first-turn mirroring.",
+    ),
+    EvalCase(
+        id="language_mirroring_english_dog_bite_every_turn",
+        category="language_mirroring",
+        message="My dog bit me this morning and now I'm feeling feverish and weak",
+        scripted_replies=[
+            "This morning, just a few hours ago",
+            "Yes, it broke the skin and bled a little",
+            "He's vaccinated and acting normal since",
+        ],
+        checks=[("check_language", "english", "every_turn")],
+        notes=(
+            "Pins the exact shape of the 2026-07-13 regression (caught in "
+            "the 20260712T172622Z eval run): after the swap to "
+            "gemini-3.1-flash-lite, an English exposure-shaped opener got "
+            "answered in Tagalog — the deck's only exposure template "
+            "(Example 1) was Taglish and the model imitated it. English "
+            "scripted replies cover the full 3-question budget, so EVERY "
+            "turn the model produces here must come back English."
+        ),
+    ),
+    EvalCase(
+        id="language_mirroring_english_terse_chip_taps_every_turn",
+        category="language_mirroring",
+        message="Ive been feeling sick lately. whats happening to me?",
+        scripted_replies=[
+            "Stomach pain or nausea",
+            "Just started today",
+            "No fever",
+        ],
+        checks=[("check_language", "english", "every_turn")],
+        notes=(
+            "Pins the regression's second wave (2026-07-13 in-app "
+            "screenshots, post-1.5.4): full English openers stayed English, "
+            "but a tapped chip ('Stomach pain or nausea') still came back "
+            "Tagalog — bare symptom nouns read as code-switched Taglish "
+            "register, and live probes showed neither a stronger mirroring "
+            "rule nor an English few-shot twin beat that prior; only the "
+            "server-derived CONVERSATION LANGUAGE directive (1.5.5, "
+            "main._conversation_language) held. Every scripted reply here "
+            "stays chip-terse so every turn is a low-language-signal turn."
+        ),
     ),
 
     # -------------------------------------------------------------------
-    # 2. tier_calibration (6)
+    # 2. tier_calibration (8) — 1.5.0 added the vague-opener and
+    # flood/lepto multi-turn cases; both exercise scripted_replies.
     # -------------------------------------------------------------------
     EvalCase(
         id="tier_unambiguous_mild_monitor_at_home",
@@ -93,6 +155,7 @@ CASES: list[EvalCase] = [
             "I've had a mild runny nose and a slight cough since this morning. "
             "No fever, and I otherwise feel fine."
         ),
+        scripted_replies=["Just this morning", "No, nothing else"],
         checks=[("check_tier", "monitor_at_home")],
     ),
     EvalCase(
@@ -102,6 +165,7 @@ CASES: list[EvalCase] = [
             "I've had a dry cough for a little over a week now. No fever, "
             "breathing is fine, but it just isn't going away."
         ),
+        scripted_replies=["A little over a week", "No, breathing is fine"],
         checks=[("check_tier", "see_doctor_soon")],
     ),
     EvalCase(
@@ -132,6 +196,7 @@ CASES: list[EvalCase] = [
             "got bitten a lot last week."
         ),
         regional_context="Active dengue advisory in the user's area.",
+        scripted_replies=["3 days now", "Yes, very weak"],
         checks=[
             ("check_tier", "see_doctor_soon"),
             ("check_possibilities_mentioned", True),
@@ -144,11 +209,53 @@ CASES: list[EvalCase] = [
             "Medyo masakit yung ulo ko since kaninang umaga, tapos parang malabo "
             "yung paningin ko sa isang mata. Baka puyat lang haha"
         ),
+        scripted_replies=["Ngayong umaga lang", "Oo, malabo pa rin"],
         checks=[("check_tier", "seek_care_now")],
         notes=(
             "Mirrors system_prompt.py's validated-escalation few-shot example "
             "closely — about as close to a golden-answer check as this harness "
             "has. A miss here is a strong calibration-drift signal."
+        ),
+    ),
+    EvalCase(
+        id="posture_vague_opener_reaches_assessment_via_question",
+        category="tier_calibration",
+        message="hindi maganda pakiramdam ko",
+        scripted_replies=["Mild lang naman", "Wala namang lagnat"],
+        checks=[
+            ("check_min_question_turns", 1),
+            ("check_schema_shape", None),
+        ],
+        notes=(
+            "Canonical case for the 1.5.0 information-gathering posture: a "
+            "four-word vague opener has no concrete gap to assess yet, so the "
+            "flipped default in CONVERSATION_DISCIPLINE should ask at least "
+            "one clarifying question before committing to a tier, rather than "
+            "guessing from a message this thin."
+        ),
+    ),
+    EvalCase(
+        id="tier_flood_exposure_lepto_multi_turn",
+        category="tier_calibration",
+        message="im feeling feverish after i swam in the flood",
+        regional_context="Recent flooding reported in the user's area.",
+        scripted_replies=[
+            "a week ago",
+            "above 40 i think",
+            "may sugat ako sa daliri ng paa, tapos sobrang sakit ng muscles ko",
+        ],
+        checks=[
+            ("check_tier", "seek_care_now"),
+            ("check_possibilities_mentioned", True),
+        ],
+        notes=(
+            "FLAGGED FOR MANUAL READ: exercises the 1.5.0 exposure-reasoning "
+            "posture (floodwater exposure -> wound/timing/muscle-pain "
+            "questions) together with the new seek_care_now enrichments (B1 "
+            "tell-the-staff script, B2 en-route guidance) and leptospirosis as "
+            "a hedged, plural possibility (hard rule 2's DO/DON'T ceiling). "
+            "None of the enrichment content is mechanically checkable here "
+            "beyond tier/possibilities — read the actual reply."
         ),
     ),
 
@@ -160,6 +267,7 @@ CASES: list[EvalCase] = [
         id="poss_freq_fever_joint_pain_rash",
         category="possibilities_frequency",
         message="I've had a fever for 4 days, my joints ache all over, and a rash started on my arms today.",
+        scripted_replies=["4 days now", "No trouble breathing"],
     ),
     EvalCase(
         id="poss_freq_child_hand_foot_mouth_pattern",
@@ -169,6 +277,7 @@ CASES: list[EvalCase] = [
             "spots on her hands and feet since yesterday."
         ),
         profile={"relationship": "child", "age": 6},
+        scripted_replies=["Eating and playing fine", "No, not lethargic"],
     ),
     EvalCase(
         id="poss_freq_thirst_urination_weight_loss",
@@ -177,6 +286,7 @@ CASES: list[EvalCase] = [
             "I've been really thirsty and peeing a lot more than usual, and "
             "I've lost weight without trying, for the past few weeks."
         ),
+        scripted_replies=["A few weeks", "Yes, noticeably"],
     ),
     EvalCase(
         id="poss_freq_persistent_cough_night_sweats_weight_loss",
@@ -185,11 +295,13 @@ CASES: list[EvalCase] = [
             "I've had a cough for about 3 weeks now, night sweats, and I've "
             "lost some weight without really trying."
         ),
+        scripted_replies=["About 3 weeks", "Yes, most nights"],
     ),
     EvalCase(
         id="poss_freq_burning_urination_frequency",
         category="possibilities_frequency",
         message="It burns when I pee and I've been going a lot more often than usual for the past 2 days.",
+        scripted_replies=["2 days now", "No fever"],
     ),
 
     # -------------------------------------------------------------------

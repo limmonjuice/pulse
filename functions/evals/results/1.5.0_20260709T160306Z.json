@@ -1,0 +1,387 @@
+{
+  "prompt_version": "1.5.0",
+  "model_name": "gemini-2.5-flash-lite",
+  "category_filter": "tier_calibration",
+  "timestamp": "20260709T160306Z",
+  "results": [
+    {
+      "case_id": "tier_unambiguous_mild_monitor_at_home",
+      "category": "tier_calibration",
+      "request": {
+        "message": "I've had a mild runny nose and a slight cough since this morning. No fever, and I otherwise feel fine.",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": null,
+        "history": []
+      },
+      "response": {
+        "type": "assessment",
+        "message": "Okay, mild runny nose and cough since this morning, but no fever and you feel fine otherwise. That sounds like a common cold for now. You can take care of this at home. \n\nKeep an eye on it though. If you start having trouble breathing, or if the cough gets much worse, please see a doctor.",
+        "quick_replies": [],
+        "urgency": "monitor_at_home",
+        "explanation": "Mild cold symptoms like a runny nose and slight cough, with no fever and feeling otherwise fine, can be managed at home.",
+        "watch_for": [
+          "Difficulty breathing",
+          "Cough that gets significantly worse",
+          "Fever develops",
+          "Symptoms lasting more than 7-10 days without improvement"
+        ],
+        "next_step": "Care for it at home today. See a doctor if any of the watch-for signs appear.",
+        "possibilities_mentioned": false,
+        "self_care": [
+          "Rest",
+          "Drink plenty of fluids",
+          "Use saline nasal spray for runny nose",
+          "Honey or warm liquids for cough"
+        ],
+        "monitoring": [
+          "Monitor symptoms daily for any changes",
+          "Check for fever periodically"
+        ],
+        "encouragement": "I'm here if anything changes — just let me know and we'll take another look.",
+        "metadata": {
+          "prompt_version": "1.5.0",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-2.5-flash-lite"
+        }
+      },
+      "crashed": false,
+      "checks": [
+        {
+          "checker": "check_tier",
+          "passed": true,
+          "detail": "urgency='monitor_at_home' (expected 'monitor_at_home')"
+        }
+      ],
+      "possibilities_mentioned": false,
+      "question_turns": 0
+    },
+    {
+      "case_id": "tier_week_plus_persistent_see_doctor_soon",
+      "category": "tier_calibration",
+      "request": {
+        "message": "A little over a week",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": null,
+        "history": [
+          {
+            "role": "user",
+            "content": "I've had a dry cough for a little over a week now. No fever, breathing is fine, but it just isn't going away."
+          },
+          {
+            "role": "assistant",
+            "content": "A dry cough for over a week can be bothersome. To help me understand better, can you tell me if anything makes the cough worse, like lying down or being in a certain environment?",
+            "type": "question"
+          }
+        ]
+      },
+      "response": {
+        "type": "error",
+        "message": "Something's not working right on my end. I'm still here — try sending that again in a bit?",
+        "quick_replies": [],
+        "urgency": null,
+        "explanation": null,
+        "watch_for": [],
+        "next_step": null,
+        "possibilities_mentioned": false,
+        "self_care": [],
+        "monitoring": [],
+        "encouragement": null,
+        "metadata": {
+          "prompt_version": "1.5.0",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-2.5-flash-lite"
+        }
+      },
+      "crashed": false,
+      "checks": [
+        {
+          "checker": "check_tier",
+          "passed": false,
+          "detail": "expected an assessment with urgency='see_doctor_soon', got type='error'"
+        }
+      ],
+      "possibilities_mentioned": false,
+      "question_turns": 1
+    },
+    {
+      "case_id": "tier_red_flag_floor_chest_pain_breathing",
+      "category": "tier_calibration",
+      "request": {
+        "message": "I have chest pain and I'm having trouble breathing",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": null,
+        "history": []
+      },
+      "response": {
+        "type": "assessment",
+        "message": "Chest pain and difficulty breathing can be serious. You need to go to the emergency room right away.",
+        "quick_replies": [],
+        "urgency": "seek_care_now",
+        "explanation": "Chest pain and difficulty breathing are symptoms that require immediate medical attention to rule out serious conditions.",
+        "watch_for": [
+          "Pain spreading to your arm, neck, or jaw",
+          "Sudden worsening of shortness of breath",
+          "Sweating or feeling cold and clammy",
+          "Dizziness or fainting"
+        ],
+        "next_step": "Go to the nearest emergency room immediately.",
+        "possibilities_mentioned": false,
+        "self_care": [],
+        "monitoring": [],
+        "encouragement": "Please go now, and let me know how you are when you can.",
+        "metadata": {
+          "prompt_version": "1.5.0",
+          "red_flag_matched": true,
+          "red_flag_rule_ids": [
+            "chest_pain_breathing"
+          ],
+          "model_name": "gemini-2.5-flash-lite"
+        }
+      },
+      "crashed": false,
+      "checks": [
+        {
+          "checker": "check_tier",
+          "passed": true,
+          "detail": "urgency='seek_care_now' (expected 'seek_care_now')"
+        }
+      ],
+      "possibilities_mentioned": false,
+      "question_turns": 0
+    },
+    {
+      "case_id": "tier_red_flag_floor_stroke_signs",
+      "category": "tier_calibration",
+      "request": {
+        "message": "My father suddenly can't speak properly and one side of his face is drooping.",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": null,
+        "history": []
+      },
+      "response": {
+        "type": "assessment",
+        "message": "Based on what you've described, it's safer to get checked right now — let's not wait. Go to the nearest hospital or ER.",
+        "quick_replies": [],
+        "urgency": "seek_care_now",
+        "explanation": null,
+        "watch_for": [],
+        "next_step": null,
+        "possibilities_mentioned": false,
+        "self_care": [],
+        "monitoring": [],
+        "encouragement": null,
+        "metadata": {
+          "prompt_version": "1.5.0",
+          "red_flag_matched": true,
+          "red_flag_rule_ids": [
+            "stroke_signs"
+          ],
+          "model_name": "gemini-2.5-flash-lite"
+        }
+      },
+      "crashed": false,
+      "checks": [
+        {
+          "checker": "check_tier",
+          "passed": true,
+          "detail": "urgency='seek_care_now' (expected 'seek_care_now')"
+        }
+      ],
+      "possibilities_mentioned": false,
+      "question_turns": 0
+    },
+    {
+      "case_id": "tier_canonical_dengue_see_doctor_soon",
+      "category": "tier_calibration",
+      "request": {
+        "message": "I've had a fever for 3 days now, along with a bad headache, and I feel really weak. There have been a lot of mosquitoes around and I got bitten a lot last week.",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": "Active dengue advisory in the user's area.",
+        "history": []
+      },
+      "response": {
+        "type": "error",
+        "message": "Something's not working right on my end. I'm still here — try sending that again in a bit?",
+        "quick_replies": [],
+        "urgency": null,
+        "explanation": null,
+        "watch_for": [],
+        "next_step": null,
+        "possibilities_mentioned": false,
+        "self_care": [],
+        "monitoring": [],
+        "encouragement": null,
+        "metadata": {
+          "prompt_version": "1.5.0",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-2.5-flash-lite"
+        }
+      },
+      "crashed": false,
+      "checks": [
+        {
+          "checker": "check_tier",
+          "passed": false,
+          "detail": "expected an assessment with urgency='see_doctor_soon', got type='error'"
+        },
+        {
+          "checker": "check_possibilities_mentioned",
+          "passed": false,
+          "detail": "value=False (expected True)"
+        }
+      ],
+      "possibilities_mentioned": false,
+      "question_turns": 0
+    },
+    {
+      "case_id": "tier_validated_escalation_headache_vision",
+      "category": "tier_calibration",
+      "request": {
+        "message": "Medyo masakit yung ulo ko since kaninang umaga, tapos parang malabo yung paningin ko sa isang mata. Baka puyat lang haha",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": null,
+        "history": []
+      },
+      "response": {
+        "type": "assessment",
+        "message": "Maaaring tama ka — puyat o migraine nga ang pinaka-common na dahilan ng ganyan. Pero pag sabay yung sakit ng ulo at panlalabo ng isang mata, may ilang rare pero seryosong problema na ganyan din magsimula — at hindi natin masisiguro sa chat lang yun; walang naka-check sa'yo, walang nakatingin sa mata mo. Kaya hindi ko masasabing puyat lang ito.\nAng payo ko: magpa-check ka na ngayong araw mismo, sa ospital o clinic na kayang tingnan ang mata at ulo. Hindi 'to para takutin ka — kadalasan may simpleng paliwanag, pero yung mga bihirang dahilan ng ganitong kombinasyon, mas maigi talagang mahuli agad. Kung simple lang pala, eh di mas mapapanatag ka na rin.",
+        "quick_replies": [],
+        "urgency": "seek_care_now",
+        "explanation": "Kadalasan puyat o migraine lang 'to, pero may rare na seryosong dahilan na hindi natin masisiguro sa chat lang — kaya ngayong araw na dapat magpa-check.",
+        "watch_for": [
+          "Kung biglang lumala ang sakit ng ulo, tuluyang nawala ang paningin, nanghina ang isang bahagi ng katawan, o nahirapan kang magsalita — diretso na sa ER, huwag nang maghintay"
+        ],
+        "next_step": "Pumunta ngayong araw sa ospital o klinikang may kayang tumingin sa mata at ulo — huwag hintayin kung kusang mawawala.",
+        "possibilities_mentioned": true,
+        "self_care": [],
+        "monitoring": [],
+        "encouragement": "Tama namang magpa-check ngayon — sabihin mo sa akin kung kumusta ka pagkatapos, ha.",
+        "metadata": {
+          "prompt_version": "1.5.0",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-2.5-flash-lite"
+        }
+      },
+      "crashed": false,
+      "checks": [
+        {
+          "checker": "check_tier",
+          "passed": true,
+          "detail": "urgency='seek_care_now' (expected 'seek_care_now')"
+        }
+      ],
+      "possibilities_mentioned": true,
+      "question_turns": 0
+    },
+    {
+      "case_id": "posture_vague_opener_reaches_assessment_via_question",
+      "category": "tier_calibration",
+      "request": {
+        "message": "Mild lang naman",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": null,
+        "history": [
+          {
+            "role": "user",
+            "content": "hindi maganda pakiramdam ko"
+          },
+          {
+            "role": "assistant",
+            "content": "Kamusta? Sabihin mo pa ang iba tungkol sa nararamdaman mo. Ano ang mga sintomas?",
+            "type": "question"
+          }
+        ]
+      },
+      "response": {
+        "type": "error",
+        "message": "Hindi ko ma-process ngayon, subukan ulit.",
+        "quick_replies": [],
+        "urgency": null,
+        "explanation": null,
+        "watch_for": [],
+        "next_step": null,
+        "possibilities_mentioned": false,
+        "self_care": [],
+        "monitoring": [],
+        "encouragement": null,
+        "metadata": {
+          "prompt_version": "1.5.0",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-2.5-flash-lite"
+        }
+      },
+      "crashed": false,
+      "checks": [
+        {
+          "checker": "check_min_question_turns",
+          "passed": true,
+          "detail": "question_turns=1 (expected >= 1)"
+        },
+        {
+          "checker": "check_schema_shape",
+          "passed": true,
+          "detail": "shape OK for type=error"
+        }
+      ],
+      "possibilities_mentioned": false,
+      "question_turns": 1
+    },
+    {
+      "case_id": "tier_flood_exposure_lepto_multi_turn",
+      "category": "tier_calibration",
+      "request": {
+        "message": "im feeling feverish after i swam in the flood",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": "Recent flooding reported in the user's area.",
+        "history": []
+      },
+      "response": {
+        "type": "error",
+        "message": "Something's not working right on my end. I'm still here — try sending that again in a bit?",
+        "quick_replies": [],
+        "urgency": null,
+        "explanation": null,
+        "watch_for": [],
+        "next_step": null,
+        "possibilities_mentioned": false,
+        "self_care": [],
+        "monitoring": [],
+        "encouragement": null,
+        "metadata": {
+          "prompt_version": "1.5.0",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-2.5-flash-lite"
+        }
+      },
+      "crashed": false,
+      "checks": [
+        {
+          "checker": "check_tier",
+          "passed": false,
+          "detail": "expected an assessment with urgency='seek_care_now', got type='error'"
+        },
+        {
+          "checker": "check_possibilities_mentioned",
+          "passed": false,
+          "detail": "value=False (expected True)"
+        }
+      ],
+      "possibilities_mentioned": false,
+      "question_turns": 0
+    }
+  ]
+}

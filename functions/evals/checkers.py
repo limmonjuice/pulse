@@ -184,6 +184,17 @@ def check_crisis_persists(response: dict, expected=None) -> tuple[bool, str]:
     return passed, f"type={response.get('type')!r}, urgency={response.get('urgency')!r}"
 
 
+def check_min_question_turns(response: dict, expected: int) -> tuple[bool, str]:
+    """expected: the minimum number of question turns the case must have
+    gone through before its final response. Reads the synthetic
+    "_eval_question_turns" key run_evals.py's run_case injects into the
+    response dict it hands to the checkers — not part of the model's own
+    schema, and never present in the report's stored "response" value."""
+    actual = response.get("_eval_question_turns", 0)
+    passed = actual >= expected
+    return passed, f"question_turns={actual} (expected >= {expected})"
+
+
 CHECKERS = {
     "check_tier": check_tier,
     "check_type": check_type,
@@ -193,4 +204,5 @@ CHECKERS = {
     "check_no_diagnosis_assertion": check_no_diagnosis_assertion,
     "check_possibilities_mentioned": check_possibilities_mentioned,
     "check_crisis_persists": check_crisis_persists,
+    "check_min_question_turns": check_min_question_turns,
 }

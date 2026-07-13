@@ -1,0 +1,216 @@
+{
+  "prompt_version": "1.5.0",
+  "model_name": "gemini-3.1-flash-lite",
+  "category_filter": "language_mirroring",
+  "timestamp": "20260712T172622Z",
+  "results": [
+    {
+      "case_id": "language_mirroring_english_with_regional_context",
+      "category": "language_mirroring",
+      "request": {
+        "message": "I've had a fever for 3 days with a bad headache, and I got bitten by mosquitoes last week",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": "Dengue advisory active in region",
+        "history": []
+      },
+      "response": {
+        "type": "assessment",
+        "message": "Salamat sa pag-share. Dahil may lagnat ka na ng tatlong araw, may matinding sakit ng ulo, at may history ng kagat ng lamok sa lugar na may dengue advisory, kailangan nating maging maingat. Pwedeng ordinaryong trangkaso lang ito, pero pwede ring dengue o ibang viral na sakit — hindi natin masisiguro sa chat lang dahil kailangan ng blood test para malaman.\n\nMas mabuting magpa-check ka na sa doktor ngayong araw o bukas. Importante ito dahil sa dengue, minsan pagbaba ng lagnat ay doon pa lumalabas ang mga delikadong senyales. Ilista ko sa baba ang mga dapat mong bantayan nang maigi.",
+        "quick_replies": [],
+        "urgency": "see_doctor_soon",
+        "explanation": "Ang kombinasyon ng lagnat, sakit ng ulo, at exposure sa lamok sa isang lugar na may dengue advisory ay nangangailangan ng medical check-up sa loob ng 24-48 oras.",
+        "watch_for": [
+          "Sumakit nang matindi ang tiyan",
+          "Nagsuka nang paulit-ulit",
+          "Dumugo ang gilagid o ilong",
+          "Sobrang antok o hirap gisingin",
+          "Pagbaba ng lagnat pero lalong nanghihina"
+        ],
+        "next_step": "Magpa-check sa doktor ngayong araw o bukas para sa blood test. Pagdating mo, sabihin mo: 'May lagnat ako ng 3 araw, matinding sakit ng ulo, at may exposure sa lamok sa lugar na may dengue advisory.'",
+        "possibilities_mentioned": true,
+        "self_care": [
+          "Uminom ng maraming tubig o fluids",
+          "Magpahinga nang sapat",
+          "Paracetamol para sa lagnat, ayon sa package directions"
+        ],
+        "monitoring": [
+          "Sukatin ang temperatura kada 4-6 oras",
+          "Bantayan ang anumang pagbabago sa pakiramdam kahit bumaba ang lagnat"
+        ],
+        "encouragement": "Nandito lang ako — kung may nagbago sa pakiramdam mo o may mapansin kang bago, sabihin mo lang at titingnan nating ulit.",
+        "metadata": {
+          "prompt_version": "1.5.0",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-3.1-flash-lite"
+        }
+      },
+      "crashed": false,
+      "checks": [
+        {
+          "checker": "check_language",
+          "passed": false,
+          "detail": "detected='tagalog' (expected one of ('english',))"
+        }
+      ],
+      "possibilities_mentioned": true,
+      "question_turns": 0
+    },
+    {
+      "case_id": "language_mirroring_english_no_regional_context",
+      "category": "language_mirroring",
+      "request": {
+        "message": "I've had a sore throat since yesterday and a mild fever",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": null,
+        "history": []
+      },
+      "response": {
+        "type": "question",
+        "message": "Salamat sa pag-share. Bukod sa sore throat at mild fever, may iba ka pa bang nararamdaman, gaya ng ubo, sipon, o hirap sa paglunok?",
+        "quick_replies": [
+          "May ubo at sipon",
+          "Hirap lumunok",
+          "Wala namang iba",
+          "Hindi ako sure"
+        ],
+        "urgency": null,
+        "explanation": null,
+        "watch_for": [],
+        "next_step": null,
+        "possibilities_mentioned": false,
+        "self_care": [],
+        "monitoring": [],
+        "encouragement": null,
+        "metadata": {
+          "prompt_version": "1.5.0",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-3.1-flash-lite"
+        }
+      },
+      "crashed": false,
+      "checks": [
+        {
+          "checker": "check_language",
+          "passed": false,
+          "detail": "question budget exceeded scripted replies"
+        }
+      ],
+      "possibilities_mentioned": null,
+      "question_turns": 1
+    },
+    {
+      "case_id": "language_mirroring_taglish_stays_taglish",
+      "category": "language_mirroring",
+      "request": {
+        "message": "May lagnat ako 3 days na tapos sobrang sakit ng ulo ko, nakagat ako ng lamok last week",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": "Dengue advisory active in region",
+        "history": []
+      },
+      "response": {
+        "type": "assessment",
+        "message": "Salamat sa pag-share. Dahil may lagnat ka na ng 3 araw, matinding sakit ng ulo, at may history ng kagat ng lamok, kailangan nating maging maingat. Ang ganitong pattern ay pwedeng ordinaryong trangkaso lang, pero pwedeng dengue o ibang viral na sakit din — hindi natin masisiguro sa chat lang dahil walang physical exam na nagawa.\n\nMas mabuting magpa-check ka na sa doktor o sa pinakamalapit na health center ngayong araw o bukas para masuri ka nang maigi at makapag-blood test kung kinakailangan. Importante ring bantayan ang mga delikadong senyales sa susunod na 1-2 araw, dahil sa dengue, minsan pagbaba ng lagnat ay doon lumalabas ang mga seryosong sintomas.",
+        "quick_replies": [],
+        "urgency": "see_doctor_soon",
+        "explanation": "Ang lagnat na tumatagal ng 3 araw na may matinding sakit ng ulo at history ng kagat ng lamok sa lugar na may dengue advisory ay nangangailangan ng pagsusuri ng doktor sa loob ng 24-48 oras.",
+        "watch_for": [
+          "Sumakit nang matindi ang tiyan",
+          "Nagsuka nang paulit-ulit",
+          "Dumugo ang gilagid o ilong",
+          "Sobrang antok o hirap gisingin",
+          "Pantal sa balat"
+        ],
+        "next_step": "Magpa-check sa doktor o health center ngayong araw o bukas para sa tamang pagsusuri at posibleng blood test.",
+        "possibilities_mentioned": true,
+        "self_care": [
+          "Uminom ng maraming tubig o fluids",
+          "Magpahinga nang sapat",
+          "Paracetamol para sa lagnat, ayon sa package directions"
+        ],
+        "monitoring": [
+          "Sukatin ang temperatura kada 4-6 oras",
+          "Bantayan ang pakiramdam kahit bumaba ang lagnat",
+          "Ilista ang anumang bagong sintomas na lalabas"
+        ],
+        "encouragement": "Nandito lang ako — kung may nagbago sa pakiramdam mo o may mapansin kang bago, sabihin mo lang at titingnan nating ulit.",
+        "metadata": {
+          "prompt_version": "1.5.0",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-3.1-flash-lite"
+        }
+      },
+      "crashed": false,
+      "checks": [
+        {
+          "checker": "check_language",
+          "passed": true,
+          "detail": "detected='tagalog' (expected one of ('tagalog', 'mixed'))"
+        }
+      ],
+      "possibilities_mentioned": true,
+      "question_turns": 0
+    },
+    {
+      "case_id": "language_mirroring_midconversation_switch_to_tagalog",
+      "category": "language_mirroring",
+      "request": {
+        "message": "Yung sakit ng ulo ko lumalala na po",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": null,
+        "history": [
+          {
+            "role": "user",
+            "content": "I've had a headache since this morning"
+          },
+          {
+            "role": "assistant",
+            "content": "Thanks for telling me. One question so I can help better: how bad is the headache right now — mild, moderate, or severe?",
+            "type": "question"
+          }
+        ]
+      },
+      "response": {
+        "type": "assessment",
+        "message": "Salamat sa pag-update. Dahil lumalala ang sakit ng ulo mo, kailangan nating maging maingat. Ang ganitong sintomas ay pwedeng dahil sa simpleng pagod, migraine, o dehydration, pero may mga pagkakataon din na senyales ito ng mas seryosong kondisyon na hindi natin masisiguro sa chat lang.\n\nDahil hindi natin ma-check ang iyong blood pressure o iba pang physical signs, mas mabuting magpatingin ka na sa doktor ngayong araw para masigurado kung ano ang sanhi. Huwag mong hintayin na maging sobrang tindi ng sakit bago kumilos.",
+        "quick_replies": [],
+        "urgency": "seek_care_now",
+        "explanation": "Ang lumalalang sakit ng ulo ay nangangailangan ng mabilis na pagsusuri ng doktor dahil hindi natin masisiguro ang sanhi nito sa chat lang.",
+        "watch_for": [
+          "Biglang paglabo ng paningin",
+          "Panghihina ng kahit anong bahagi ng katawan",
+          "Hirap sa pagsasalita o pag-intindi",
+          "Sobrang tigas ng leeg o mataas na lagnat",
+          "Pagkalito o sobrang antok"
+        ],
+        "next_step": "Pumunta sa pinakamalapit na clinic o ospital ngayong araw para ma-check ng doktor.",
+        "possibilities_mentioned": true,
+        "self_care": [],
+        "monitoring": [],
+        "encouragement": "Mag-ingat ka sa pagbiyahe papunta sa doktor at sabihan mo ako kung kumusta ka pagkatapos.",
+        "metadata": {
+          "prompt_version": "1.5.0",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-3.1-flash-lite"
+        }
+      },
+      "crashed": false,
+      "checks": [
+        {
+          "checker": "check_language",
+          "passed": true,
+          "detail": "detected='tagalog' (expected one of ('tagalog', 'mixed'))"
+        }
+      ],
+      "possibilities_mentioned": true,
+      "question_turns": 0
+    }
+  ]
+}

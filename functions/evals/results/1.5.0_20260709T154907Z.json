@@ -1,0 +1,371 @@
+{
+  "prompt_version": "1.5.0",
+  "model_name": "gemini-2.5-flash-lite",
+  "category_filter": "tier_calibration",
+  "timestamp": "20260709T154907Z",
+  "results": [
+    {
+      "case_id": "tier_unambiguous_mild_monitor_at_home",
+      "category": "tier_calibration",
+      "request": {
+        "message": "I've had a mild runny nose and a slight cough since this morning. No fever, and I otherwise feel fine.",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": null,
+        "history": []
+      },
+      "response": {
+        "type": "error",
+        "message": "Something's not working right on my end. I'm still here — try sending that again in a bit?",
+        "quick_replies": [],
+        "urgency": null,
+        "explanation": null,
+        "watch_for": [],
+        "next_step": null,
+        "possibilities_mentioned": false,
+        "self_care": [],
+        "monitoring": [],
+        "encouragement": null,
+        "metadata": {
+          "prompt_version": "1.5.0",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-2.5-flash-lite"
+        }
+      },
+      "crashed": false,
+      "checks": [
+        {
+          "checker": "check_tier",
+          "passed": false,
+          "detail": "expected an assessment with urgency='monitor_at_home', got type='error'"
+        }
+      ],
+      "possibilities_mentioned": false,
+      "question_turns": 0
+    },
+    {
+      "case_id": "tier_week_plus_persistent_see_doctor_soon",
+      "category": "tier_calibration",
+      "request": {
+        "message": "I've had a dry cough for a little over a week now. No fever, breathing is fine, but it just isn't going away.",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": null,
+        "history": []
+      },
+      "response": {
+        "type": "error",
+        "message": "Something's not working right on my end. I'm still here — try sending that again in a bit?",
+        "quick_replies": [],
+        "urgency": null,
+        "explanation": null,
+        "watch_for": [],
+        "next_step": null,
+        "possibilities_mentioned": false,
+        "self_care": [],
+        "monitoring": [],
+        "encouragement": null,
+        "metadata": {
+          "prompt_version": "1.5.0",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-2.5-flash-lite"
+        }
+      },
+      "crashed": false,
+      "checks": [
+        {
+          "checker": "check_tier",
+          "passed": false,
+          "detail": "expected an assessment with urgency='see_doctor_soon', got type='error'"
+        }
+      ],
+      "possibilities_mentioned": false,
+      "question_turns": 0
+    },
+    {
+      "case_id": "tier_red_flag_floor_chest_pain_breathing",
+      "category": "tier_calibration",
+      "request": {
+        "message": "I have chest pain and I'm having trouble breathing",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": null,
+        "history": []
+      },
+      "response": {
+        "type": "assessment",
+        "message": "Chest pain and trouble breathing can be serious. You need to go to the emergency room right away.",
+        "quick_replies": [],
+        "urgency": "seek_care_now",
+        "explanation": "Chest pain and difficulty breathing are potentially life-threatening symptoms that require immediate medical evaluation.",
+        "watch_for": [
+          "Sudden worsening of chest pain",
+          "Pain radiating to the arm, jaw, or back",
+          "Sweating or nausea",
+          "Dizziness or fainting"
+        ],
+        "next_step": "Go to the nearest emergency room immediately.",
+        "possibilities_mentioned": false,
+        "self_care": [],
+        "monitoring": [],
+        "encouragement": "Please go now. I'm here if you need to talk after you've been seen.",
+        "metadata": {
+          "prompt_version": "1.5.0",
+          "red_flag_matched": true,
+          "red_flag_rule_ids": [
+            "chest_pain_breathing"
+          ],
+          "model_name": "gemini-2.5-flash-lite"
+        }
+      },
+      "crashed": false,
+      "checks": [
+        {
+          "checker": "check_tier",
+          "passed": true,
+          "detail": "urgency='seek_care_now' (expected 'seek_care_now')"
+        }
+      ],
+      "possibilities_mentioned": false,
+      "question_turns": 0
+    },
+    {
+      "case_id": "tier_red_flag_floor_stroke_signs",
+      "category": "tier_calibration",
+      "request": {
+        "message": "My father suddenly can't speak properly and one side of his face is drooping.",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": null,
+        "history": []
+      },
+      "response": {
+        "type": "assessment",
+        "message": "Based on what you've described, it's safer to get checked right now — let's not wait. Go to the nearest hospital or ER.",
+        "quick_replies": [],
+        "urgency": "seek_care_now",
+        "explanation": null,
+        "watch_for": [],
+        "next_step": null,
+        "possibilities_mentioned": false,
+        "self_care": [],
+        "monitoring": [],
+        "encouragement": null,
+        "metadata": {
+          "prompt_version": "1.5.0",
+          "red_flag_matched": true,
+          "red_flag_rule_ids": [
+            "stroke_signs"
+          ],
+          "model_name": "gemini-2.5-flash-lite"
+        }
+      },
+      "crashed": false,
+      "checks": [
+        {
+          "checker": "check_tier",
+          "passed": true,
+          "detail": "urgency='seek_care_now' (expected 'seek_care_now')"
+        }
+      ],
+      "possibilities_mentioned": false,
+      "question_turns": 0
+    },
+    {
+      "case_id": "tier_canonical_dengue_see_doctor_soon",
+      "category": "tier_calibration",
+      "request": {
+        "message": "I've had a fever for 3 days now, along with a bad headache, and I feel really weak. There have been a lot of mosquitoes around and I got bitten a lot last week.",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": "Active dengue advisory in the user's area.",
+        "history": []
+      },
+      "response": {
+        "type": "error",
+        "message": "Something's not working right on my end. I'm still here — try sending that again in a bit?",
+        "quick_replies": [],
+        "urgency": null,
+        "explanation": null,
+        "watch_for": [],
+        "next_step": null,
+        "possibilities_mentioned": false,
+        "self_care": [],
+        "monitoring": [],
+        "encouragement": null,
+        "metadata": {
+          "prompt_version": "1.5.0",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-2.5-flash-lite"
+        }
+      },
+      "crashed": false,
+      "checks": [
+        {
+          "checker": "check_tier",
+          "passed": false,
+          "detail": "expected an assessment with urgency='see_doctor_soon', got type='error'"
+        },
+        {
+          "checker": "check_possibilities_mentioned",
+          "passed": false,
+          "detail": "value=False (expected True)"
+        }
+      ],
+      "possibilities_mentioned": false,
+      "question_turns": 0
+    },
+    {
+      "case_id": "tier_validated_escalation_headache_vision",
+      "category": "tier_calibration",
+      "request": {
+        "message": "Medyo masakit yung ulo ko since kaninang umaga, tapos parang malabo yung paningin ko sa isang mata. Baka puyat lang haha",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": null,
+        "history": []
+      },
+      "response": {
+        "type": "error",
+        "message": "Hindi ko ma-process ngayon, subukan ulit.",
+        "quick_replies": [],
+        "urgency": null,
+        "explanation": null,
+        "watch_for": [],
+        "next_step": null,
+        "possibilities_mentioned": false,
+        "self_care": [],
+        "monitoring": [],
+        "encouragement": null,
+        "metadata": {
+          "prompt_version": "1.5.0",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-2.5-flash-lite"
+        }
+      },
+      "crashed": false,
+      "checks": [
+        {
+          "checker": "check_tier",
+          "passed": false,
+          "detail": "expected an assessment with urgency='seek_care_now', got type='error'"
+        }
+      ],
+      "possibilities_mentioned": false,
+      "question_turns": 0
+    },
+    {
+      "case_id": "posture_vague_opener_reaches_assessment_via_question",
+      "category": "tier_calibration",
+      "request": {
+        "message": "hindi maganda pakiramdam ko",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": null,
+        "history": []
+      },
+      "response": {
+        "type": "error",
+        "message": "Hindi ko ma-process ngayon, subukan ulit.",
+        "quick_replies": [],
+        "urgency": null,
+        "explanation": null,
+        "watch_for": [],
+        "next_step": null,
+        "possibilities_mentioned": false,
+        "self_care": [],
+        "monitoring": [],
+        "encouragement": null,
+        "metadata": {
+          "prompt_version": "1.5.0",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-2.5-flash-lite"
+        }
+      },
+      "crashed": false,
+      "checks": [
+        {
+          "checker": "check_min_question_turns",
+          "passed": false,
+          "detail": "question_turns=0 (expected >= 1)"
+        },
+        {
+          "checker": "check_schema_shape",
+          "passed": true,
+          "detail": "shape OK for type=error"
+        }
+      ],
+      "possibilities_mentioned": false,
+      "question_turns": 0
+    },
+    {
+      "case_id": "tier_flood_exposure_lepto_multi_turn",
+      "category": "tier_calibration",
+      "request": {
+        "message": "above 40 i think",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": "Recent flooding reported in the user's area.",
+        "history": [
+          {
+            "role": "user",
+            "content": "im feeling feverish after i swam in the flood"
+          },
+          {
+            "role": "assistant",
+            "content": "Naramdaman mo na may lagnat ka pagkatapos lumangoy sa baha. Okay ka lang ba ngayon, o may iba ka pang nararamdaman?",
+            "type": "question"
+          },
+          {
+            "role": "user",
+            "content": "a week ago"
+          },
+          {
+            "role": "assistant",
+            "content": "Okay, so mga isang linggo na simula nung lumangoy ka sa baha at ngayon nararamdaman mo na yung lagnat. Bukod sa pakiramdam na may lagnat ka, may iba ka pa bang nararamdaman ngayon?",
+            "type": "question"
+          }
+        ]
+      },
+      "response": {
+        "type": "error",
+        "message": "Something's not working right on my end. I'm still here — try sending that again in a bit?",
+        "quick_replies": [],
+        "urgency": null,
+        "explanation": null,
+        "watch_for": [],
+        "next_step": null,
+        "possibilities_mentioned": false,
+        "self_care": [],
+        "monitoring": [],
+        "encouragement": null,
+        "metadata": {
+          "prompt_version": "1.5.0",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-2.5-flash-lite"
+        }
+      },
+      "crashed": false,
+      "checks": [
+        {
+          "checker": "check_tier",
+          "passed": false,
+          "detail": "expected an assessment with urgency='seek_care_now', got type='error'"
+        },
+        {
+          "checker": "check_possibilities_mentioned",
+          "passed": false,
+          "detail": "value=False (expected True)"
+        }
+      ],
+      "possibilities_mentioned": false,
+      "question_turns": 2
+    }
+  ]
+}

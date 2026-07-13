@@ -1,0 +1,489 @@
+{
+  "prompt_version": "1.5.2",
+  "model_name": "gemini-3.1-flash-lite",
+  "category_filter": "language_mirroring",
+  "timestamp": "20260713T061556Z",
+  "results": [
+    {
+      "case_id": "language_mirroring_english_with_regional_context",
+      "category": "language_mirroring",
+      "request": {
+        "message": "I've had a fever for 3 days with a bad headache, and I got bitten by mosquitoes last week",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": "Dengue advisory active in region",
+        "history": []
+      },
+      "response": {
+        "type": "assessment",
+        "message": "Salamat sa pag-share. Dahil may lagnat ka na ng tatlong araw, matinding sakit ng ulo, at may history ng kagat ng lamok lalo na't may dengue advisory sa inyong lugar, kailangan nating maging maingat.\n\nAng mga sintomas na ito ay pwedeng trangkaso, dengue, o iba pang viral na sakit. Hindi natin masisiguro sa chat lang kung ano ito dahil hindi kita ma-examine, kaya mas mabuting magpa-check ka na sa doktor o sa pinakamalapit na health center ngayong araw o bukas. May simpleng blood test na pwedeng gawin para malaman agad kung ano ang sanhi.\n\nKahit gumaan ang pakiramdam mo o bumaba ang lagnat, huwag maging kampante. Minsan, sa dengue, doon pa lumalabas ang mga delikadong senyales kapag bumaba na ang lagnat. Bantayan mo ang mga nakalista sa baba.",
+        "quick_replies": [],
+        "urgency": "see_doctor_soon",
+        "explanation": "Ang kombinasyon ng lagnat, matinding sakit ng ulo, at exposure sa lamok sa gitna ng dengue advisory ay nangangailangan ng pagsusuri ng doktor sa loob ng 24-48 oras.",
+        "watch_for": [
+          "Sumakit nang matindi ang tiyan",
+          "Nagsuka nang paulit-ulit",
+          "Dumugo ang gilagid o ilong",
+          "Sobrang antok o hirap gisingin",
+          "Paglabas ng mga pantal sa balat"
+        ],
+        "next_step": "Magpa-check sa doktor o health center ngayong araw o bukas; sabihin sa kanila: 'May lagnat ako ng tatlong araw, matinding sakit ng ulo, at maraming kagat ng lamok noong nakaraang linggo.'",
+        "possibilities_mentioned": true,
+        "self_care": [
+          "Uminom ng maraming tubig o oral rehydration salts",
+          "Magpahinga nang sapat",
+          "Paracetamol para sa lagnat, ayon sa nakasaad sa box o payo ng doktor"
+        ],
+        "monitoring": [
+          "Sukatin ang temperatura kada 4-6 oras",
+          "Bantayan ang pakiramdam kahit bumaba na ang lagnat",
+          "Obserbahan kung may pagbabago sa kulay ng ihi o pagdalas ng pag-ihi"
+        ],
+        "encouragement": "Nandito lang ako — kung may mapansin kang bago o lumala ang pakiramdam mo, sabihin mo agad sa akin at titingnan nating ulit.",
+        "metadata": {
+          "prompt_version": "1.5.2",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-3.1-flash-lite"
+        }
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "user_message": "I've had a fever for 3 days with a bad headache, and I got bitten by mosquitoes last week",
+          "response": {
+            "type": "assessment",
+            "message": "Salamat sa pag-share. Dahil may lagnat ka na ng tatlong araw, matinding sakit ng ulo, at may history ng kagat ng lamok lalo na't may dengue advisory sa inyong lugar, kailangan nating maging maingat.\n\nAng mga sintomas na ito ay pwedeng trangkaso, dengue, o iba pang viral na sakit. Hindi natin masisiguro sa chat lang kung ano ito dahil hindi kita ma-examine, kaya mas mabuting magpa-check ka na sa doktor o sa pinakamalapit na health center ngayong araw o bukas. May simpleng blood test na pwedeng gawin para malaman agad kung ano ang sanhi.\n\nKahit gumaan ang pakiramdam mo o bumaba ang lagnat, huwag maging kampante. Minsan, sa dengue, doon pa lumalabas ang mga delikadong senyales kapag bumaba na ang lagnat. Bantayan mo ang mga nakalista sa baba.",
+            "quick_replies": [],
+            "urgency": "see_doctor_soon",
+            "explanation": "Ang kombinasyon ng lagnat, matinding sakit ng ulo, at exposure sa lamok sa gitna ng dengue advisory ay nangangailangan ng pagsusuri ng doktor sa loob ng 24-48 oras.",
+            "watch_for": [
+              "Sumakit nang matindi ang tiyan",
+              "Nagsuka nang paulit-ulit",
+              "Dumugo ang gilagid o ilong",
+              "Sobrang antok o hirap gisingin",
+              "Paglabas ng mga pantal sa balat"
+            ],
+            "next_step": "Magpa-check sa doktor o health center ngayong araw o bukas; sabihin sa kanila: 'May lagnat ako ng tatlong araw, matinding sakit ng ulo, at maraming kagat ng lamok noong nakaraang linggo.'",
+            "possibilities_mentioned": true,
+            "self_care": [
+              "Uminom ng maraming tubig o oral rehydration salts",
+              "Magpahinga nang sapat",
+              "Paracetamol para sa lagnat, ayon sa nakasaad sa box o payo ng doktor"
+            ],
+            "monitoring": [
+              "Sukatin ang temperatura kada 4-6 oras",
+              "Bantayan ang pakiramdam kahit bumaba na ang lagnat",
+              "Obserbahan kung may pagbabago sa kulay ng ihi o pagdalas ng pag-ihi"
+            ],
+            "encouragement": "Nandito lang ako — kung may mapansin kang bago o lumala ang pakiramdam mo, sabihin mo agad sa akin at titingnan nating ulit.",
+            "metadata": {
+              "prompt_version": "1.5.2",
+              "red_flag_matched": false,
+              "red_flag_rule_ids": [],
+              "model_name": "gemini-3.1-flash-lite"
+            }
+          },
+          "checks": [
+            {
+              "checker": "check_language",
+              "passed": false,
+              "detail": "detected='tagalog' (expected one of ('english',))",
+              "scope": "every_turn",
+              "turn": 1
+            }
+          ]
+        }
+      ],
+      "crashed": false,
+      "budget_exceeded": false,
+      "checks": [
+        {
+          "checker": "check_language",
+          "passed": false,
+          "detail": "detected='tagalog' (expected one of ('english',))",
+          "scope": "every_turn",
+          "turn": 1
+        }
+      ],
+      "possibilities_mentioned": true,
+      "question_turns": 0
+    },
+    {
+      "case_id": "language_mirroring_english_no_regional_context",
+      "category": "language_mirroring",
+      "request": {
+        "message": "I've had a sore throat since yesterday and a mild fever",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": null,
+        "history": []
+      },
+      "response": {
+        "type": "question",
+        "message": "Thanks for the details. To help me understand better, are you having any other symptoms like a cough, runny nose, or body aches, or is it mostly just the sore throat and fever?",
+        "quick_replies": [
+          "Just sore throat and fever",
+          "With cough or colds",
+          "With body aches",
+          "I have other symptoms"
+        ],
+        "urgency": null,
+        "explanation": null,
+        "watch_for": [],
+        "next_step": null,
+        "possibilities_mentioned": false,
+        "self_care": [],
+        "monitoring": [],
+        "encouragement": null,
+        "metadata": {
+          "prompt_version": "1.5.2",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-3.1-flash-lite"
+        }
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "user_message": "I've had a sore throat since yesterday and a mild fever",
+          "response": {
+            "type": "question",
+            "message": "Thanks for the details. To help me understand better, are you having any other symptoms like a cough, runny nose, or body aches, or is it mostly just the sore throat and fever?",
+            "quick_replies": [
+              "Just sore throat and fever",
+              "With cough or colds",
+              "With body aches",
+              "I have other symptoms"
+            ],
+            "urgency": null,
+            "explanation": null,
+            "watch_for": [],
+            "next_step": null,
+            "possibilities_mentioned": false,
+            "self_care": [],
+            "monitoring": [],
+            "encouragement": null,
+            "metadata": {
+              "prompt_version": "1.5.2",
+              "red_flag_matched": false,
+              "red_flag_rule_ids": [],
+              "model_name": "gemini-3.1-flash-lite"
+            }
+          },
+          "checks": [
+            {
+              "checker": "check_language",
+              "passed": true,
+              "detail": "detected='english' (expected one of ('english',))",
+              "scope": "every_turn",
+              "turn": 1
+            }
+          ]
+        }
+      ],
+      "crashed": false,
+      "budget_exceeded": true,
+      "checks": [
+        {
+          "checker": "check_language",
+          "passed": true,
+          "detail": "detected='english' (expected one of ('english',))",
+          "scope": "every_turn",
+          "turn": 1
+        }
+      ],
+      "possibilities_mentioned": null,
+      "question_turns": 1
+    },
+    {
+      "case_id": "language_mirroring_taglish_stays_taglish",
+      "category": "language_mirroring",
+      "request": {
+        "message": "May lagnat ako 3 days na tapos sobrang sakit ng ulo ko, nakagat ako ng lamok last week",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": "Dengue advisory active in region",
+        "history": []
+      },
+      "response": {
+        "type": "assessment",
+        "message": "Salamat sa pag-share. Dahil sa lagnat na 3 araw na, matinding sakit ng ulo, at yung history ng kagat ng lamok — lalo na't may dengue advisory sa inyong lugar — kailangan nating maging maingat. Pwedeng ordinaryong trangkaso lang ito, pero pwede ring dengue o ibang viral na sakit. Hindi natin masisiguro sa chat lang dahil hindi kita ma-examine, kaya mas mabuting magpa-check ka na sa doktor ngayong araw o bukas para sa isang simpleng blood test.\n\nKahit gumaan ang pakiramdam mo o bumaba ang lagnat, bantayan mo pa rin ang mga senyales sa ibaba sa susunod na 1-2 araw. Dito madalas lumalabas ang mga delikadong sintomas sa dengue.",
+        "quick_replies": [],
+        "urgency": "see_doctor_soon",
+        "explanation": "Ang kombinasyon ng lagnat, matinding sakit ng ulo, at exposure sa lamok sa gitna ng dengue advisory ay nangangailangan ng pagsusuri ng doktor sa loob ng 24-48 oras.",
+        "watch_for": [
+          "Sumakit nang matindi ang tiyan",
+          "Nagsuka nang paulit-ulit",
+          "Dumugo ang gilagid o ilong",
+          "Sobrang antok o hirap gisingin",
+          "Paglabas ng mga pantal sa balat"
+        ],
+        "next_step": "Magpa-check sa doktor ngayong araw o bukas — sabihin mo sa kanila: 'May lagnat ako ng 3 araw, matinding sakit ng ulo, at nakagat ako ng lamok last week.'",
+        "possibilities_mentioned": true,
+        "self_care": [
+          "Uminom ng maraming tubig o oral rehydration salts",
+          "Magpahinga nang sapat",
+          "Paracetamol para sa lagnat, ayon sa package directions"
+        ],
+        "monitoring": [
+          "Sukatin ang temperatura kada 4-6 oras",
+          "Bantayan ang pakiramdam kahit bumaba ang lagnat",
+          "Iwasan muna ang ibuprofen o aspirin hangga't hindi ka nasusuri ng doktor"
+        ],
+        "encouragement": "Nandito lang ako — kung may nagbago o may bago kang mapansin, sabihin mo lang at titingnan nating ulit.",
+        "metadata": {
+          "prompt_version": "1.5.2",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-3.1-flash-lite"
+        }
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "user_message": "May lagnat ako 3 days na tapos sobrang sakit ng ulo ko, nakagat ako ng lamok last week",
+          "response": {
+            "type": "assessment",
+            "message": "Salamat sa pag-share. Dahil sa lagnat na 3 araw na, matinding sakit ng ulo, at yung history ng kagat ng lamok — lalo na't may dengue advisory sa inyong lugar — kailangan nating maging maingat. Pwedeng ordinaryong trangkaso lang ito, pero pwede ring dengue o ibang viral na sakit. Hindi natin masisiguro sa chat lang dahil hindi kita ma-examine, kaya mas mabuting magpa-check ka na sa doktor ngayong araw o bukas para sa isang simpleng blood test.\n\nKahit gumaan ang pakiramdam mo o bumaba ang lagnat, bantayan mo pa rin ang mga senyales sa ibaba sa susunod na 1-2 araw. Dito madalas lumalabas ang mga delikadong sintomas sa dengue.",
+            "quick_replies": [],
+            "urgency": "see_doctor_soon",
+            "explanation": "Ang kombinasyon ng lagnat, matinding sakit ng ulo, at exposure sa lamok sa gitna ng dengue advisory ay nangangailangan ng pagsusuri ng doktor sa loob ng 24-48 oras.",
+            "watch_for": [
+              "Sumakit nang matindi ang tiyan",
+              "Nagsuka nang paulit-ulit",
+              "Dumugo ang gilagid o ilong",
+              "Sobrang antok o hirap gisingin",
+              "Paglabas ng mga pantal sa balat"
+            ],
+            "next_step": "Magpa-check sa doktor ngayong araw o bukas — sabihin mo sa kanila: 'May lagnat ako ng 3 araw, matinding sakit ng ulo, at nakagat ako ng lamok last week.'",
+            "possibilities_mentioned": true,
+            "self_care": [
+              "Uminom ng maraming tubig o oral rehydration salts",
+              "Magpahinga nang sapat",
+              "Paracetamol para sa lagnat, ayon sa package directions"
+            ],
+            "monitoring": [
+              "Sukatin ang temperatura kada 4-6 oras",
+              "Bantayan ang pakiramdam kahit bumaba ang lagnat",
+              "Iwasan muna ang ibuprofen o aspirin hangga't hindi ka nasusuri ng doktor"
+            ],
+            "encouragement": "Nandito lang ako — kung may nagbago o may bago kang mapansin, sabihin mo lang at titingnan nating ulit.",
+            "metadata": {
+              "prompt_version": "1.5.2",
+              "red_flag_matched": false,
+              "red_flag_rule_ids": [],
+              "model_name": "gemini-3.1-flash-lite"
+            }
+          },
+          "checks": [
+            {
+              "checker": "check_language",
+              "passed": true,
+              "detail": "detected='tagalog' (expected one of ('tagalog', 'mixed'))",
+              "scope": "every_turn",
+              "turn": 1
+            }
+          ]
+        }
+      ],
+      "crashed": false,
+      "budget_exceeded": false,
+      "checks": [
+        {
+          "checker": "check_language",
+          "passed": true,
+          "detail": "detected='tagalog' (expected one of ('tagalog', 'mixed'))",
+          "scope": "every_turn",
+          "turn": 1
+        }
+      ],
+      "possibilities_mentioned": true,
+      "question_turns": 0
+    },
+    {
+      "case_id": "language_mirroring_midconversation_switch_to_tagalog",
+      "category": "language_mirroring",
+      "request": {
+        "message": "Yung sakit ng ulo ko lumalala na po",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": null,
+        "history": [
+          {
+            "role": "user",
+            "content": "I've had a headache since this morning"
+          },
+          {
+            "role": "assistant",
+            "content": "Thanks for telling me. One question so I can help better: how bad is the headache right now — mild, moderate, or severe?",
+            "type": "question"
+          }
+        ]
+      },
+      "response": {
+        "type": "question",
+        "message": "Salamat sa pagsagot. Dahil lumalala yung sakit ng ulo mo, gusto ko lang masigurado kung may iba ka pang nararamdaman. May kasama ba itong lagnat, paninigas ng leeg, o nahihirapan ka bang tumingin sa maliwanag na ilaw?",
+        "quick_replies": [
+          "May lagnat ako",
+          "Matigas ang leeg ko",
+          "Masakit sa mata ang ilaw",
+          "Wala naman, sakit lang talaga"
+        ],
+        "urgency": null,
+        "explanation": null,
+        "watch_for": [],
+        "next_step": null,
+        "possibilities_mentioned": false,
+        "self_care": [],
+        "monitoring": [],
+        "encouragement": null,
+        "metadata": {
+          "prompt_version": "1.5.2",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-3.1-flash-lite"
+        }
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "user_message": "Yung sakit ng ulo ko lumalala na po",
+          "response": {
+            "type": "question",
+            "message": "Salamat sa pagsagot. Dahil lumalala yung sakit ng ulo mo, gusto ko lang masigurado kung may iba ka pang nararamdaman. May kasama ba itong lagnat, paninigas ng leeg, o nahihirapan ka bang tumingin sa maliwanag na ilaw?",
+            "quick_replies": [
+              "May lagnat ako",
+              "Matigas ang leeg ko",
+              "Masakit sa mata ang ilaw",
+              "Wala naman, sakit lang talaga"
+            ],
+            "urgency": null,
+            "explanation": null,
+            "watch_for": [],
+            "next_step": null,
+            "possibilities_mentioned": false,
+            "self_care": [],
+            "monitoring": [],
+            "encouragement": null,
+            "metadata": {
+              "prompt_version": "1.5.2",
+              "red_flag_matched": false,
+              "red_flag_rule_ids": [],
+              "model_name": "gemini-3.1-flash-lite"
+            }
+          },
+          "checks": [
+            {
+              "checker": "check_language",
+              "passed": true,
+              "detail": "detected='tagalog' (expected one of ('tagalog', 'mixed'))",
+              "scope": "every_turn",
+              "turn": 1
+            }
+          ]
+        }
+      ],
+      "crashed": false,
+      "budget_exceeded": true,
+      "checks": [
+        {
+          "checker": "check_language",
+          "passed": true,
+          "detail": "detected='tagalog' (expected one of ('tagalog', 'mixed'))",
+          "scope": "every_turn",
+          "turn": 1
+        }
+      ],
+      "possibilities_mentioned": null,
+      "question_turns": 1
+    },
+    {
+      "case_id": "language_mirroring_english_dog_bite_every_turn",
+      "category": "language_mirroring",
+      "request": {
+        "message": "My dog bit me this morning and now I'm feeling feverish and weak",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": null,
+        "history": []
+      },
+      "response": {
+        "type": "assessment",
+        "message": "I am sorry to hear about the bite. Because you are feeling feverish and weak so soon after a dog bite, this needs to be looked at by a doctor today. \n\nWhile we cannot know for sure what is happening without an exam, a bite that causes systemic symptoms like fever and weakness can be associated with serious infections or other risks like rabies. A doctor needs to evaluate the wound and decide on the next steps for your care, including whether you need specific treatments like a tetanus shot or rabies prophylaxis. Please do not wait to see if this passes.",
+        "quick_replies": [],
+        "urgency": "seek_care_now",
+        "explanation": "Fever and weakness following an animal bite are concerning signs that require immediate medical evaluation to rule out serious infection or other complications.",
+        "watch_for": [
+          "Difficulty breathing or swallowing",
+          "Confusion or extreme drowsiness",
+          "Spreading redness, swelling, or pus at the bite site",
+          "Any worsening of your fever or weakness"
+        ],
+        "next_step": "Go to the nearest emergency room or clinic immediately. Tell the staff: 'I was bitten by a dog this morning and I am now feeling feverish and weak.'",
+        "possibilities_mentioned": true,
+        "self_care": [],
+        "monitoring": [],
+        "encouragement": "Please head to the clinic now, and let me know if you need anything else.",
+        "metadata": {
+          "prompt_version": "1.5.2",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-3.1-flash-lite"
+        }
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "user_message": "My dog bit me this morning and now I'm feeling feverish and weak",
+          "response": {
+            "type": "assessment",
+            "message": "I am sorry to hear about the bite. Because you are feeling feverish and weak so soon after a dog bite, this needs to be looked at by a doctor today. \n\nWhile we cannot know for sure what is happening without an exam, a bite that causes systemic symptoms like fever and weakness can be associated with serious infections or other risks like rabies. A doctor needs to evaluate the wound and decide on the next steps for your care, including whether you need specific treatments like a tetanus shot or rabies prophylaxis. Please do not wait to see if this passes.",
+            "quick_replies": [],
+            "urgency": "seek_care_now",
+            "explanation": "Fever and weakness following an animal bite are concerning signs that require immediate medical evaluation to rule out serious infection or other complications.",
+            "watch_for": [
+              "Difficulty breathing or swallowing",
+              "Confusion or extreme drowsiness",
+              "Spreading redness, swelling, or pus at the bite site",
+              "Any worsening of your fever or weakness"
+            ],
+            "next_step": "Go to the nearest emergency room or clinic immediately. Tell the staff: 'I was bitten by a dog this morning and I am now feeling feverish and weak.'",
+            "possibilities_mentioned": true,
+            "self_care": [],
+            "monitoring": [],
+            "encouragement": "Please head to the clinic now, and let me know if you need anything else.",
+            "metadata": {
+              "prompt_version": "1.5.2",
+              "red_flag_matched": false,
+              "red_flag_rule_ids": [],
+              "model_name": "gemini-3.1-flash-lite"
+            }
+          },
+          "checks": [
+            {
+              "checker": "check_language",
+              "passed": true,
+              "detail": "detected='english' (expected one of ('english',))",
+              "scope": "every_turn",
+              "turn": 1
+            }
+          ]
+        }
+      ],
+      "crashed": false,
+      "budget_exceeded": false,
+      "checks": [
+        {
+          "checker": "check_language",
+          "passed": true,
+          "detail": "detected='english' (expected one of ('english',))",
+          "scope": "every_turn",
+          "turn": 1
+        }
+      ],
+      "possibilities_mentioned": true,
+      "question_turns": 0
+    }
+  ]
+}
