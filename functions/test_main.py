@@ -23,8 +23,10 @@ import logging
 import pytest
 from firebase_functions import https_fn
 
+import fallbacks
 import gemini_client
 import main
+import wire_contract
 from main import InvalidRequestError, run_pipeline
 
 VALID_ASSESSMENT = {
@@ -398,7 +400,7 @@ def test_matched_non_self_harm_question_is_overridden_to_assessment_mirrors_taga
     ],
 )
 def test_language_heuristic(message, expected):
-    assert main._message_signals_tagalog(message) is expected
+    assert fallbacks._message_signals_tagalog(message) is expected
 
 
 # ---------------------------------------------------------------------------
@@ -492,7 +494,7 @@ def test_pipeline_omits_conversation_language_directive_when_undetectable(monkey
 
 @pytest.mark.parametrize(
     "builder",
-    [main._static_fallback_assessment, main._crisis_fallback_payload, main._degraded_error_payload],
+    [fallbacks.static_fallback_assessment, fallbacks.crisis_fallback_payload, fallbacks.degraded_error_payload],
 )
 def test_fallback_payloads_carry_new_fields_at_safe_values(builder):
     payload = builder(BENIGN_MESSAGE)
@@ -614,7 +616,7 @@ def test_logging_reports_retry_used_true_when_the_client_retried(monkeypatch, ca
     ],
 )
 def test_max_urgency_tier_ordering(a, b, expected):
-    assert main._max_urgency(a, b) == expected
+    assert wire_contract.max_urgency(a, b) == expected
 
 
 # ---------------------------------------------------------------------------

@@ -33,16 +33,17 @@ from __future__ import annotations
 
 import logging
 import os
-import re
 import time
 
 import firebase_admin
 from firebase_functions import https_fn
 
+import fallbacks
 import gemini_client
 import mirror_probes
 import red_flags
 import system_prompt
+import wire_contract
 
 # Required once per process: firebase_functions' App Check/auth token
 # verification (used by the enforce_app_check=True below) reads through
@@ -52,66 +53,14 @@ firebase_admin.initialize_app()
 
 MAX_MESSAGE_LENGTH = 2000
 
-_URGENCY_TIERS = ("monitor_at_home", "see_doctor_soon", "seek_care_now")
-
-# Owner-approved copy (2026-07-08) for the floor-must-reach-the-user
-# fallback (used both by the merge table's question->assessment override
-# and by degraded mode). Every fallback below has an EN and TL variant —
-# see _message_signals_tagalog for why: Gemini itself, the thing that
-# normally mirrors the user's language, is exactly what's unavailable in
-# this path, so a cheap heuristic on the user's own words is the only
-# signal left for picking between them.
-STATIC_SEEK_CARE_FALLBACK_EN = (
-    "Based on what you've described, it's safer to get checked right now — "
-    "let's not wait. Go to the nearest hospital or ER."
-)
-STATIC_SEEK_CARE_FALLBACK_TL = (
-    "Base sa sinabi mo, mas ligtas na magpa-check ka na ngayon mismo — hindi na "
-    "natin hihintayin pa. Pumunta na sa pinakamalapit na ospital o ER."
-)
-
-FRIENDLY_DEGRADED_ERROR_MESSAGE_EN = "Something's not working right on my end. I'm still here — try sending that again in a bit?"
-FRIENDLY_DEGRADED_ERROR_MESSAGE_TL = "Hindi ko ma-process ngayon, subukan ulit."
-
-# FLAGGED FOR MENTAL-HEALTH REVIEW (see the matching flag in
-# system_prompt.py's crisis example): owner-approved copy for degraded
-# mode specifically during a crisis/self-harm turn — used instead of
-# the STATIC_SEEK_CARE_FALLBACK_* copy so a person in crisis isn't pointed at an ER
-# when Gemini itself is unavailable.
-CRISIS_DEGRADED_FALLBACK_EN = (
-    "I'm still here, but I'm having trouble responding right now. The numbers "
-    "below are people ready to listen to you right now. They won't leave you."
-)
-CRISIS_DEGRADED_FALLBACK_TL = (
-    "Nandito pa rin ako, pero nagka-problema ako sa pag-sagot ngayon. Yung "
-    "mga numero sa baba — mga taong handang makinig sa'yo ngayon mismo. "
-    "Hindi ka nila iiwan."
-)
-
-# Function words/particles with low collision risk against English, used
-# only to pick between the EN/TL fallback copy above. Optimized for
-# precision over recall — default to English unless a clearly Filipino
-# word is present, so a plain English message never gets an unreadable
-# reply (the bug this heuristic exists to fix).
-_TAGALOG_MARKER_WORDS = frozenset({
-    "ako", "ikaw", "siya", "kami", "tayo", "kayo", "sila",
-    "ko", "mo", "niya", "namin", "natin", "ninyo", "nila",
-    "ang", "mga", "yung", "yun", "ito", "iyon", "niyan", "nito",
-    "hindi", "wala", "meron", "mayroon",
-    "ba", "naman", "lang", "din", "rin", "po", "opo",
-    "paano", "bakit", "saan", "kailan", "sino", "kasi", "tapos",
-    "kanina", "kagabi", "bukas", "kahapon",
-})
-_WORD_RE = re.compile(r"[A-Za-z']+")
-
-
-def _message_signals_tagalog(message: str) -> bool:
-    words = {w.lower() for w in _WORD_RE.findall(message)}
-    return not _TAGALOG_MARKER_WORDS.isdisjoint(words)
-
-
-def _pick_fallback_copy(message: str, *, en: str, tl: str) -> str:
-    return tl if _message_signals_tagalog(message) else en
+# Re-exported for test compatibility — the copy itself lives in
+# fallbacks.py now (see that module's docstring for why).
+STATIC_SEEK_CARE_FALLBACK_EN = fallbacks.STATIC_SEEK_CARE_FALLBACK_EN
+STATIC_SEEK_CARE_FALLBACK_TL = fallbacks.STATIC_SEEK_CARE_FALLBACK_TL
+FRIENDLY_DEGRADED_ERROR_MESSAGE_EN = fallbacks.FRIENDLY_DEGRADED_ERROR_MESSAGE_EN
+FRIENDLY_DEGRADED_ERROR_MESSAGE_TL = fallbacks.FRIENDLY_DEGRADED_ERROR_MESSAGE_TL
+CRISIS_DEGRADED_FALLBACK_EN = fallbacks.CRISIS_DEGRADED_FALLBACK_EN
+CRISIS_DEGRADED_FALLBACK_TL = fallbacks.CRISIS_DEGRADED_FALLBACK_TL
 
 
 # A user turn must be at least this many words before it can CHANGE the
@@ -170,60 +119,6 @@ class InvalidRequestError(Exception):
 # Small payload builders
 # ---------------------------------------------------------------------------
 
-def _static_fallback_assessment(message: str) -> dict:
-    return {
-        "type": "assessment",
-        "message": _pick_fallback_copy(
-            message, en=STATIC_SEEK_CARE_FALLBACK_EN, tl=STATIC_SEEK_CARE_FALLBACK_TL
-        ),
-        "quick_replies": [],
-        "urgency": "seek_care_now",
-        "explanation": None,
-        "watch_for": [],
-        "next_step": None,
-        "possibilities_mentioned": False,
-        "self_care": [],
-        "monitoring": [],
-        "encouragement": None,
-    }
-
-
-def _crisis_fallback_payload(message: str) -> dict:
-    return {
-        "type": "crisis",
-        "message": _pick_fallback_copy(
-            message, en=CRISIS_DEGRADED_FALLBACK_EN, tl=CRISIS_DEGRADED_FALLBACK_TL
-        ),
-        "quick_replies": [],
-        "urgency": None,
-        "explanation": None,
-        "watch_for": [],
-        "next_step": None,
-        "possibilities_mentioned": False,
-        "self_care": [],
-        "monitoring": [],
-        "encouragement": None,
-    }
-
-
-def _degraded_error_payload(message: str) -> dict:
-    return {
-        "type": "error",
-        "message": _pick_fallback_copy(
-            message, en=FRIENDLY_DEGRADED_ERROR_MESSAGE_EN, tl=FRIENDLY_DEGRADED_ERROR_MESSAGE_TL
-        ),
-        "quick_replies": [],
-        "urgency": None,
-        "explanation": None,
-        "watch_for": [],
-        "next_step": None,
-        "possibilities_mentioned": False,
-        "self_care": [],
-        "monitoring": [],
-        "encouragement": None,
-    }
-
-
 def _force_crisis(payload: dict) -> dict:
     return {**payload, "type": "crisis", "urgency": None}
 
@@ -234,18 +129,10 @@ def _select_degraded_payload(*, message: str, force_crisis: bool, floor_active: 
     contract is that callers never see a malformed payload; this is the one
     place that promise is kept regardless of why the call failed."""
     if force_crisis:
-        return _crisis_fallback_payload(message)
+        return fallbacks.crisis_fallback_payload(message)
     if floor_active:
-        return _static_fallback_assessment(message)
-    return _degraded_error_payload(message)
-
-
-def _max_urgency(a: str | None, b: str) -> str:
-    """Higher-tier-wins, per the ordering monitor_at_home < see_doctor_soon
-    < seek_care_now. `b` wins on a tie or if `a` isn't a recognized tier."""
-    if a not in _URGENCY_TIERS:
-        return b
-    return a if _URGENCY_TIERS.index(a) >= _URGENCY_TIERS.index(b) else b
+        return fallbacks.static_fallback_assessment(message)
+    return fallbacks.degraded_error_payload(message)
 
 
 def _history_has_crisis_lock(history: list[dict]) -> bool:
@@ -276,14 +163,14 @@ def _merge_with_red_flags(model_result: dict, message: str) -> dict:
     if model_type == "assessment":
         return {
             **model_result,
-            "urgency": _max_urgency(model_result.get("urgency"), "seek_care_now"),
+            "urgency": wire_contract.max_urgency(model_result.get("urgency"), "seek_care_now"),
         }
     # model_type == "question": OVERRIDE to assessment. Whether the
     # model's own question text "already conveys urgency" (the spec's
     # alternate branch) isn't reliably detectable from the 8-field
     # schema without NLP judgment calls, so this always uses the static
     # fallback — flagged rather than guessed at.
-    return _static_fallback_assessment(message)
+    return fallbacks.static_fallback_assessment(message)
 
 
 def _log_request(
