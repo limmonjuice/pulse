@@ -26,8 +26,48 @@ from google.genai import types
 
 # gemini-flash-lite is the free-tier model as of this writing. This is a
 # cost/quota decision, not a capability one — revisit if free-tier terms
-# or model availability change.
-MODEL_NAME = "gemini-2.5-flash-lite"
+# or model availability change. Pinned to a specific version (not the
+# floating gemini-flash-lite-latest alias) so the model can't drift out
+# from under the prompt/eval calibration.
+MODEL_NAME = "gemini-3.1-flash-lite"
+
+# Changing MODEL_NAME without adding an entry here fails the pytest
+# suite (see test_gemini_client.py's model-changelog guard). A model
+# swap silently invalidates every eval baseline in evals/results/ —
+# calibration and behavior (e.g. language mirroring) are per-model, not
+# per-prompt — so every swap must record the date, the reason, and
+# whether the evals were actually re-run on the new model. "no" is an
+# honest interim answer, never a free pass: the 2026-07-13 swap below
+# shipped with evals un-rerun and the language-mirroring regression it
+# hid reached the deployed function.
+MODEL_CHANGELOG = [
+    {
+        "model": "gemini-2.5-flash-lite",
+        "date": "2026-07-09",
+        "reason": (
+            "Original model choice: free-tier availability at MVP scale "
+            "(cost/quota decision, not a capability one)."
+        ),
+        "evals_rerun": "yes — baselines in evals/results/ through prompt 1.5.0",
+    },
+    {
+        "model": "gemini-3.1-flash-lite",
+        "date": "2026-07-13",
+        "reason": (
+            "Google closed gemini-2.5-flash-lite to new API users — "
+            "generateContent began returning 404 NOT_FOUND."
+        ),
+        "evals_rerun": (
+            "no at swap time — the language_mirroring regression went out "
+            "undetected; partial re-runs 2026-07-13 (language_mirroring on "
+            "prompts 1.5.1 [3/5] and 1.5.2 [4/5], targeted 1.5.3 probes — "
+            "one English dengue-advisory shape still mirrored wrong); "
+            "prompt 1.5.4 (Taglish dengue example removed, owner decision) "
+            "NOT yet live-verified — quota exhausted; full category run + "
+            "re-baseline needed on next quota"
+        ),
+    },
+]
 
 # Calibration over creativity: a low, narrow temperature keeps urgency
 # tagging consistent across near-identical symptom descriptions.

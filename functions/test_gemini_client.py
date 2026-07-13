@@ -339,3 +339,41 @@ def test_module_has_no_firebase_imports():
         stripped = line.strip()
         if stripped.startswith("import ") or stripped.startswith("from "):
             assert "firebase" not in stripped.lower(), f"unexpected Firebase import: {line!r}"
+
+
+# ---------------------------------------------------------------------------
+# Model-swap guard (B3, 2026-07-13): changing MODEL_NAME without a
+# MODEL_CHANGELOG entry must fail the suite. The 3.1-flash-lite swap
+# shipped with evals un-rerun and hid a language-mirroring regression —
+# this makes that class of silent swap impossible.
+# ---------------------------------------------------------------------------
+
+def test_current_model_has_a_changelog_entry():
+    logged_models = [entry["model"] for entry in gemini_client.MODEL_CHANGELOG]
+    assert gemini_client.MODEL_NAME in logged_models, (
+        f"MODEL_NAME {gemini_client.MODEL_NAME!r} has no MODEL_CHANGELOG entry — "
+        "add one (date + reason + evals_rerun) before changing the model string. "
+        "A model swap invalidates every eval baseline in evals/results/."
+    )
+
+
+def test_changelog_entries_carry_date_reason_and_evals_rerun():
+    import re
+
+    assert gemini_client.MODEL_CHANGELOG, "MODEL_CHANGELOG must never be empty"
+    for entry in gemini_client.MODEL_CHANGELOG:
+        assert {"model", "date", "reason", "evals_rerun"} <= set(entry), entry
+        assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", entry["date"]), entry["date"]
+        assert entry["reason"].strip(), "reason must not be empty"
+        # Honest tri-state: yes, no, or partial — with room for detail after.
+        assert entry["evals_rerun"].strip().lower().startswith(("yes", "no", "partial")), (
+            entry["evals_rerun"]
+        )
+
+
+def test_changelog_is_ordered_and_ends_with_current_model():
+    # The last entry is the active model — keeps the file readable as a
+    # chronological history and makes "what changed last" unambiguous.
+    assert gemini_client.MODEL_CHANGELOG[-1]["model"] == gemini_client.MODEL_NAME
+    dates = [entry["date"] for entry in gemini_client.MODEL_CHANGELOG]
+    assert dates == sorted(dates)
