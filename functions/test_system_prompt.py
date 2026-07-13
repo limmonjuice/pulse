@@ -25,13 +25,14 @@ VALID_URGENCIES = {"monitor_at_home", "see_doctor_soon", "seek_care_now"}
 SECTION_HEADERS = [
     "## 1. WHO YOU ARE",
     "## 2. HARD RULES",
-    "## 3. THE THREE URGENCY TIERS",
-    "## 4. HOW TO RUN THE CONVERSATION",
-    "## 5. WORRY CALIBRATION",
-    "## 6. OUTPUT FORMAT",
-    "## 7. EXAMPLES",
-    "## 8. WHAT YOU ARE NOT",
-    "## 9. CONTEXT FOR THIS CONVERSATION",
+    "## 3. TWO KINDS OF TURNS",
+    "## 4. THE THREE URGENCY TIERS",
+    "## 5. HOW TO RUN THE CONVERSATION",
+    "## 6. WORRY CALIBRATION",
+    "## 7. OUTPUT FORMAT",
+    "## 8. EXAMPLES",
+    "## 9. WHAT YOU ARE NOT",
+    "## 10. CONTEXT FOR THIS CONVERSATION",
 ]
 
 SAMPLE_PROFILE = {
@@ -112,7 +113,7 @@ def test_dynamic_blocks_come_after_all_static_sections():
     # static section, so the static prefix is byte-identical across
     # requests and implicitly cacheable.
     prompt = build(SAMPLE_PROFILE, "scared", SAMPLE_REGION)
-    static_end = prompt.index("## 8. WHAT YOU ARE NOT")
+    static_end = prompt.index("## 9. WHAT YOU ARE NOT")
     # Full block labels, not bare "PERSON CONTEXT" — the identity section
     # legitimately forward-references that name in static text.
     assert prompt.index("PERSON CONTEXT (who this conversation is about):") > static_end
@@ -196,7 +197,7 @@ def test_conversation_language_directive_sits_in_final_dynamic_section():
     # cache-hygiene rule the rest of section 9 follows.
     prompt = build_system_prompt(conversation_language="english")
     assert prompt.index("CONVERSATION LANGUAGE: English.") > prompt.index(
-        "## 9. CONTEXT FOR THIS CONVERSATION"
+        "## 10. CONTEXT FOR THIS CONVERSATION"
     )
 
 
@@ -246,10 +247,10 @@ def test_language_recency_reminder_sits_after_deck_before_dynamic_section():
     # After the entire few-shot deck (the last example's final payload)...
     assert reminder_pos > prompt.index("watch list shows up before you're seen")
     # ...and after the remaining static sections...
-    assert reminder_pos > prompt.index("## 8. WHAT YOU ARE NOT")
+    assert reminder_pos > prompt.index("## 9. WHAT YOU ARE NOT")
     assert reminder_pos > prompt.index("reply language is decided only by the LANGUAGE")
     # ...but before anything dynamic: the very end of the static prefix.
-    assert reminder_pos < prompt.index("## 9. CONTEXT FOR THIS CONVERSATION")
+    assert reminder_pos < prompt.index("## 10. CONTEXT FOR THIS CONVERSATION")
     assert reminder_pos < prompt.index("PERSON CONTEXT (who this conversation is about):")
 
 
@@ -578,11 +579,12 @@ def _final_payload(example):
     return example["turns"][-1]["assistant"]
 
 
-def test_exactly_six_examples():
+def test_exactly_nine_examples():
     # 1.5.4: the Taglish dengue example was removed (owner decision — its
     # presence made English dengue-shaped openers mirror Tagalog; see the
-    # note atop FEW_SHOT_EXAMPLES).
-    assert len(FEW_SHOT_EXAMPLES) == 6
+    # note atop FEW_SHOT_EXAMPLES). 2.0.0 added three conversation-engine
+    # examples: EN reassurance, TL anxious asking-why, testing reset.
+    assert len(FEW_SHOT_EXAMPLES) == 9
 
 
 REQUIRED_FIELDS = {
@@ -597,6 +599,13 @@ REQUIRED_FIELDS = {
     "self_care",
     "monitoring",
     "encouragement",
+    # v2.0.0 proposal fields (spec §5)
+    "intents",
+    "requires_clinical_reassessment",
+    "change_type",
+    "reassessment_reason",
+    "proposed_card_action",
+    "findings",
 }
 
 
@@ -608,7 +617,9 @@ def test_every_example_payload_follows_the_flat_schema():
             payload = turn["assistant"]
             json.dumps(payload)  # must be JSON-serializable
             assert set(payload) == REQUIRED_FIELDS
-            assert payload["type"] in {"question", "assessment", "crisis"}
+            assert payload["type"] in {
+                "question", "assessment", "crisis", "conversation",
+            }
             assert isinstance(payload["message"], str) and payload["message"]
             assert isinstance(payload["quick_replies"], list)
             assert isinstance(payload["watch_for"], list)
@@ -657,6 +668,9 @@ def test_example_tier_outcomes():
         None,                # crisis — no tier, no triage furniture
         "see_doctor_soon",   # English cat-scratch exposure (1.5.1 rebalance)
         "see_doctor_soon",   # English dengue-advisory case (sole dengue example since 1.5.4)
+        None,                # EN reassurance — final turn is a conversation turn
+        None,                # TL anxious asking-why — final turn is a conversation turn
+        None,                # testing reset — final turn is a conversation turn
     ]
 
 
@@ -805,3 +819,86 @@ def test_examples_are_rendered_into_the_prompt():
         assert example["turns"][0]["user"][:40] in prompt
     assert '"type": "question"' in prompt
     assert '"type": "assessment"' in prompt
+
+
+# ---------------------------------------------------------------------------
+# v2.0.0 conversation engine (spec §7): two kinds of turns, intent
+# vocabulary, and the server-derived CONVERSATION STATE block
+# ---------------------------------------------------------------------------
+
+import wire_contract
+
+SAMPLE_STATE = {
+    "current_urgency": "seek_care_now",
+    "active_findings": ["vomiting blood", "abdominal pain"],
+    "last_assessment": {
+        "findings": ["vomiting blood", "abdominal pain"],
+        "explanation": "Blood in vomit needs same-day evaluation.",
+        "next_step": "Go to the ER today.",
+        "urgency": "seek_care_now",
+    },
+    "latch_active": True,
+    "questions_used": 1,
+}
+
+
+def test_prompt_version_is_2_0_0():
+    assert PROMPT_VERSION == "2.0.0"
+
+
+def test_two_kinds_of_turns_teaches_golden_rule_and_every_intent():
+    prompt = build()
+    assert "## 3. TWO KINDS OF TURNS" in prompt
+    assert "INTENT first" in prompt
+    for intent in wire_contract.VALID_INTENTS:
+        assert intent in prompt, f"intent {intent!r} missing from the prompt"
+    for change in wire_contract.VALID_CHANGE_TYPES:
+        assert change in prompt, f"change_type {change!r} missing from the prompt"
+
+
+def test_state_block_omitted_when_no_conversation_state():
+    assert "CONVERSATION STATE (server-derived" not in build()
+
+
+def test_state_block_renders_findings_card_latch_and_directive():
+    prompt = build_system_prompt(conversation_state=SAMPLE_STATE)
+    assert "CONVERSATION STATE (server-derived" in prompt
+    assert "CURRENT FINDINGS: vomiting blood; abdominal pain" in prompt
+    assert "ACTIVE GUIDANCE CARD: seek_care_now" in prompt
+    assert "Blood in vomit needs same-day evaluation." in prompt
+    assert "already visible" in prompt
+    assert "cannot go below seek_care_now" in prompt
+    assert "1 of 3" in prompt
+
+
+def test_state_block_sits_in_final_dynamic_section():
+    prompt = build_system_prompt(conversation_state=SAMPLE_STATE)
+    assert (prompt.index("CONVERSATION STATE (server-derived")
+            > prompt.index("## 10. CONTEXT FOR THIS CONVERSATION"))
+
+
+def test_state_block_without_latch_or_card_stays_quiet():
+    prompt = build_system_prompt(conversation_state={
+        "current_urgency": None, "active_findings": [],
+        "last_assessment": None, "latch_active": False, "questions_used": 0,
+    })
+    assert "ACTIVE GUIDANCE CARD" not in prompt
+    assert "CURRENT FINDINGS" not in prompt
+    assert "cannot go below" not in prompt
+    assert "0 of 3" in prompt
+
+
+def test_new_v2_examples_present():
+    titles = " | ".join(e["title"] for e in FEW_SHOT_EXAMPLES)
+    assert "reassurance" in titles.lower()
+    assert "asking-why" in titles.lower() or "asking why" in titles.lower()
+    assert "testing reset" in titles.lower()
+
+
+def test_every_example_turn_carries_the_v2_fields():
+    for example in FEW_SHOT_EXAMPLES:
+        for turn in example["turns"]:
+            payload = turn["assistant"]
+            for f in ("intents", "requires_clinical_reassessment", "change_type",
+                      "reassessment_reason", "proposed_card_action", "findings"):
+                assert f in payload, (example["title"], f)
