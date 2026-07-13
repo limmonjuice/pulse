@@ -902,3 +902,16 @@ def test_every_example_turn_carries_the_v2_fields():
             for f in ("intents", "requires_clinical_reassessment", "change_type",
                       "reassessment_reason", "proposed_card_action", "findings"):
                 assert f in payload, (example["title"], f)
+
+
+def test_every_example_payload_passes_the_wire_validator():
+    # Task 8 (conversation engine v2): the deck can never demonstrate a
+    # payload the validator would reject — the examples ARE the contract
+    # the model imitates, so schema drift between system_prompt.py and
+    # gemini_client._validate_payload must fail the suite, not surface as
+    # corrective-retry churn (or worse, degraded mode) in production.
+    import gemini_client
+
+    for example in FEW_SHOT_EXAMPLES:
+        for turn in example["turns"]:
+            gemini_client._validate_payload(turn["assistant"])
