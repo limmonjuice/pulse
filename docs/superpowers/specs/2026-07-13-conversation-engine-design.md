@@ -440,6 +440,30 @@ in the state block makes it visible to the model per-request.)
 
 ## 11. Testing & evals
 
+### Golden conversations (acceptance criteria — owner, 2026-07-14)
+
+Six canonical conversations define "done." Each runs at two layers:
+**offline** (scripted model outputs through the real State Builder +
+Safety Engine + Response Builder — every commit, no quota) and **live**
+(the same scripts as eval scenarios against real Gemini — the deploy
+gate). Offline goldens verify the server guarantees; live goldens verify
+the model actually cooperates. Expected outcomes in wire-contract terms:
+
+| # | Golden | Turns | Must hold |
+|---|---|---|---|
+| G1 | Red-flag persistence | "I've been vomiting blood." → "But I feel okay sometimes." | T1: assessment, `seek_care_now`, `card.action new`. T2: type `conversation`, `card.action keep`, `conversation_state.urgency` still `seek_care_now`, reply acknowledges feeling okay without repeating the recommendation. |
+| G2 | Reassurance | (after G1) "Is it really necessary?" | type `conversation`, `card.action keep`, reply explains *why* without re-triaging; no card payload fields. |
+| G3 | Testing reset | symptom → card → "I was just testing." | T2: type `conversation`, `card.action clear`, `assessment_cleared true`, friendly acknowledgment, NO monitor-at-home or other guidance card, `conversation_state.assessment_active false`. |
+| G4 | Escalation | "Mild fever since yesterday" → "Now my chest hurts and it's hard to breathe" | T1: assessment/question per posture, tier ≤ `see_doctor_soon`. T2: red-flag floor fires → `card.action update`, `seek_care_now`, reply explains why the urgency changed. |
+| G5 | Recovery de-escalation | fever picture → `see_doctor_soon` card → "Fever's been gone two full days, feeling fine, nothing else" | T2 (no latch in episode): `requires_clinical_reassessment true`, `change_type resolved_symptom` → decrease accepted, `card.action update`, `monitor_at_home`. Negative twin: identical closing turn in a latched episode (G1's) lowers nothing. |
+| G6 | Social / off-topic | (after any card) "Thanks!" then "How are you?" | Both: type `conversation`, `card.action keep`, no reassessment, warm short replies, card and strip untouched. |
+
+Every implementation change must pass all six offline goldens before
+merge; the live layer must pass before deploy. These conversations ARE
+the UX being designed — if they pass, the fire-alarm behavior is dead.
+
+### Test suites
+
 - **Unit tests** (`test_main.py` + new `test_episode_state.py` and
   `test_safety_engine.py`, mirroring the five-component split): state
   derivation (latch across turns, reset semantics, budget counting,
