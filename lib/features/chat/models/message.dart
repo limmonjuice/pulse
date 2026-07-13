@@ -53,29 +53,47 @@ class Message {
     checkedSelfCare: checkedSelfCare ?? this.checkedSelfCare,
   );
 
-  /// Per functions/main.py's client contract: assistant turns MUST carry
-  /// their `type` so the server's crisis-lock detection
-  /// (`_history_has_crisis_lock`) works. Returns null for assistant turns
-  /// whose type the server never emits itself (`error`, `unparseable`) —
-  /// those aren't real model output and shouldn't be replayed as history.
+  /// The engine-v2 history echo (functions/episode_state.py's client
+  /// contract): assistant turns MUST carry their `type` (crisis-lock and
+  /// phase derivation), assessment turns additionally echo `urgency`
+  /// (the server's current-card tracking) plus `findings`/`explanation`/
+  /// `next_step` (prompt scaffolding), and reset turns echo
+  /// `assessment_cleared: true` (episode reset markers). Returns null
+  /// for assistant turns whose type the server never emits itself
+  /// (`error`, `unparseable`) — those aren't real model output and
+  /// shouldn't be replayed as history.
   Map<String, dynamic>? toHistoryJson() {
     if (role == MessageRole.user) {
       return {'role': 'user', 'content': text};
     }
-    final type = payload?.type;
+    final p = payload;
+    final type = p?.type;
     if (type != ChatTurnType.question &&
         type != ChatTurnType.assessment &&
-        type != ChatTurnType.crisis) {
+        type != ChatTurnType.crisis &&
+        type != ChatTurnType.conversation) {
       return null;
     }
-    return {
+    final map = <String, dynamic>{
       'role': 'assistant',
       'content': text,
       'type': type == ChatTurnType.question
           ? 'question'
           : type == ChatTurnType.assessment
           ? 'assessment'
-          : 'crisis',
+          : type == ChatTurnType.crisis
+          ? 'crisis'
+          : 'conversation',
     };
+    if (type == ChatTurnType.assessment) {
+      map['urgency'] = UrgencyResult.urgencyWire(p!.urgency);
+      map['findings'] = p.findings;
+      map['explanation'] = p.explanation;
+      map['next_step'] = p.nextStep;
+    }
+    if (p!.assessmentCleared) {
+      map['assessment_cleared'] = true;
+    }
+    return map;
   }
 }

@@ -131,7 +131,7 @@ class UrgencyResult {
     'type': _typeWire(type),
     'message': message,
     'quick_replies': quickReplies,
-    'urgency': _urgencyWire(urgency),
+    'urgency': urgencyWire(urgency),
     'explanation': explanation,
     'watch_for': watchFor,
     'next_step': nextStep,
@@ -205,7 +205,8 @@ class UrgencyResult {
     }
   }
 
-  static String? _urgencyWire(UrgencyLevel? level) {
+  /// Public: Message.toHistoryJson echoes the tier string.
+  static String? urgencyWire(UrgencyLevel? level) {
     switch (level) {
       case UrgencyLevel.monitorAtHome:
         return 'monitor_at_home';
