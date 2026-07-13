@@ -57,35 +57,41 @@ Root causes, confirmed in code:
   de-escalation source — future version.
 - Any change to crisis-mode UX or copy.
 
-## 3. Architecture: two planes, one call
+## 3. Architecture: five components, one call
 
-**Conversation plane** (the model): understands intent, writes the reply,
-*proposes* structured outcomes.
-**Clinical plane** (deterministic server code): owns episode state,
-urgency, red-flag latches, and all guidance-card behavior.
-
-Per-message flow in `run_pipeline`:
+Conceptually two planes — the model *proposes*, the server *disposes* —
+implemented as five independently testable components composed in
+`run_pipeline`:
 
 ```
 User message
   ↓
-derive EpisodeState from history        (pure function — §4)
-red-flag check on current message       (unchanged floor)
+STATE BUILDER      derive EpisodeState from history (pure fn — §4)
+  ↓                + red-flag check on current message (unchanged floor)
+PROMPT BUILDER     static persona/rules (cacheable prefix)
+  ↓                + CONVERSATION STATE block (server-derived, dynamic tail)
+LLM                ONE Gemini call → proposals: intents,
+  ↓                requires_clinical_reassessment, change_type,
+  ↓                reassessment_reason, proposed_card_action, findings,
+  ↓                + the turn payload itself
+SAFETY ENGINE      deterministic gates (§6): crisis → urgency clamp →
+  ↓                floor-newly-raised guard → reset gate → card matrix
+RESPONSE BUILDER   turn payload + card directive + conversation_state
   ↓
-ONE Gemini call
-  prompt = static persona/rules (cacheable prefix)
-         + CONVERSATION STATE block (server-derived, dynamic tail)
-  model returns: intent, new_clinical_info, reassessment_reason,
-                 proposed_card_action, turn payload
-  ↓
-deterministic gates (§6): crisis → urgency clamp → floor-newly-raised
-                          guard → reset gate → card directive matrix
-  ↓
-Response = turn payload + card directive + conversation_state snapshot
+Client
 ```
 
+Component → module mapping: State Builder is new
+(`episode_state.py`); Prompt Builder is `system_prompt.py` (extended);
+LLM is `gemini_client.py` (schema extended); Safety Engine is new
+(`safety_engine.py` — the gates and card matrix, pure functions);
+Response Builder stays in `main.py` alongside request plumbing. Each
+component has one input shape and one output shape and is unit-testable
+without the others (the exact file boundaries are the implementation
+plan's call; the component boundaries are not).
+
 The inversion from today: the model no longer decides that "a card
-happens." It writes language; the server decides card behavior by
+happens." It writes language; the Safety Engine decides card behavior by
 comparing episode state before and after the turn. If flash-lite
 misclassifies every intent, a duplicate card is still impossible and a
 missed emergency is still caught by the deterministic floor.
@@ -107,7 +113,22 @@ class EpisodeState:
     questions_used: int           # assistant "question" turns since the
                                   # last reset marker or last card
     reset_index: int              # index of last accepted reset, -1 if none
+    # --- prompt scaffolding only; model-proposed; NEVER gate input ---
+    active_findings: list[str]    # latest assessment turn's echoed findings
+                                  # ("fever", "cough", "vomiting")
+    last_assessment: dict | None  # compact summary composed from the last
+                                  # assessment turn's echoed fields:
+                                  # {findings, explanation, next_step, urgency}
 ```
+
+The dataclass has two trust zones, and the comment line is the boundary.
+Everything above it derives from the user's own words or deterministic
+turn-type counting — gates may consume it. `active_findings` and
+`last_assessment` originate from model output (echoed back through
+history): they exist so the Prompt Builder can show Gemini a compact
+"current picture" instead of forcing it to re-infer one from raw
+transcript every request. No gate, clamp, or card decision may ever read
+them.
 
 - **Red-flag latch.** `red_flags.check_red_flags` runs over every user
   turn after the last reset marker, plus the current message. Matched rule
@@ -140,8 +161,10 @@ class EpisodeState:
   silently discard every reset marker (resets ride on conversation
   turns, per §6 gate 4) and starve `phase` derivation. `error` and
   `unparseable` turns stay excluded, as today.
-- Assessment turns additionally echo `urgency` (string) — feeds
-  `current_urgency`.
+- Assessment turns additionally echo `urgency` (string, feeds
+  `current_urgency`), plus `findings`, `explanation`, and `next_step`
+  (feed the prompt-scaffolding fields only — see the trust-zone note
+  above).
 - Reset turns additionally echo `assessment_cleared: true` (bool,
   present-and-true only on accepted resets).
 
@@ -158,13 +181,15 @@ Existing 11 fields keep their exact semantics. Additions:
 | Field | Type | Rules |
 |---|---|---|
 | `type` | adds `"conversation"` | plain reply turn. `urgency`/`explanation`/`next_step`/`encouragement` null, `watch_for`/`self_care`/`monitoring` empty. `quick_replies` 0–4 allowed (unlike `question`, which requires 2–4). `possibilities_mentioned` keeps its existing semantics (true iff the message names possible conditions — a conversation turn re-explaining an already-mentioned possibility honestly reports true). |
-| `intent` | enum string | one of the fixed vocabulary (§7). Required on every turn. Unknown value → validation failure → existing corrective-retry path. |
-| `new_clinical_info` | bool | did this message add objective clinical information. Required. |
-| `reassessment_reason` | string \| null | must be non-null whenever the proposed urgency differs from the state block's `current_urgency`; null otherwise. NOT schema-validated (`_validate_payload` is stateless and has no `current_urgency`): enforced by `main.py`'s clamp gate, where a missing reason simply rejects the de-escalation — never a retry. |
+| `intents` | array of enum strings | 1–3 values from the fixed vocabulary (§7) — real messages carry several at once ("I'm scared… do I really need to go?" = `emotional_support` + `asking_about_recommendation`). Required, non-empty. Unknown value or empty array → validation failure → existing corrective-retry path. |
+| `requires_clinical_reassessment` | bool | the operational question the engine actually needs answered: should the clinical assessment be revisited because of this message? Distinct from "is this information new" — "I already saw my doctor" is new information that may not require reassessment. Required. |
+| `change_type` | enum string | why reassessment is (or isn't) needed: `"new_symptom" \| "resolved_symptom" \| "worsening" \| "new_history" \| "treatment_update" \| "none"`. Single-valued; when one message carries several changes ("the pain moved to my chest but the fever's gone"), the model reports the most clinically escalatory one, precedence: `worsening > new_symptom > new_history > treatment_update > resolved_symptom > none` — worst-reasonable bias applied to classification. Required. |
+| `reassessment_reason` | string \| null | must be non-null whenever the proposed urgency differs from the state block's `current_urgency`; null otherwise. NOT schema-validated (`_validate_payload` is stateless and has no `current_urgency`): enforced by the Safety Engine's clamp gate, where a missing reason simply rejects the de-escalation — never a retry. |
 | `proposed_card_action` | `"new" \| "update" \| "keep" \| "clear"` | the model's suggestion; never authoritative. Server/model disagreement is logged (eval signal). |
+| `findings` | array of short strings | assessment turns only: the FULL current symptom picture as plain nouns ("fever", "cough", "vomiting blood") — a snapshot, not a delta, so the latest assessment's list is always complete on its own. `[]` on all other turn types. Prompt scaffolding for future turns (§4 trust zones); never gate input. |
 
-`crisis` turns: the new fields are still required (intent may be any
-value; gates ignore everything on crisis turns).
+`crisis` turns: the new fields are still required (`intents` may hold any
+values; gates ignore everything on crisis turns).
 
 ### Server → client envelope (built in `main.py`)
 
@@ -173,7 +198,7 @@ Alongside the turn payload and existing `metadata`:
 ```json
 "card": { "action": "new | update | keep | clear",
           "reason": "first_assessment | urgency_raised | urgency_lowered |
-                     new_red_flag | new_clinical_info | reset | none" },
+                     new_red_flag | clinical_change | reset | none" },
 "conversation_state": { "urgency": "seek_care_now" | null,
                         "assessment_active": true,
                         "phase": "guidance" }
@@ -200,7 +225,13 @@ never blanks the strip (§9).
 2. **Urgency clamp** — for assessment turns:
    `final_urgency = max(proposed, min_safe_urgency)`. A decrease relative
    to `current_urgency` is accepted only when ALL hold:
-   - `new_clinical_info == true`,
+   - `requires_clinical_reassessment == true`,
+   - `change_type == "resolved_symptom"` — the one change type that is the
+     person's own objective report of improvement. `treatment_update`
+     ("the doctor already saw me") is deliberately NOT de-escalation-
+     eligible this pass: it is second-hand clinical judgment Pulse cannot
+     verify, and §12.3 defers verified post-evaluation outcomes to a
+     future version. It still updates the card via the matrix below.
    - `reassessment_reason` is non-null (logged verbatim),
    - result ≥ `min_safe_urgency`.
    Otherwise the decrease is rejected and `final = max(current, floor)`.
@@ -209,7 +240,9 @@ never blanks the strip (§9).
    Above the floor, de-escalation discipline is prompt- and eval-enforced,
    with the machine-readable justification required before the server
    accepts it (honest limitation: the server cannot verify the *truth* of
-   `new_clinical_info`; it verifies presence, logs, and evals police it).
+   the model's classification; it verifies presence, logs, and evals
+   police it — and the `change_type` precedence rule biases mixed
+   messages away from de-escalation by construction).
 3. **Floor-newly-raised guard** — replaces today's question→assessment
    merge row, generalized: if this message's red flags push
    `min_safe_urgency` above `current_urgency` and the model's turn is not
@@ -219,8 +252,8 @@ never blanks the strip (§9).
    necessary? also my arm just went numb") always yields an updated card,
    whatever the model classified.
 4. **Reset gate** — a `clear` is accepted only when the model proposes it
-   (`proposed_card_action == "clear"` with intent `testing_system`,
-   `correction`, or `start_new_assessment`) AND
+   (`proposed_card_action == "clear"` with `intents` containing
+   `testing_system`, `correction`, or `start_new_assessment`) AND
    `red_flags.check_red_flags(current_message)` matches nothing AND the
    episode is not crisis-locked. Accepted resets are logged with rule-id
    context for audit. The reply payload carries `assessment_cleared: true`
@@ -239,27 +272,29 @@ never blanks the strip (§9).
    | no active card + assessment turn | `new` |
    | assessment turn, final urgency ≠ `current_urgency` | `update` |
    | assessment turn, new latched rule IDs at the same tier | `update` (fresh watch-fors) |
-   | assessment turn at same tier, `new_clinical_info` true | `update` |
-   | assessment turn at same tier, `new_clinical_info` false | **demote to `conversation`** (strip card fields, keep message text), `keep` |
+   | assessment turn at same tier, `requires_clinical_reassessment` true AND `change_type` ≠ `none` | `update` (reason `clinical_change`) |
+   | assessment turn at same tier, otherwise | **demote to `conversation`** (strip card fields, keep message text), `keep` |
    | conversation / question turn | `keep` |
 
-   The `new_clinical_info` row exists for a genuinely new complaint mid-
+   The `clinical_change` row exists for a genuinely changed picture mid-
    episode at the same tier ("that's sorted — now about this rash"): the
    fresh assessment deserves a fresh card with its own watch-fors even
-   though the tier didn't move. This is the one place a model proposal
-   feeds a card decision, and its failure directions are bounded: over-
-   reporting `new_clinical_info` shows an occasionally redundant card
-   (today's status quo); under-reporting answers in text with a stale
-   card. Neither touches urgency. Evals police both directions.
+   though the tier didn't move. This is the one place model proposals
+   feed a card decision, and the failure directions are bounded: over-
+   reporting shows an occasionally redundant card (today's status quo);
+   under-reporting answers in text with a stale card. Neither touches
+   urgency. Evals police both directions, and `change_type` gives the
+   logs the *why* for free.
 
    The demotion row makes "never regenerate an identical card" a
    structural guarantee for contentless re-assessments — the fire-alarm
-   loop's reassurance turns carry no new clinical info by definition.
-   Demotion rate is logged and becomes an eval metric — a climbing rate
-   means the prompt regressed.
+   loop's reassurance turns require no clinical reassessment by
+   definition. Demotion rate is logged and becomes an eval metric — a
+   climbing rate means the prompt regressed.
 
-Logging additions to `_log_request`: `intent`, `card_action`, `demoted`
-(bool), `reset_accepted` (bool), `deescalation_accepted` (bool),
+Logging additions to `_log_request`: `intents`, `change_type`,
+`requires_clinical_reassessment`, `card_action`, `demoted` (bool),
+`reset_accepted` (bool), `deescalation_accepted` (bool),
 `proposed_vs_final_urgency`. Structured fields only — never message text.
 
 ## 7. Prompt restructure (PROMPT_VERSION 2.0.0)
@@ -283,7 +318,12 @@ requests; all request-specific content stays in the final section.
     acknowledgments naturally.
 - **Intent vocabulary** defined compactly with one-line disambiguations
   ("'but sometimes I feel fine' = reassurance_seeking, NOT
-  reporting_improvement"). Vocabulary (grouped): reporting_new_symptom,
+  reporting_improvement"). `intents` is an array (1–3): the model reports
+  every intent genuinely present — "I'm scared… do I really need to go?"
+  is `emotional_support` + `asking_about_recommendation`, and the reply
+  should answer both. The prompt also teaches the `change_type`
+  precedence rule (most escalatory wins) with one mixed-message example.
+  Vocabulary (grouped): reporting_new_symptom,
   reporting_worsening, reporting_improvement, answering_question,
   medication_question, exposure_history / asking_why, reassurance_seeking,
   emotional_support, asking_next_steps, asking_about_recommendation,
@@ -291,11 +331,20 @@ requests; all request-specific content stays in the final section.
   testing_system, correction, casual_chat, off_topic /
   start_new_assessment, change_language, feedback.
 - **Dynamic CONVERSATION STATE block** in the final section (beside the
-  1.5.5 language directive, which is untouched): current urgency, the
-  active card's one-line explanation, latch presence, questions used, and
-  the directive: "A guidance card showing [tier] is already visible to
-  this person. Do not restate it. Propose an assessment only if this
-  message changes the clinical picture."
+  1.5.5 language directive, which is untouched), composed from
+  EpisodeState:
+  - CURRENT FINDINGS: bullet list from `active_findings` — the compact
+    current picture, so Gemini doesn't re-infer it from raw transcript
+    every request.
+  - LAST ASSESSMENT: findings / explanation / recommendation / tier from
+    `last_assessment` — the compact "what you already told them"
+    reminder (e.g. "Concern: blood in vomit. Why: can indicate serious
+    internal problems. Recommendation: seek emergency care today.") that
+    replaces re-deriving the last explanation from history.
+  - Latch presence, questions used, and the directive: "A guidance card
+    showing [tier] is already visible to this person. Do not restate it.
+    Propose an assessment only if this message changes the clinical
+    picture."
 - **Few-shot deck additions** (three multi-turn examples):
   1. English reassurance-seeking after a seek_care_now card ("but I feel
      okay sometimes" → warm `conversation` turn, no card, urgency stands).
@@ -319,8 +368,8 @@ requests; all request-specific content stays in the final section.
    idle ──clinical content──▶ assessing ──card──▶ guidance ──┐
     ▲                            ▲    (question turns,        │ discussion turns
     └── new conversation         │     budget 3)              │ (no card churn)
-                                 └── new_clinical_info ◀──────┘
-                                     (reassess; clamp applies)
+                                 └── clinical reassessment ◀──┘
+                                     required (clamp applies)
 
    any state ──self-harm signal──▶ crisis   (absorbing; only a new
                                              conversation exits)
@@ -391,12 +440,16 @@ in the state block makes it visible to the model per-request.)
 
 ## 11. Testing & evals
 
-- **Unit tests** (`test_main.py` + new `test_episode_state.py`): state
+- **Unit tests** (`test_main.py` + new `test_episode_state.py` and
+  `test_safety_engine.py`, mirroring the five-component split): state
   derivation (latch across turns, reset semantics, budget counting,
-  urgency echo), clamp arithmetic incl. rejected de-escalations, the card
+  urgency/findings/summary echo, trust-zone separation — no gate reads
+  scaffolding fields), clamp arithmetic incl. rejected de-escalations and
+  the change_type eligibility rule (`resolved_symptom` only), the card
   matrix row-by-row, demotion, reset gate refusals, degraded-with-active-
   card, floor-newly-raised substitution, schema validation for the new
-  fields (`test_gemini_client.py`).
+  fields incl. `intents` array bounds and `change_type`/`findings`
+  constraints (`test_gemini_client.py`).
 - **New eval categories** (harness already supports per-turn checks and
   scripted chip replies):
   - `intent_no_recard` — the fire-alarm transcript verbatim; per-turn
@@ -416,7 +469,8 @@ in the state block makes it visible to the model per-request.)
   wiring); re-baseline results in `evals/results/` per the established
   discipline.
 
-## 12. Decision log (owner, 2026-07-13)
+## 12. Decision log (owner, 2026-07-13; items 6–10 from owner spec
+review, 2026-07-14)
 
 1. **State home:** derived server-side from client-echoed history (no
    Firestore this pass); episode model later swaps the derivation input.
@@ -431,6 +485,23 @@ in the state block makes it visible to the model per-request.)
    cards only on change.
 5. **Crisis + reset:** reset does not clear crisis mode (deviation from
    raw spec; flagged for mental-health review).
+6. **Proposal fields:** `new_clinical_info` replaced by the operational
+   pair `requires_clinical_reassessment` (should the assessment be
+   revisited?) + `change_type` (why) — separates card updates,
+   reassessment, and de-escalation eligibility, which the single bool
+   conflated.
+7. **`intents` is an array (1–3)** — real messages carry several intents
+   at once; the reply should answer all of them.
+8. **Prompt scaffolding state:** `active_findings` + `last_assessment`
+   added to EpisodeState — model-proposed via history echo, prompt-only,
+   never gate input (the trust-zone boundary in §4).
+9. **Five-component pipeline naming:** State Builder → Prompt Builder →
+   LLM → Safety Engine → Response Builder; each independently testable.
+10. **De-escalation eligibility (calibration call, revisable):** only
+    `change_type == "resolved_symptom"` may lower urgency this pass;
+    `treatment_update` is second-hand clinical judgment and stays
+    card-update-only until verified post-evaluation outcomes exist
+    (consistent with decision 3).
 
 ## 13. Out-of-scope follow-ups recorded
 
