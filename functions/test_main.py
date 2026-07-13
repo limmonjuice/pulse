@@ -402,6 +402,90 @@ def test_language_heuristic(message, expected):
 
 
 # ---------------------------------------------------------------------------
+# Conversation-language derivation (1.5.5) — the server decides the
+# CONVERSATION LANGUAGE directive deterministically; a tapped quick-reply
+# chip (below the word threshold) can never flip an established language.
+# ---------------------------------------------------------------------------
+
+ENGLISH_OPENER_TURN = {
+    "role": "user",
+    "content": "Ive been feeling sick lately. whats happening to me?",
+}
+ASSISTANT_QUESTION_TURN = {
+    "role": "assistant",
+    "content": "Could you tell me more about your symptoms?",
+    "type": "question",
+}
+
+
+def test_conversation_language_full_english_sentence():
+    assert (
+        main._conversation_language("I have had a sore throat since yesterday", [])
+        == "english"
+    )
+
+
+def test_conversation_language_terse_chip_cannot_flip_english_conversation():
+    # The exact 2026-07-13 in-app regression shape: English opener, then a
+    # tapped chip. Even a chip carrying Tagalog markers ("May pagsusuka at
+    # pagtatae") sits below _LANGUAGE_SWITCH_MIN_WORDS, so English holds.
+    history = [ENGLISH_OPENER_TURN, ASSISTANT_QUESTION_TURN]
+    assert main._conversation_language("Stomach pain or nausea", history) == "english"
+    assert main._conversation_language("May pagsusuka at pagtatae", history) == "english"
+
+
+def test_conversation_language_full_tagalog_sentence_switches():
+    history = [ENGLISH_OPENER_TURN, ASSISTANT_QUESTION_TURN]
+    msg = "Yung sakit ng ulo ko lumalala na po kanina pa"
+    assert main._conversation_language(msg, history) == "tagalog"
+
+
+def test_conversation_language_terse_only_conversation_uses_newest_confident():
+    # No turn reaches the switch threshold, but a terse Tagalog opener
+    # still deserves a Tagalog conversation.
+    assert main._conversation_language("May lagnat ako", []) == "tagalog"
+
+
+def test_conversation_language_none_when_nothing_classifies():
+    assert main._conversation_language("Stomach pain or nausea", []) is None
+
+
+def test_conversation_language_skips_malformed_history_turns():
+    history = ["garbage", {"role": "user"}, {"role": "user", "content": 42}, None]
+    assert (
+        main._conversation_language("I have had a fever since yesterday morning", history)
+        == "english"
+    )
+
+
+def test_pipeline_passes_conversation_language_directive_to_prompt(monkeypatch):
+    seen = {}
+
+    def fake(prompt, history, message):
+        seen["prompt"] = prompt
+        return dict(VALID_QUESTION)
+
+    _mock_get_assessment(monkeypatch, fake)
+    run_pipeline(
+        message="Stomach pain or nausea",
+        history=[ENGLISH_OPENER_TURN, ASSISTANT_QUESTION_TURN],
+    )
+    assert "CONVERSATION LANGUAGE: English." in seen["prompt"]
+
+
+def test_pipeline_omits_conversation_language_directive_when_undetectable(monkeypatch):
+    seen = {}
+
+    def fake(prompt, history, message):
+        seen["prompt"] = prompt
+        return dict(VALID_QUESTION)
+
+    _mock_get_assessment(monkeypatch, fake)
+    run_pipeline(message="Stomach pain or nausea")
+    assert "CONVERSATION LANGUAGE:" not in seen["prompt"]
+
+
+# ---------------------------------------------------------------------------
 # v1.4.0 fields — self_care/monitoring/encouragement on locally-constructed
 # fallback payloads (never from the model, so always the safe empty shape).
 # ---------------------------------------------------------------------------

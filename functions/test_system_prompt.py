@@ -162,6 +162,44 @@ def test_context_section_framing_is_static_across_requests():
     assert flat_empty.index(marker) == flat_full.index(marker)
 
 
+# ---------------------------------------------------------------------------
+# Conversation-language directive (1.5.5) — server-derived (main.py's
+# _conversation_language), stated per-request because live probes showed
+# no prompt-side rule or example survives a terse chip tap's register.
+# ---------------------------------------------------------------------------
+
+def test_conversation_language_directive_absent_by_default():
+    assert "CONVERSATION LANGUAGE:" not in build()
+
+
+def test_conversation_language_directive_english():
+    prompt = build_system_prompt(conversation_language="english")
+    assert "CONVERSATION LANGUAGE: English." in prompt
+    assert "Reply in English." in prompt
+
+
+@pytest.mark.parametrize("value", ["tagalog", "mixed"])
+def test_conversation_language_directive_tagalog_and_mixed_reply_taglish(value):
+    prompt = build_system_prompt(conversation_language=value)
+    assert "CONVERSATION LANGUAGE:" in prompt
+    assert "Reply in natural, warm Taglish." in prompt
+
+
+def test_conversation_language_directive_unrecognized_value_omitted():
+    assert "CONVERSATION LANGUAGE:" not in build_system_prompt(
+        conversation_language="klingon"
+    )
+
+
+def test_conversation_language_directive_sits_in_final_dynamic_section():
+    # Request-specific content must stay after the static prefix — same
+    # cache-hygiene rule the rest of section 9 follows.
+    prompt = build_system_prompt(conversation_language="english")
+    assert prompt.index("CONVERSATION LANGUAGE: English.") > prompt.index(
+        "## 9. CONTEXT FOR THIS CONVERSATION"
+    )
+
+
 def test_example_json_is_rendered_compact():
     # Examples are the bulk of the prompt; they must render without
     # pretty-print indentation.
@@ -184,6 +222,162 @@ def test_validated_escalation_principle_present():
 def test_possibilities_calibration_line_present():
     flattened = re.sub(r"\s+", " ", build())
     assert "not caution; it is incompleteness" in flattened
+
+
+# ---------------------------------------------------------------------------
+# Language recency counterweight (1.5.1, A1) — a forceful restatement of
+# the mirroring rule as the LAST static words before the dynamic section,
+# after the few-shot deck. Added when gemini-3.1-flash-lite began
+# imitating the deck's dominant language instead of mirroring the user.
+# ---------------------------------------------------------------------------
+
+RECENCY_MARKER = "Final reminder, because it overrides everything above"
+
+
+def test_language_recency_reminder_present():
+    flattened = re.sub(r"\s+", " ", build())
+    assert RECENCY_MARKER in flattened
+    assert "English in means English out" in flattened
+
+
+def test_language_recency_reminder_sits_after_deck_before_dynamic_section():
+    prompt = build(SAMPLE_PROFILE, "scared", SAMPLE_REGION)
+    reminder_pos = prompt.index(RECENCY_MARKER)
+    # After the entire few-shot deck (the last example's final payload)...
+    assert reminder_pos > prompt.index("watch list shows up before you're seen")
+    # ...and after the remaining static sections...
+    assert reminder_pos > prompt.index("## 8. WHAT YOU ARE NOT")
+    assert reminder_pos > prompt.index("reply language is decided only by the LANGUAGE")
+    # ...but before anything dynamic: the very end of the static prefix.
+    assert reminder_pos < prompt.index("## 9. CONTEXT FOR THIS CONVERSATION")
+    assert reminder_pos < prompt.index("PERSON CONTEXT (who this conversation is about):")
+
+
+def test_language_recency_reminder_is_static_across_requests():
+    # Cache hygiene: identical position whether or not dynamic context is
+    # passed, so the block lives inside the cacheable static prefix.
+    flat_empty = re.sub(r"\s+", " ", build())
+    flat_full = re.sub(r"\s+", " ", build(SAMPLE_PROFILE, "scared", SAMPLE_REGION))
+    assert flat_empty.index(RECENCY_MARKER) == flat_full.index(RECENCY_MARKER)
+
+
+# ---------------------------------------------------------------------------
+# Mirroring root-cause fixes (1.5.2) — probe-confirmed 2026-07-13. Two
+# defects made 3.1-flash-lite answer English input in Tagalog: the
+# IDENTITY register instruction was an unconditional "write Taglish"
+# command (probe P1), and Example 1 answered a mostly-English opener in
+# full Tagalog, teaching English-in -> Tagalog-out by template (probe P3).
+# ---------------------------------------------------------------------------
+
+def test_register_rule_is_conditional_on_user_language():
+    flattened = re.sub(r"\s+", " ", build())
+    # The register instruction must open by binding itself to the user's
+    # language, and must carry an explicit English branch.
+    assert "in whichever language the user wrote their most recent message" in flattened
+    assert "When it is English, plain conversational English." in flattened
+    # The old unconditional imperative must be gone.
+    assert "actually text. Everyday Taglish:" not in flattened
+
+
+def test_no_example_answers_english_input_in_tagalog():
+    # Permanent deck invariant: no example may pair an English-detected
+    # user turn with a non-English assistant message. Mixed/Taglish user
+    # turns answered in Taglish are fine (that IS mirroring); an
+    # English-reading user turn answered in Tagalog teaches the exact
+    # regression probe P3 confirmed.
+    import mirror_probes
+
+    for i, example in enumerate(FEW_SHOT_EXAMPLES, 1):
+        for t, turn in enumerate(example["turns"], 1):
+            if mirror_probes.detect_language(turn["user"]) == "english":
+                reply_lang = mirror_probes.detect_language(turn["assistant"]["message"])
+                assert reply_lang == "english", (
+                    f"Example {i} turn {t} answers an English user turn in "
+                    f"{reply_lang!r} — this teaches English-in -> Tagalog-out"
+                )
+
+
+def test_progressive_transparency_exemplars_are_bilingual():
+    flattened = re.sub(r"\s+", " ", build())
+    assert "This doesn't look like an emergency, but I want to be sure" in flattened
+    assert "Mukhang hindi ito emergency" in flattened
+    assert "always in the user's own language" in flattened
+
+
+def test_tell_the_staff_script_is_bilingual():
+    flattened = re.sub(r"\s+", " ", build())
+    assert "When you get there, tell the staff:" in flattened
+    assert "Pagdating mo, sabihin mo:" in flattened
+
+
+def test_english_dengue_example_carries_the_dengue_calibration():
+    # 1.5.3/1.5.4: the deck's sole dengue example — English, single-turn
+    # (duration already given), same tier, hedged plural possibilities,
+    # and the post-fever danger-window teaching carried over from the
+    # removed Taglish original.
+    import mirror_probes
+
+    twin = FEW_SHOT_EXAMPLES[5]
+    assert len(twin["turns"]) == 1
+    assert mirror_probes.detect_language(twin["turns"][0]["user"]) == "english"
+    final = twin["turns"][0]["assistant"]
+    assert final["type"] == "assessment"
+    assert final["urgency"] == "see_doctor_soon"
+    assert final["possibilities_mentioned"] is True
+    assert "dengue" in final["message"].lower()
+    assert "after the fever goes down" in final["message"]
+    assert mirror_probes.detect_language(final["message"]) == "english"
+    assert "AGENT-DRAFTED, PENDING OWNER READ-ALOUD (1.5.3" in (
+        (Path(__file__).parent / "system_prompt.py").read_text(encoding="utf-8")
+    )
+
+
+# ---------------------------------------------------------------------------
+# Conversation posture (1.5.0) — flipped default, 3-question budget,
+# priority order, exposure reasoning, progressive transparency.
+# ---------------------------------------------------------------------------
+
+def test_questioning_default_flip_present():
+    flattened = re.sub(r"\s+", " ", build())
+    assert "would one more concrete answer" in flattened
+
+
+def test_question_budget_is_three():
+    flattened = re.sub(r"\s+", " ", build())
+    assert "up to 3 clarifying questions" in flattened
+
+
+def test_question_priority_order_present():
+    flattened = re.sub(r"\s+", " ", build())
+    assert "duration, severity, and red-flag-adjacent symptoms outrank" in flattened
+
+
+def test_exposure_reasoning_present():
+    flattened = re.sub(r"\s+", " ", build())
+    assert "Exposure reasoning:" in flattened
+    assert "floodwater" in flattened
+    assert "mosquito bites" in flattened
+    assert "animal bite" in flattened
+
+
+def test_progressive_transparency_present():
+    flattened = re.sub(r"\s+", " ", build())
+    assert "Progressive transparency:" in flattened
+    assert "never answer questions into silence" in flattened
+
+
+def test_possibilities_do_dont_contrast_present():
+    # B3: the hedged-plural ceiling holds even at seek_care_now — a DO/DON'T
+    # pair anchored on the spec's own leptospirosis example.
+    flattened = re.sub(r"\s+", " ", build())
+    assert 'pwedeng seryosong impeksyon, kasama yung tinatawag na leptospirosis' in flattened
+    assert 'this is highly concerning for Leptospirosis, your timing fits' in flattened
+
+
+def test_seek_care_now_enrichments_present():
+    flattened = re.sub(r"\s+", " ", build())
+    assert "Pagdating mo, sabihin mo:" in flattened
+    assert "avoid ibuprofen" in flattened.lower()
 
 
 def test_narrative_flow_handoff_rule_present():
@@ -384,8 +578,11 @@ def _final_payload(example):
     return example["turns"][-1]["assistant"]
 
 
-def test_exactly_five_examples():
-    assert len(FEW_SHOT_EXAMPLES) == 5
+def test_exactly_six_examples():
+    # 1.5.4: the Taglish dengue example was removed (owner decision — its
+    # presence made English dengue-shaped openers mirror Tagalog; see the
+    # note atop FEW_SHOT_EXAMPLES).
+    assert len(FEW_SHOT_EXAMPLES) == 6
 
 
 REQUIRED_FIELDS = {
@@ -454,41 +651,20 @@ def test_every_example_payload_follows_the_flat_schema():
 def test_example_tier_outcomes():
     finals = [_final_payload(example) for example in FEW_SHOT_EXAMPLES]
     assert [payload["urgency"] for payload in finals] == [
-        "see_doctor_soon",   # dengue-advisory case
         "monitor_at_home",   # mild sore throat — Pulse is not alarmist
         "monitor_at_home",   # Taglish caregiver child-fever case
         "seek_care_now",     # casual tone, red-thread symptoms
         None,                # crisis — no tier, no triage furniture
+        "see_doctor_soon",   # English cat-scratch exposure (1.5.1 rebalance)
+        "see_doctor_soon",   # English dengue-advisory case (sole dengue example since 1.5.4)
     ]
-
-
-def test_dengue_example_mentions_possibilities_plurally():
-    final = _final_payload(FEW_SHOT_EXAMPLES[0])
-    assert final["possibilities_mentioned"] is True
-    assert "dengue" in final["message"].lower()
-
-
-def test_dengue_example_teaches_post_fever_window():
-    # The counterintuitive dengue danger window is AFTER the fever breaks —
-    # the canonical example must teach this. As of 1.3.0 the teaching lives
-    # in the message body (approved Taglish copy), not the watch_for items.
-    final = _final_payload(FEW_SHOT_EXAMPLES[0])
-    assert "bumaba na yung lagnat" in final["message"]
-
-
-def test_dengue_example_fields_use_approved_taglish_copy():
-    # 1.3.1: explanation and next_step were owner-replaced to match the
-    # conversation's register (they were English inside a Taglish exchange).
-    final = _final_payload(FEW_SHOT_EXAMPLES[0])
-    assert "kaya mas mabuting magpa-check" in final["explanation"]
-    assert "blood test para malaman kung dengue" in final["next_step"]
 
 
 def test_escalation_example_demonstrates_validated_escalation():
     # Example 4 is the canonical validated-escalation example: validate the
     # user's benign theory, name the real limitation, then let the tier land
     # as the conclusion. Anchored on stable substrings, not full sentences.
-    final = _final_payload(FEW_SHOT_EXAMPLES[3])
+    final = _final_payload(FEW_SHOT_EXAMPLES[2])
     assert final["possibilities_mentioned"] is True
     message = final["message"]
     assert "puyat o migraine" in message                    # (a) validation
@@ -500,7 +676,7 @@ def test_escalation_example_demonstrates_validated_escalation():
 
 
 def test_caregiver_example_is_taglish_with_chip_question():
-    example = FEW_SHOT_EXAMPLES[2]
+    example = FEW_SHOT_EXAMPLES[1]
     assert "anak" in example["turns"][0]["user"]
     first = example["turns"][0]["assistant"]
     assert first["type"] == "question"
@@ -512,7 +688,7 @@ def test_caregiver_example_is_taglish_with_chip_question():
 def test_caregiver_assessment_uses_everyday_register():
     # 1.4.0: this care-advice line moved from "message" into "self_care"
     # (no-duplication rule) — it should no longer appear in the message.
-    final = _final_payload(FEW_SHOT_EXAMPLES[2])
+    final = _final_payload(FEW_SHOT_EXAMPLES[1])
     assert any("naka-recommend sa box" in item for item in final["self_care"])
     assert "naka-recommend sa box" not in final["message"]
 
@@ -520,19 +696,89 @@ def test_caregiver_assessment_uses_everyday_register():
 def test_caregiver_assessment_hands_off_to_self_care():
     # 1.4.1: restitched handoff line — the message gestures to self_care
     # instead of leaving a dangling reference to nothing.
-    final = _final_payload(FEW_SHOT_EXAMPLES[2])
+    final = _final_payload(FEW_SHOT_EXAMPLES[1])
     assert "nilista ko sa baba" in final["message"]
 
 
 def test_sore_throat_example_hands_off_to_self_care():
     # 1.4.1: restitched handoff line — same pattern as the Mika example,
     # in English.
-    final = _final_payload(FEW_SHOT_EXAMPLES[1])
+    final = _final_payload(FEW_SHOT_EXAMPLES[0])
     assert "listed what helps below" in final["message"]
 
 
-def test_crisis_example_shape_and_canonical_copy():
+def test_sore_throat_example_now_has_a_question_turn():
+    # 1.5.0 (A2): the deck over-taught single-turn assessment, so this
+    # example gained a leading question turn (highest-value gap: fever) —
+    # the approved assessment payload itself is unchanged (verified below).
+    example = FEW_SHOT_EXAMPLES[0]
+    assert len(example["turns"]) == 2
+    first = example["turns"][0]["assistant"]
+    assert first["type"] == "question"
+    assert 2 <= len(first["quick_replies"]) <= 4
+
+
+def test_sore_throat_example_final_assessment_unchanged():
+    # The final assessment message is the pre-1.5.0 approved copy,
+    # verbatim — only a question turn was prepended.
+    final = _final_payload(FEW_SHOT_EXAMPLES[0])
+    assert "That sounds like a common sore throat so far" in final["message"]
+    assert final["urgency"] == "monitor_at_home"
+
+
+def test_cat_scratch_example_is_english_exposure_with_question_turn():
+    # 1.5.1 (A2): the deck's second "exposure + feeling unwell" template,
+    # all-English, so Example 1 (Taglish mosquito/dengue) is no longer the
+    # only model for that shape. One chip question, then see_doctor_soon.
     example = FEW_SHOT_EXAMPLES[4]
+    assert "cat scratched me" in example["turns"][0]["user"]
+    first = example["turns"][0]["assistant"]
+    assert first["type"] == "question"
+    assert 2 <= len(first["quick_replies"]) <= 4
+    final = _final_payload(example)
+    assert final["type"] == "assessment"
+    assert final["urgency"] == "see_doctor_soon"
+    assert final["possibilities_mentioned"] is True
+
+
+def test_cat_scratch_example_is_english_end_to_end():
+    # The whole point of the example: English in, English out — no
+    # Tagalog function words anywhere in either assistant turn.
+    import mirror_probes
+
+    example = FEW_SHOT_EXAMPLES[4]
+    for turn in example["turns"]:
+        payload = turn["assistant"]
+        texts = [payload["message"]]
+        texts += payload["quick_replies"] + payload["watch_for"]
+        texts += payload["self_care"] + payload["monitoring"]
+        for field in ("explanation", "next_step", "encouragement"):
+            if payload[field]:
+                texts.append(payload[field])
+        for text in texts:
+            assert mirror_probes.detect_language(text) in ("english", "unknown"), text
+
+
+def test_cat_scratch_example_watch_for_covers_spread_and_fever():
+    final = _final_payload(FEW_SHOT_EXAMPLES[4])
+    joined = " ".join(final["watch_for"]).lower()
+    assert "spreading" in joined
+    assert "red streaks" in joined
+    assert "fever" in joined
+
+
+def test_cat_scratch_example_next_step_is_tell_the_staff_style():
+    final = _final_payload(FEW_SHOT_EXAMPLES[4])
+    assert "tell the staff" in final["next_step"]
+
+
+def test_cat_scratch_example_flagged_for_owner_read_aloud():
+    source = (Path(__file__).parent / "system_prompt.py").read_text(encoding="utf-8")
+    assert "AGENT-DRAFTED, PENDING OWNER READ-ALOUD (1.5.1)" in source
+
+
+def test_crisis_example_shape_and_canonical_copy():
+    example = FEW_SHOT_EXAMPLES[3]
     assert len(example["turns"]) == 1
     payload = example["turns"][0]["assistant"]
     assert set(payload) == REQUIRED_FIELDS

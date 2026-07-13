@@ -40,6 +40,7 @@ import firebase_admin
 from firebase_functions import https_fn
 
 import gemini_client
+import mirror_probes
 import red_flags
 import system_prompt
 
@@ -111,6 +112,50 @@ def _message_signals_tagalog(message: str) -> bool:
 
 def _pick_fallback_copy(message: str, *, en: str, tl: str) -> str:
     return tl if _message_signals_tagalog(message) else en
+
+
+# A user turn must be at least this many words before it can CHANGE the
+# conversation's language. Tapped quick-reply chips are the model's own
+# words echoed back (3-4 words), so they can never flip it; a person
+# genuinely switching writes a full sentence.
+_LANGUAGE_SWITCH_MIN_WORDS = 5
+
+
+def _conversation_language(message: str, history: list[dict]) -> str | None:
+    """Derive the conversation's language from the person's own turns,
+    for system_prompt's CONVERSATION LANGUAGE directive (1.5.5).
+
+    The model can't be trusted with this on low-signal turns: live probes
+    (2026-07-13) showed a tapped chip like "Stomach pain or nausea" reads
+    as code-switched Taglish register to 3.1-flash-lite and flips an
+    all-English conversation to Tagalog, and no prompt-side counterweight
+    (rule or few-shot example) beat that prior — only a server-stated
+    directive did. So the server decides, deterministically: newest user
+    turn first, the first turn that is both confidently classified by
+    mirror_probes.detect_language AND long enough to be a real switch
+    (>= _LANGUAGE_SWITCH_MIN_WORDS words) wins. If no turn passes that
+    bar, the newest confidently classified turn of any length wins (a
+    terse first message still deserves its own language). None when
+    nothing classifies — the prompt's own rules then stand alone.
+    """
+    texts = [
+        turn.get("content")
+        for turn in history
+        if isinstance(turn, dict) and turn.get("role") == "user"
+    ]
+    texts.append(message)
+    newest_confident: str | None = None
+    for text in reversed(texts):
+        if not isinstance(text, str):
+            continue
+        detected = mirror_probes.detect_language(text)
+        if detected == "unknown":
+            continue
+        if newest_confident is None:
+            newest_confident = detected
+        if len(text.split()) >= _LANGUAGE_SWITCH_MIN_WORDS:
+            return detected
+    return newest_confident
 
 logger = logging.getLogger("pulse.assess_symptoms")
 
@@ -322,7 +367,12 @@ def run_pipeline(
         retry_used = False
         degraded = True
     else:
-        prompt = system_prompt.build_system_prompt(profile, worry_level, regional_context)
+        prompt = system_prompt.build_system_prompt(
+            profile,
+            worry_level,
+            regional_context,
+            conversation_language=_conversation_language(message, history),
+        )
         try:
             model_result = gemini_client.get_assessment(prompt, history, message)
             retry_used = bool(model_result.pop("_retry_used", False))
