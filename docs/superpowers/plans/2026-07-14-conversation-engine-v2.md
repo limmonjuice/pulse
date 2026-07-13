@@ -971,11 +971,12 @@ def _render_conversation_state_block(conversation_state: dict | None) -> str:
   - reset flow: mocked conversation with `proposed_card_action "clear"` + `intents ["testing_system"]` → `assessment_cleared true`, `card.action "clear"`, `conversation_state.assessment_active false`,
   - degraded mode (model raises) with guidance history and benign message → error payload, `card.action "keep"`, `conversation_state.urgency` preserved from history,
   - history cap: build 30-turn history, capture the `history` arg passed to the mocked `get_assessment` → length ≤ `MODEL_HISTORY_WINDOW`, while a red-flag user turn at position 0 STILL latches (derivation saw all of it),
+  - history acceptance ceiling: a history longer than `MAX_ACCEPTED_HISTORY_TURNS` raises `InvalidRequestError` (→ INVALID_ARGUMENT), and a history exactly at the ceiling is accepted,
   - crisis lock behavior unchanged (existing tests keep passing),
   - `_log_request` extras include `intents`, `change_type`, `requires_clinical_reassessment`, `card_action`, `demoted`, `reset_accepted`, `deescalation_accepted` (assert via `caplog` records like existing logging tests).
 - [ ] **Step 2:** Run → new tests FAIL.
 - [ ] **Step 3: Implement** in `run_pipeline`, keeping the existing crash/degraded skeleton:
-  1. `MODEL_HISTORY_WINDOW = 20` module constant.
+  1. `MODEL_HISTORY_WINDOW = 20` module constant. Also `MAX_ACCEPTED_HISTORY_TURNS = 200`: reject longer histories with `InvalidRequestError` (friendly copy, e.g. "This conversation has gotten quite long — please start a new chat so I can help properly.") BEFORE derivation. Rationale (episode_state quality review, 2026-07-14): the latch scan and `_conversation_language` are O(history) per request and nothing else bounds client-supplied history; reject rather than silently truncate — truncation could drop an old red-flag turn and weaken the latch.
   2. After validation: `state = episode_state.derive_episode_state(history, profile)`; keep `_history_has_crisis_lock` usage replaced by `state.phase == "crisis"` for `crisis_lock` (delete the now-unused helper and its tests only if nothing else references it — otherwise leave a thin wrapper).
   3. Current-message red-flag check: unchanged, including the crash path.
   4. Prompt: build `conversation_state_summary` dict from `state` (`current_urgency`, `active_findings`, `last_assessment`, `latch_active = state.min_safe_urgency is not None`, `questions_used`) — pass to `build_system_prompt`; pass `history[-(MODEL_HISTORY_WINDOW):]` sliced from `history[state.reset_index + 1:]` to `get_assessment`.

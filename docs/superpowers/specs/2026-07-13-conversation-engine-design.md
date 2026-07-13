@@ -98,8 +98,12 @@ missed emergency is still caught by the deterministic floor.
 
 ## 4. Episode state (derived, never stored)
 
-`derive_episode_state(history, current_message)` — pure function in
-`main.py`, same trust model as the existing crisis-lock derivation:
+`derive_episode_state(history, profile)` — pure function in
+`episode_state.py`, same trust model as the existing crisis-lock
+derivation. (`profile` feeds red_flags' profile-gated rules during the
+history re-scan; the current message's own red-flag check stays in
+`main.py`, per the §3 flow. Amended 2026-07-14 during implementation —
+the original pseudocode said `(history, current_message)` in `main.py`.)
 
 ```python
 @dataclass
@@ -137,7 +141,11 @@ them.
   model or the user says later. The latch is recomputed from the user's
   own words each request — no model output feeds it. (Non-self-harm rules
   currently all imply `seek_care_now`; the field is a tier, not a bool, so
-  future rule tiers slot in.)
+  future rule tiers slot in.) `self_harm_risk` alone is scanned over the
+  FULL history, reset markers included — like the assistant-crisis-turn
+  lock, a reset must never un-flag a prior suicidal statement (found in
+  implementation review, 2026-07-14); every other rule legitimately
+  resets.
 - **Reset markers.** When a reset is accepted (§6 gate 4), the assistant
   reply carries `assessment_cleared: true`; the client echoes it on that
   history turn; derivation ignores all turns at or before it. Turns after
