@@ -16,10 +16,12 @@ safe; conversationally a fire alarm.
 
 Root causes, confirmed in code:
 
-- No conversation state exists anywhere. The server derives exactly one
-  thing from history (the crisis lock in `main.py`
-  `_history_has_crisis_lock`); urgency, what has been explained, and
-  whether an assessment is active are recomputed from nothing each turn.
+- Almost no conversation state exists. The server derives exactly two
+  things from history (the crisis lock in `main.py`
+  `_history_has_crisis_lock`, and the 1.5.5 conversation-language
+  directive in `_conversation_language`); urgency, what has been
+  explained, and whether an assessment is active are recomputed from
+  nothing each turn.
 - The wire contract (`gemini_client.VALID_TYPES`) has no type for a
   conversational reply. `question | assessment | crisis` — answering a
   worry without re-triaging is structurally impossible.
@@ -77,7 +79,7 @@ ONE Gemini call
                  proposed_card_action, turn payload
   ↓
 deterministic gates (§6): crisis → urgency clamp → floor-newly-raised
-                          guard → card directive matrix → reset gate
+                          guard → reset gate → card directive matrix
   ↓
 Response = turn payload + card directive + conversation_state snapshot
 ```
@@ -115,7 +117,7 @@ class EpisodeState:
   own words each request — no model output feeds it. (Non-self-harm rules
   currently all imply `seek_care_now`; the field is a tier, not a bool, so
   future rule tiers slot in.)
-- **Reset markers.** When a reset is accepted (§6 gate 5), the assistant
+- **Reset markers.** When a reset is accepted (§6 gate 4), the assistant
   reply carries `assessment_cleared: true`; the client echoes it on that
   history turn; derivation ignores all turns at or before it. Turns after
   a reset re-arm the rules from zero — a reset is a fresh start, not
@@ -130,10 +132,18 @@ class EpisodeState:
 
 ### Client history echo (contract change)
 
-`Message.toHistoryJson()` additionally emits on assistant turns:
+`Message.toHistoryJson()` changes in three ways:
 
-- `urgency` (string, assessment turns) — feeds `current_urgency`.
-- `assessment_cleared` (bool, present-and-true only on reset turns).
+- Its assistant-turn type whitelist (currently
+  `question | assessment | crisis`) gains `conversation` — without this,
+  conversation turns are dropped from history entirely, which would
+  silently discard every reset marker (resets ride on conversation
+  turns, per §6 gate 4) and starve `phase` derivation. `error` and
+  `unparseable` turns stay excluded, as today.
+- Assessment turns additionally echo `urgency` (string) — feeds
+  `current_urgency`.
+- Reset turns additionally echo `assessment_cleared: true` (bool,
+  present-and-true only on accepted resets).
 
 Both sides ship together (no deployed clients). Derivation tolerates the
 fields' absence: unknown urgency → `None` → worst case one redundant card,
@@ -147,10 +157,10 @@ Existing 11 fields keep their exact semantics. Additions:
 
 | Field | Type | Rules |
 |---|---|---|
-| `type` | adds `"conversation"` | plain reply turn. `urgency`/`explanation`/`next_step`/`encouragement` null, `watch_for`/`self_care`/`monitoring` empty. `quick_replies` 0–4 allowed (unlike `question`, which requires 2–4). |
+| `type` | adds `"conversation"` | plain reply turn. `urgency`/`explanation`/`next_step`/`encouragement` null, `watch_for`/`self_care`/`monitoring` empty. `quick_replies` 0–4 allowed (unlike `question`, which requires 2–4). `possibilities_mentioned` keeps its existing semantics (true iff the message names possible conditions — a conversation turn re-explaining an already-mentioned possibility honestly reports true). |
 | `intent` | enum string | one of the fixed vocabulary (§7). Required on every turn. Unknown value → validation failure → existing corrective-retry path. |
 | `new_clinical_info` | bool | did this message add objective clinical information. Required. |
-| `reassessment_reason` | string \| null | must be non-null whenever the proposed urgency differs from the state block's `current_urgency`; null otherwise. |
+| `reassessment_reason` | string \| null | must be non-null whenever the proposed urgency differs from the state block's `current_urgency`; null otherwise. NOT schema-validated (`_validate_payload` is stateless and has no `current_urgency`): enforced by `main.py`'s clamp gate, where a missing reason simply rejects the de-escalation — never a retry. |
 | `proposed_card_action` | `"new" \| "update" \| "keep" \| "clear"` | the model's suggestion; never authoritative. Server/model disagreement is logged (eval signal). |
 
 `crisis` turns: the new fields are still required (intent may be any
@@ -163,7 +173,7 @@ Alongside the turn payload and existing `metadata`:
 ```json
 "card": { "action": "new | update | keep | clear",
           "reason": "first_assessment | urgency_raised | urgency_lowered |
-                     new_red_flag | reset | none" },
+                     new_red_flag | new_clinical_info | reset | none" },
 "conversation_state": { "urgency": "seek_care_now" | null,
                         "assessment_active": true,
                         "phase": "guidance" }
@@ -172,7 +182,9 @@ Alongside the turn payload and existing `metadata`:
 Client rule (the whole client rule): render an AssessmentCard inline only
 when `card.action` is `new` or `update`; drive the pinned strip from
 `conversation_state`; render `conversation` turns as plain bubbles. No
-urgency logic client-side (AGENTS.md AI/Backend rule 7).
+urgency logic client-side (AGENTS.md AI/Backend rule 7). `card.reason`
+exists for structured logs and evals only — no client behavior may key
+off it.
 
 Degraded/`error` turns carry `card: {action: "keep"}` and the
 `conversation_state` derived from history, so an API failure mid-episode
@@ -206,27 +218,45 @@ never blanks the strip (§9).
    conversational message that contains a new emergency ("is it really
    necessary? also my arm just went numb") always yields an updated card,
    whatever the model classified.
-4. **Card directive matrix** — pure function of (EpisodeState, final
-   turn):
+4. **Reset gate** — a `clear` is accepted only when the model proposes it
+   (`proposed_card_action == "clear"` with intent `testing_system`,
+   `correction`, or `start_new_assessment`) AND
+   `red_flags.check_red_flags(current_message)` matches nothing AND the
+   episode is not crisis-locked. Accepted resets are logged with rule-id
+   context for audit. The reply payload carries `assessment_cleared: true`
+   for the history echo. `start_new_assessment` is an accepted trigger by
+   owner decision (§12.3: an explicit reset is the one way to clear a
+   latch) — it covers the person who deliberately starts over in the same
+   thread, distinct from `reporting_new_symptom`, which never resets (the
+   old latch keeps protecting a still-open complaint). Runs before the
+   card matrix because the matrix's first row consumes its outcome.
+5. **Card directive matrix** — pure function of (EpisodeState, final
+   turn). Rows are evaluated top-down; the first matching row wins:
 
    | Situation | `card.action` |
    |---|---|
-   | reset accepted (gate 5) | `clear` |
+   | reset accepted (gate 4) | `clear` |
    | no active card + assessment turn | `new` |
-   | final urgency ≠ `current_urgency` | `update` |
-   | new latched rule IDs at the same tier | `update` (fresh watch-fors) |
-   | assessment at same tier, no new rules | **demote to `conversation`** (strip card fields, keep message text), `keep` |
+   | assessment turn, final urgency ≠ `current_urgency` | `update` |
+   | assessment turn, new latched rule IDs at the same tier | `update` (fresh watch-fors) |
+   | assessment turn at same tier, `new_clinical_info` true | `update` |
+   | assessment turn at same tier, `new_clinical_info` false | **demote to `conversation`** (strip card fields, keep message text), `keep` |
    | conversation / question turn | `keep` |
 
+   The `new_clinical_info` row exists for a genuinely new complaint mid-
+   episode at the same tier ("that's sorted — now about this rash"): the
+   fresh assessment deserves a fresh card with its own watch-fors even
+   though the tier didn't move. This is the one place a model proposal
+   feeds a card decision, and its failure directions are bounded: over-
+   reporting `new_clinical_info` shows an occasionally redundant card
+   (today's status quo); under-reporting answers in text with a stale
+   card. Neither touches urgency. Evals police both directions.
+
    The demotion row makes "never regenerate an identical card" a
-   structural guarantee. Demotion rate is logged and becomes an eval
-   metric — a climbing rate means the prompt regressed.
-5. **Reset gate** — a `clear` is accepted only when the model proposes it
-   (`proposed_card_action == "clear"` with intent `testing_system` or
-   `correction`) AND `red_flags.check_red_flags(current_message)` matches
-   nothing AND the episode is not crisis-locked. Accepted resets are
-   logged with rule-id context for audit. The reply payload carries
-   `assessment_cleared: true` for the history echo.
+   structural guarantee for contentless re-assessments — the fire-alarm
+   loop's reassurance turns carry no new clinical info by definition.
+   Demotion rate is logged and becomes an eval metric — a climbing rate
+   means the prompt regressed.
 
 Logging additions to `_log_request`: `intent`, `card_action`, `demoted`
 (bool), `reset_accepted` (bool), `deescalation_accepted` (bool),
@@ -317,9 +347,12 @@ in the state block makes it visible to the model per-request.)
   cards get a small "Updated" eyebrow; the strip animates tier changes.
 - **`clear`** hides the strip; the reply bubble carries the
   acknowledgment ("No worries — thanks for letting me know…").
-- The strip state is rebuilt from the latest assistant message's
-  `conversation_state` — survives scrollback, requires no client
-  derivation.
+- The strip state is rebuilt from the latest assistant message **that
+  carries a `conversation_state`** — survives scrollback, requires no
+  client derivation. Client-locally fabricated turns
+  (`ChatController._errorMessage()`, produced when the callable itself
+  fails: offline, App Check rejection) carry no envelope and are skipped,
+  so a transport failure never blanks the strip.
 - **Degraded mode with an active card**: error bubble appears; strip and
   existing cards stay. The static seek-care fallback fires only when the
   floor is newly active this turn (current behavior, correctly scoped).
@@ -330,16 +363,19 @@ in the state block makes it visible to the model per-request.)
   regardless of intent classification.
 - **Reset then re-describe** — derivation counts only turns after the
   marker; rules re-arm immediately.
-- **Reset attempt while red-flagged message** — gate 5 refuses the clear
+- **Reset attempt while red-flagged message** — gate 4 refuses the clear
   on any message that itself matches a rule.
 - **Chip taps** — the 1.5.5 language directive is untouched; the state
   block additionally anchors context so a bare chip ("Mild fever") can't
   read as a fresh complaint.
-- **Long conversations** — the prompt's history window is capped (last
-  ~20 turns), but latch derivation regex-scans the full history since
-  reset server-side (cheap, no token cost). The cap must never truncate
-  the turn carrying the active card's context in the state block — the
-  state block itself carries that forward.
+- **Long conversations** — NEW work in this pass (no cap exists today:
+  `_build_contents` sends every turn): `run_pipeline` caps the history
+  passed to `gemini_client` at the last ~20 turns since the last reset.
+  Server-side only — the client keeps sending full history, and both
+  latch derivation and `_conversation_language` keep scanning all of it
+  (cheap regex, no token cost). Truncation is safe for the model because
+  the CONVERSATION STATE block carries the active card's tier and
+  explanation forward regardless of which turns fell out of the window.
 - **Stale/partial history fields** — unknown urgency derives to `None`;
   worst case one redundant card, never a missed floor.
 - **Fabricated history** — unchanged v1 trust posture (documented in
@@ -372,9 +408,13 @@ in the state block makes it visible to the model per-request.)
     flag still updates the card.
 - **Metrics**: demotion rate, model-vs-server card-action disagreement
   rate, intent distribution — all from structured logs.
-- **Rollout**: debug builds first (existing wiring), full eval sweep on
-  next quota window before deploy, re-baseline results in
-  `evals/results/` per the established discipline.
+- **Rollout**: sequence the plan server/contract-first (episode state +
+  gates + schema + prompt, all unit-testable offline), Flutter client
+  second (strip, card gating, history echo — both sides ship together on
+  the contract change), with the quota-gated full eval sweep as the
+  explicit final gate before deploy. Debug builds first (existing
+  wiring); re-baseline results in `evals/results/` per the established
+  discipline.
 
 ## 12. Decision log (owner, 2026-07-13)
 
