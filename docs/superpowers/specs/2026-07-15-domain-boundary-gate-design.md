@@ -5,7 +5,7 @@
 **Owner decisions incorporated:** `health_education` as a new intent,
 generalized intent-policy gate (not a one-off `off_topic` check), permissive
 union across multi-intent turns, offline-vs-live test split, explicit
-floor/gate-interaction proof (see §7)
+floor/gate-interaction proof (see §8)
 
 ## 1. Problem
 
@@ -47,7 +47,7 @@ report `off_topic` and still answer the question in full.
    off-topic-only turn can never open or update a guidance card, exactly
    as it already guarantees for crisis-force and the reset gate.
 6. The deterministic red-flag floor is untouched and provably cannot be
-   suppressed by this gate (see §7's explicit test).
+   suppressed by this gate (see §8's explicit test).
 
 ### Non-goals (this pass)
 
@@ -60,7 +60,7 @@ report `off_topic` and still answer the question in full.
 - A `{may_assess, may_show_card}` two-key policy dict (see §4 for why
   they're one fact today, not two).
 - Live eval coverage for the programming/debugging/finance categories
-  (see §7 — a manual spot-check is enough; the formal harness is reserved
+  (see §8 — a manual spot-check is enough; the formal harness is reserved
   for the two categories with real calibration stakes).
 
 ## 3. Architecture: unchanged
