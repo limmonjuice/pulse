@@ -108,17 +108,52 @@ urgency clamp. Updated gate order: **crisis → domain → clamp →
 floor-newly-raised guard → reset gate → card matrix**.
 
 ```python
-# Gate 2: domain/intent-eligibility gate. A turn can only be "assessment"
-# or "question" if at least one reported intent is clinically eligible
-# (union across all reported intents — a genuine symptom riding alongside
-# an off-topic aside still gets assessed). Anything else is demoted to
+# Gate 2: domain/intent-eligibility gate. An "assessment" turn is only
+# valid if at least one reported intent is clinically eligible (union
+# across all reported intents — a genuine symptom riding alongside an
+# off-topic aside still gets assessed). Anything else is demoted to
 # "conversation" via the existing _demote() helper, before any
 # urgency/card logic sees it.
-if payload.get("type") in ("assessment", "question"):
+if payload.get("type") == "assessment":
     intents = set(payload.get("intents") or [])
     if not (intents & ASSESSMENT_ELIGIBLE_INTENTS):
         payload = _demote(payload)
 ```
+
+**Scoped to `"assessment"` only — deliberately not `"question"`.** An
+earlier draft of this gate covered `type in ("assessment", "question")`.
+Spec review caught that this was wrong on two counts at once:
+
+1. A `"question"` turn already cannot open or update a card, regardless
+   of intents — the card matrix (gate 6) routes every non-assessment type
+   to `keep`/`none`. Gating `"question"` bought no additional safety
+   guarantee.
+2. It could actively cause harm: `ASSESSMENT_ELIGIBLE_INTENTS` deliberately
+   excludes the whole medical-conversation group (`asking_why`,
+   `asking_next_steps`, `clarification`, …) and `health_education`. A
+   `"question"`-type clarifying follow-up during a health-education
+   exchange ("Are you asking generally, or about a specific type?") would
+   be wrongly demoted, directly undermining goal 2. None of the current
+   few-shot examples or golden fixtures happen to exercise this shape —
+   every existing `"question"`-type turn pairs with an intake-eligible
+   intent by convention, not by any enforced rule — so a gate covering
+   `"question"` would have looked correct against today's fixtures while
+   being wrong for live model output the fixtures don't cover. Restricting
+   scope to `"assessment"` removes the risk structurally instead of
+   relying on the fixture set to prove a negative it can't prove.
+
+This scoping also closes a second, independent issue review found:
+`_demote()` (existing helper, used elsewhere by the card matrix) does not
+clear `quick_replies`, and `"question"` payloads are schema-required to
+carry 2-4 non-empty entries — a `"question"`-scoped gate could have left
+stale intake chips on a demoted turn. Since the gate now never touches
+`"question"` payloads, that path is never reached. As a small, free
+hardening while touching `_demote()` regardless, it now also resets
+`"quick_replies": []` — assessment payloads aren't schema-required to
+keep it empty (only `"question"`'s 2-4-required rule and `"conversation"`'s
+≤4 cap are enforced), so this closes the same latent gap for the pre-existing
+gate-6 caller too, at zero behavioral cost (every assessment few-shot
+example already sets `quick_replies: []` by convention).
 
 Consequences of gate placement:
 
@@ -135,11 +170,14 @@ Consequences of gate placement:
   payload doesn't already meet the floor — and a demoted-to-conversation
   payload never meets the floor (`turn_meets_floor` requires
   `type == "assessment"`). This is why the floor cannot be suppressed by
-  the domain gate; §7 pins it with a test rather than leaving it to this
+  the domain gate; §8 pins it with a test rather than leaving it to this
   paragraph.
+- `"question"`-type turns pass through the domain gate untouched by
+  construction (not by intent-checking) — pinned by a dedicated test in
+  §8 rather than left as an inference.
 - Verified against all 9 existing few-shot examples in `system_prompt.py`
   and every scripted payload in `test_golden_conversations.py`: none
-  would be demoted by this gate (each assessment/question-type example
+  would be demoted by this gate (each assessment-type example
   already reports an assessment-eligible intent).
 
 ## 6. Prompt changes (`system_prompt.py`, PROMPT_VERSION → 2.1.0)
@@ -170,9 +208,8 @@ Consequences of gate placement:
 
 ## 7. Schema conformance (confirmed, not assumed)
 
-`type: "conversation"` already fully conforms to the flat schema the same
-way `crisis` does — verified against `gemini_client._validate_payload`,
-not inferred:
+`type: "conversation"` already fully conforms to the flat schema —
+verified against `gemini_client._validate_payload`, not inferred:
 
 - `urgency` must be `None` (explicit check, raises otherwise).
 - `explanation` must be `None` (explicit check).
@@ -186,7 +223,18 @@ not inferred:
   allowed — e.g. "Start a new assessment" — unlike `question`'s
   2-4-required rule).
 
-One pre-existing gap noted in passing, not part of this design: `watch_for`
+Correction from the original draft: this is *not* "the same way `crisis`
+does," as first written — `crisis` is validated more loosely. `crisis`
+gets one explicit null check (`urgency`) plus the shared
+`self_care`/`monitoring`/`encouragement`-empty block, but — unlike
+`conversation` — nothing explicitly checks that `explanation` or
+`next_step` are null on a `crisis` payload; a stray non-null value on
+either would currently pass validation. `conversation` is the more
+strictly validated of the two. Pre-existing, unrelated to this design,
+not fixed here — noted because the original comparison overstated
+`crisis`'s strictness and spec review caught it.
+
+Another pre-existing gap noted in passing, not part of this design: `watch_for`
 is not validated for emptiness on `question`/`crisis`/`conversation`
 types (only `self_care`/`monitoring`/`encouragement`/`findings` are). Every
 few-shot example sets it to `[]` by convention and the prompt text says
@@ -212,7 +260,7 @@ wiring, not classification accuracy):
    normally (regression guard: proves the new gate doesn't touch a
    genuine assessment).
 
-Plus 3 gate-mechanism tests — the correct place for "does the gate demote
+Plus 4 gate-mechanism tests — the correct place for "does the gate demote
 correctly," since that's exhaustively, cheaply provable offline forever,
 unlike "does Gemini pick the right intents," which is inherently a live,
 sampled question (§9):
@@ -233,6 +281,14 @@ sampled question (§9):
 8. **Mixed-intent union still assesses**: scripted `assessment_payload(
    urgency, intents=("reporting_new_symptom", "off_topic"))` → card
    created normally. Proves the permissive-union rule (§5, §2 goal 3).
+9. **`"question"`-type turns pass through the gate untouched**: a scripted
+   `type: "question"` payload with `intents=("off_topic",)` only (2-4
+   quick_replies, otherwise schema-valid) → response comes back
+   `type == "question"` unchanged, `card.action == "keep"`. Proves the
+   §5 scoping decision structurally — a `"question"` turn can't open a
+   card whether or not the gate touches it, and this pins that the gate
+   in fact leaves it alone rather than relying on that being true by
+   accident.
 
 **Live (`evals/cases.py`) — quota-gated, scoped deliberately narrow:**
 
