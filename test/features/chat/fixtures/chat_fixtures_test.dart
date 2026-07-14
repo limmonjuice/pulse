@@ -5,8 +5,8 @@ import 'package:pulse_app/features/chat/fixtures/chat_fixtures.dart';
 import 'package:pulse_app/features/chat/models/urgency_result.dart';
 
 void main() {
-  test('there are exactly 6 fixtures', () {
-    expect(chatFixtures.length, 6);
+  test('there are exactly 7 fixtures', () {
+    expect(chatFixtures.length, 7);
   });
 
   test('every fixture parses via fromJson without becoming unparseable', () {
@@ -63,13 +63,23 @@ void main() {
     },
   );
 
-  test('fixture 5 is a crisis turn', () {
+  test('fixture 4b is a conversation turn with a keep directive and an '
+      'active guidance state (engine v2)', () {
     final result = UrgencyResult.fromJson(chatFixtures[4]);
+    expect(result.type, ChatTurnType.conversation);
+    expect(result.cardAction, CardAction.keep);
+    expect(result.conversationState, isNotNull);
+    expect(result.conversationState!.urgency, UrgencyLevel.seekCareNow);
+    expect(result.conversationState!.assessmentActive, isTrue);
+  });
+
+  test('fixture 5 is a crisis turn', () {
+    final result = UrgencyResult.fromJson(chatFixtures[5]);
     expect(result.type, ChatTurnType.crisis);
   });
 
   test('fixture 6 is an error turn', () {
-    final result = UrgencyResult.fromJson(chatFixtures[5]);
+    final result = UrgencyResult.fromJson(chatFixtures[6]);
     expect(result.type, ChatTurnType.error);
   });
 }

@@ -65,32 +65,29 @@ void main() {
       },
     );
 
-    test(
-      'an assessment message additionally echoes urgency, findings, '
-      'explanation, and next_step — the server episode derivation depends '
-      'on these (engine v2 contract)',
-      () {
-        const payload = UrgencyResult(
-          type: ChatTurnType.assessment,
-          message: 'msg',
-          urgency: UrgencyLevel.seeDoctorSoon,
-          explanation: 'why',
-          nextStep: 'do this',
-          findings: ['fever', 'cough'],
-        );
-        final message = Message.assistant(payload);
+    test('an assessment message additionally echoes urgency, findings, '
+        'explanation, and next_step — the server episode derivation depends '
+        'on these (engine v2 contract)', () {
+      const payload = UrgencyResult(
+        type: ChatTurnType.assessment,
+        message: 'msg',
+        urgency: UrgencyLevel.seeDoctorSoon,
+        explanation: 'why',
+        nextStep: 'do this',
+        findings: ['fever', 'cough'],
+      );
+      final message = Message.assistant(payload);
 
-        expect(message.toHistoryJson(), {
-          'role': 'assistant',
-          'content': 'msg',
-          'type': 'assessment',
-          'urgency': 'see_doctor_soon',
-          'findings': ['fever', 'cough'],
-          'explanation': 'why',
-          'next_step': 'do this',
-        });
-      },
-    );
+      expect(message.toHistoryJson(), {
+        'role': 'assistant',
+        'content': 'msg',
+        'type': 'assessment',
+        'urgency': 'see_doctor_soon',
+        'findings': ['fever', 'cough'],
+        'explanation': 'why',
+        'next_step': 'do this',
+      });
+    });
 
     test('a conversation turn is echoed (reset markers ride on it)', () {
       const payload = UrgencyResult(

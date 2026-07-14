@@ -7,6 +7,8 @@ import 'package:pulse_app/features/chat/models/urgency_result.dart';
 import 'package:pulse_app/features/chat/providers/chat_provider.dart';
 import 'package:pulse_app/features/chat/repositories/chat_repository.dart';
 import 'package:pulse_app/features/chat/screens/chat_screen.dart';
+import 'package:pulse_app/features/chat/widgets/assessment_card.dart';
+import 'package:pulse_app/features/chat/widgets/urgency_strip.dart';
 
 /// Returns a fixed sequence of replies, one per call, then repeats the
 /// last one — lets each test script exactly the turns it needs.
@@ -37,6 +39,8 @@ Future<void> _pump(WidgetTester tester, ChatRepository repository) async {
 }
 
 void main() {
+  engineV2Tests();
+
   testWidgets(
     'tapping a quick-reply chip sends its label as the next user message',
     (tester) async {
@@ -155,6 +159,7 @@ void main() {
             message: 'msg',
             urgency: UrgencyLevel.monitorAtHome,
             selfCare: ['Rest', 'Fluids'],
+            cardAction: CardAction.newCard,
           ),
         ]),
       );
@@ -200,4 +205,135 @@ class _CountingThenSucceedingRepository implements ChatRepository {
     _onCall();
     throw Exception('down');
   }
+}
+
+void engineV2Tests() {
+  // -------------------------------------------------------------------------
+  // Engine v2: conversation turns, card gating, and the pinned strip
+  // -------------------------------------------------------------------------
+
+  const _guidanceState = ConversationState(
+    urgency: UrgencyLevel.seekCareNow,
+    assessmentActive: true,
+    phase: 'guidance',
+  );
+
+  testWidgets('a conversation turn renders as a bubble with tappable chips, '
+      'never a card', (tester) async {
+    await _pump(
+      tester,
+      _ScriptedRepository([
+        const UrgencyResult(
+          type: ChatTurnType.conversation,
+          message: 'The advice still stands.',
+          quickReplies: ['Start a new assessment'],
+          cardAction: CardAction.keep,
+          conversationState: _guidanceState,
+        ),
+      ]),
+    );
+
+    await tester.enterText(find.byType(TextField), 'Is it really necessary?');
+    await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
+    await tester.pumpAndSettle();
+
+    expect(find.text('The advice still stands.'), findsOneWidget);
+    expect(find.byType(AssessmentCard), findsNothing);
+    expect(find.text('Start a new assessment'), findsOneWidget);
+  });
+
+  testWidgets('an assessment the server marked keep renders as a plain '
+      'bubble — no duplicate card, whatever the payload claims', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      _ScriptedRepository([
+        const UrgencyResult(
+          type: ChatTurnType.assessment,
+          message: 'redundant re-assessment text',
+          urgency: UrgencyLevel.seekCareNow,
+          cardAction: CardAction.keep,
+          conversationState: _guidanceState,
+        ),
+      ]),
+    );
+
+    await tester.enterText(find.byType(TextField), 'still the same');
+    await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AssessmentCard), findsNothing);
+    expect(find.text('redundant re-assessment text'), findsOneWidget);
+  });
+
+  testWidgets('the strip appears once an assessment is active and shows the '
+      'tier label', (tester) async {
+    await _pump(
+      tester,
+      _ScriptedRepository([
+        const UrgencyResult(
+          type: ChatTurnType.assessment,
+          message: 'card text',
+          urgency: UrgencyLevel.seekCareNow,
+          nextStep: 'Go to the ER today.',
+          cardAction: CardAction.newCard,
+          conversationState: _guidanceState,
+        ),
+      ]),
+    );
+
+    expect(find.byType(UrgencyStrip), findsNothing); // idle: no strip
+
+    await tester.enterText(find.byType(TextField), 'vomiting blood');
+    await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(UrgencyStrip), findsOneWidget);
+    expect(find.textContaining('Seek care now'), findsWidgets);
+  });
+
+  testWidgets('the strip never shows in crisis mode', (tester) async {
+    await _pump(
+      tester,
+      _ScriptedRepository([
+        const UrgencyResult(
+          type: ChatTurnType.crisis,
+          message: 'crisis reply',
+          conversationState: ConversationState(
+            assessmentActive: false,
+            phase: 'crisis',
+          ),
+        ),
+      ]),
+    );
+
+    await tester.enterText(find.byType(TextField), 'I feel hopeless');
+    await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(UrgencyStrip), findsNothing);
+  });
+
+  testWidgets('an updated card carries the UPDATED eyebrow', (tester) async {
+    await _pump(
+      tester,
+      _ScriptedRepository([
+        const UrgencyResult(
+          type: ChatTurnType.assessment,
+          message: 'updated card',
+          urgency: UrgencyLevel.seekCareNow,
+          cardAction: CardAction.update,
+          conversationState: _guidanceState,
+        ),
+      ]),
+    );
+
+    await tester.enterText(find.byType(TextField), 'now my chest hurts');
+    await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AssessmentCard), findsOneWidget);
+    expect(find.text('UPDATED · PULSE GUIDANCE'), findsOneWidget);
+  });
 }

@@ -3,8 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse_app/core/theme/app_theme.dart';
 import 'package:pulse_app/features/chat/widgets/urgency_strip.dart';
 
-Widget _wrap(Widget child) =>
-    MaterialApp(theme: AppTheme.light, home: Scaffold(body: child));
+Widget _wrap(Widget child) => MaterialApp(
+  theme: AppTheme.light,
+  home: Scaffold(body: child),
+);
 
 void main() {
   testWidgets('shows the tier label and the next-step line', (tester) async {

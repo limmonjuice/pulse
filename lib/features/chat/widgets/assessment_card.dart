@@ -18,11 +18,17 @@ class AssessmentCard extends StatelessWidget {
     required this.result,
     required this.checkedSelfCare,
     required this.onToggleSelfCare,
+    this.isUpdate = false,
   });
 
   final UrgencyResult result;
   final Set<int> checkedSelfCare;
   final ValueChanged<int> onToggleSelfCare;
+
+  /// Engine v2: true when the server's card directive was "update" — the
+  /// eyebrow says so, so a changed recommendation reads as a change, not
+  /// a repeat.
+  final bool isUpdate;
 
   static const Map<UrgencyLevel, String> _ctaCopy = {
     // Deliberately NOT "Set a check-in reminder" (that implies the
@@ -87,7 +93,10 @@ class AssessmentCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text('PULSE GUIDANCE', style: theme.textTheme.labelMedium),
+                    Text(
+                      isUpdate ? 'UPDATED · PULSE GUIDANCE' : 'PULSE GUIDANCE',
+                      style: theme.textTheme.labelMedium,
+                    ),
                   ],
                 ),
               ),

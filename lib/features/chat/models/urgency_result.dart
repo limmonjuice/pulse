@@ -9,7 +9,14 @@ import '../../../core/theme/app_theme.dart' show UrgencyLevel;
 /// values must not crash). [conversation] (engine v2) is a plain reply
 /// turn: no urgency, no card — it answers the person's message while the
 /// existing guidance card stands.
-enum ChatTurnType { question, assessment, crisis, conversation, error, unparseable }
+enum ChatTurnType {
+  question,
+  assessment,
+  crisis,
+  conversation,
+  error,
+  unparseable,
+}
 
 /// What the server decided should happen to the guidance card this turn
 /// (engine v2). The client renders an AssessmentCard ONLY for [newCard]

@@ -13,6 +13,7 @@ import '../widgets/crisis_card.dart';
 import '../widgets/error_bubble.dart';
 import '../widgets/quick_reply_row.dart';
 import '../widgets/typing_indicator.dart';
+import '../widgets/urgency_strip.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key});
@@ -28,6 +29,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void dispose() {
     _scrollController.dispose();
     super.dispose();
+  }
+
+  /// Approximate scroll to the most recent rendered card: item offsets
+  /// aren't measurable in a plain ListView, so target the card's index as
+  /// a fraction of the scroll extent — enough to bring the card on-screen
+  /// without adding a scroll package (AGENTS.md: smallest useful version).
+  void _scrollToLatestCard(List<Message> messages) {
+    final index = messages.lastIndexWhere(
+      (m) =>
+          m.payload?.type == ChatTurnType.assessment &&
+          (m.payload!.cardAction == CardAction.newCard ||
+              m.payload!.cardAction == CardAction.update),
+    );
+    if (index == -1 || !_scrollController.hasClients) return;
+    final denominator = messages.length > 1 ? messages.length - 1 : 1;
+    _scrollController.animateTo(
+      _scrollController.position.maxScrollExtent * index / denominator,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
   }
 
   void _scrollToBottom() {
@@ -65,6 +86,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final firstCrisisIndex = messages.indexWhere(
       (m) => m.payload?.type == ChatTurnType.crisis,
     );
+    // Engine v2 (spec §9): the pinned strip is what makes "the person can
+    // already see the card" true after it scrolls away. Server-driven —
+    // the client applies no urgency logic of its own. Hidden in crisis
+    // mode (the crisis UI owns the screen).
+    final conversationState = ref.watch(activeConversationStateProvider);
+    final stripNextStep = ref.watch(activeNextStepProvider);
+    final showStrip =
+        conversationState != null &&
+        conversationState.assessmentActive &&
+        conversationState.urgency != null &&
+        firstCrisisIndex == -1;
 
     return Scaffold(
       backgroundColor: AppColors.bgCream,
@@ -95,6 +127,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ),
       body: Column(
         children: [
+          if (showStrip)
+            UrgencyStrip(
+              urgency: conversationState.urgency!,
+              nextStep: stripNextStep,
+              onTap: () => _scrollToLatestCard(messages),
+            ),
           Expanded(
             child: ListView.separated(
               controller: _scrollController,
@@ -166,18 +204,36 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ],
         );
       case ChatTurnType.assessment:
+        if (payload.cardAction != CardAction.newCard &&
+            payload.cardAction != CardAction.update) {
+          // The server said the visible guidance stands (keep/none):
+          // render the text as a plain bubble — a duplicate card must
+          // never resurrect the fire-alarm, whatever the payload claims.
+          return ChatBubble(text: payload.message, isUser: false);
+        }
         return AssessmentCard(
           result: payload,
+          isUpdate: payload.cardAction == CardAction.update,
           checkedSelfCare: message.checkedSelfCare,
           onToggleSelfCare: (i) => ref
               .read(chatControllerProvider.notifier)
               .toggleSelfCare(message.id, i),
         );
       case ChatTurnType.conversation:
-        // Minimal rendering so the enum switch stays exhaustive — the
-        // full conversation-turn treatment (chips, strip, card gating)
-        // lands with the chat-screen wiring task.
-        return ChatBubble(text: payload.message, isUser: false);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ChatBubble(text: payload.message, isUser: false),
+            if (payload.quickReplies.isNotEmpty) ...[
+              const SizedBox(height: 9),
+              QuickReplyRow(
+                options: payload.quickReplies,
+                onSelect: (option) =>
+                    ref.read(chatControllerProvider.notifier).send(option),
+              ),
+            ],
+          ],
+        );
       case ChatTurnType.error:
       case ChatTurnType.unparseable:
         return ErrorBubble(

@@ -75,6 +75,14 @@ const List<Map<String, dynamic>> chatFixtures = [
     'encouragement':
         'Nandito lang ako — kung may nagbago o may bago kang '
         'mapansin, sabihin mo lang at titingnan nating ulit.',
+    // Engine v2 envelope (see the spec's §5) — fixtures carry it so
+    // fixture-mode exercises the strip + card gating end-to-end.
+    'card': {'action': 'new', 'reason': 'first_assessment'},
+    'conversation_state': {
+      'urgency': 'see_doctor_soon',
+      'assessment_active': true,
+      'phase': 'guidance',
+    },
   },
   // 3. Assessment, monitor_at_home, all sections populated — sore-throat example, turn 2
   {
@@ -115,6 +123,12 @@ const List<Map<String, dynamic>> chatFixtures = [
     'encouragement':
         "I'm here if anything changes — just let me know and we'll "
         'take another look.',
+    'card': {'action': 'new', 'reason': 'first_assessment'},
+    'conversation_state': {
+      'urgency': 'monitor_at_home',
+      'assessment_active': true,
+      'phase': 'guidance',
+    },
   },
   // 4. Assessment, seek_care_now, graceful-empty — "Validated escalation" example
   {
@@ -151,6 +165,38 @@ const List<Map<String, dynamic>> chatFixtures = [
     'encouragement':
         'Tama namang magpa-check ngayon — sabihin mo sa akin kung '
         'kumusta ka pagkatapos, ha.',
+    'card': {'action': 'new', 'reason': 'first_assessment'},
+    'conversation_state': {
+      'urgency': 'seek_care_now',
+      'assessment_active': true,
+      'phase': 'guidance',
+    },
+  },
+  // 4b. Conversation turn (engine v2) — reassurance-seeking after the
+  // seek_care_now card above: the card stands, no re-assessment.
+  {
+    'type': 'conversation',
+    'message':
+        "Naiintindihan ko — nakakakaba talaga. Pero yung payo ko kanina, "
+        "hindi nagbago: yung kombinasyon pa rin ng sakit ng ulo at "
+        "panlalabo ng mata ang dahilan, hindi kung gaano kalala ang "
+        "pakiramdam mo ngayong mismong sandali. Magpa-check ka pa rin "
+        "ngayong araw, ha.",
+    'quick_replies': [],
+    'urgency': null,
+    'explanation': null,
+    'watch_for': [],
+    'next_step': null,
+    'possibilities_mentioned': false,
+    'self_care': [],
+    'monitoring': [],
+    'encouragement': null,
+    'card': {'action': 'keep', 'reason': 'none'},
+    'conversation_state': {
+      'urgency': 'seek_care_now',
+      'assessment_active': true,
+      'phase': 'guidance',
+    },
   },
   // 5. Crisis — "Crisis — hopelessness expressed" example
   {

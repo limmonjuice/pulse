@@ -394,7 +394,6 @@ class _CompleterRepository implements ChatRepository {
   }
 }
 
-
 // ---------------------------------------------------------------------------
 // Engine v2: strip state derivation (pure functions — no Riverpod needed)
 // ---------------------------------------------------------------------------
@@ -406,17 +405,19 @@ void stripDerivationTests() {
     test('returns the newest payload that carries a conversation state, '
         'skipping local error turns with no envelope', () {
       final messages = [
-        _assistant(const UrgencyResult(
-          type: ChatTurnType.assessment,
-          message: 'card',
-          urgency: UrgencyLevel.seekCareNow,
-          cardAction: CardAction.newCard,
-          conversationState: ConversationState(
+        _assistant(
+          const UrgencyResult(
+            type: ChatTurnType.assessment,
+            message: 'card',
             urgency: UrgencyLevel.seekCareNow,
-            assessmentActive: true,
-            phase: 'guidance',
+            cardAction: CardAction.newCard,
+            conversationState: ConversationState(
+              urgency: UrgencyLevel.seekCareNow,
+              assessmentActive: true,
+              phase: 'guidance',
+            ),
           ),
-        )),
+        ),
         _assistant(const UrgencyResult(type: ChatTurnType.error, message: 'x')),
       ];
 
@@ -434,25 +435,31 @@ void stripDerivationTests() {
   group('latestCardNextStep', () {
     test('comes from the most recent new/update assessment card', () {
       final messages = [
-        _assistant(const UrgencyResult(
-          type: ChatTurnType.assessment,
-          message: 'old card',
-          urgency: UrgencyLevel.monitorAtHome,
-          nextStep: 'old step',
-          cardAction: CardAction.newCard,
-        )),
-        _assistant(const UrgencyResult(
-          type: ChatTurnType.assessment,
-          message: 'new card',
-          urgency: UrgencyLevel.seekCareNow,
-          nextStep: 'go to the ER today',
-          cardAction: CardAction.update,
-        )),
-        _assistant(const UrgencyResult(
-          type: ChatTurnType.conversation,
-          message: 'still stands',
-          cardAction: CardAction.keep,
-        )),
+        _assistant(
+          const UrgencyResult(
+            type: ChatTurnType.assessment,
+            message: 'old card',
+            urgency: UrgencyLevel.monitorAtHome,
+            nextStep: 'old step',
+            cardAction: CardAction.newCard,
+          ),
+        ),
+        _assistant(
+          const UrgencyResult(
+            type: ChatTurnType.assessment,
+            message: 'new card',
+            urgency: UrgencyLevel.seekCareNow,
+            nextStep: 'go to the ER today',
+            cardAction: CardAction.update,
+          ),
+        ),
+        _assistant(
+          const UrgencyResult(
+            type: ChatTurnType.conversation,
+            message: 'still stands',
+            cardAction: CardAction.keep,
+          ),
+        ),
       ];
 
       expect(latestCardNextStep(messages), 'go to the ER today');
