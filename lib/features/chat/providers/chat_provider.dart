@@ -152,3 +152,43 @@ class ChatController extends AsyncNotifier<List<Message>> {
 
 final chatControllerProvider =
     AsyncNotifierProvider<ChatController, List<Message>>(ChatController.new);
+
+/// Engine v2 (spec §9): the latest server-provided conversation state —
+/// drives the pinned UrgencyStrip. Walks newest-first for the latest
+/// assistant payload that CARRIES a conversationState: locally fabricated
+/// error turns (see [ChatController._errorMessage]) have no envelope and
+/// are skipped, so a transport failure never blanks the strip.
+///
+/// Pure function so it's testable without Riverpod plumbing.
+ConversationState? latestConversationState(List<Message> messages) {
+  for (final m in messages.reversed) {
+    final state = m.payload?.conversationState;
+    if (state != null) return state;
+  }
+  return null;
+}
+
+/// The strip's one-line next step: from the most recent assessment the
+/// server told the client to render as a card (new/update) — the same
+/// card the strip's tap scrolls to.
+String? latestCardNextStep(List<Message> messages) {
+  for (final m in messages.reversed) {
+    final payload = m.payload;
+    if (payload?.type == ChatTurnType.assessment &&
+        (payload!.cardAction == CardAction.newCard ||
+            payload.cardAction == CardAction.update)) {
+      return payload.nextStep;
+    }
+  }
+  return null;
+}
+
+final activeConversationStateProvider = Provider<ConversationState?>((ref) {
+  final messages = ref.watch(chatControllerProvider).value ?? const <Message>[];
+  return latestConversationState(messages);
+});
+
+final activeNextStepProvider = Provider<String?>((ref) {
+  final messages = ref.watch(chatControllerProvider).value ?? const <Message>[];
+  return latestCardNextStep(messages);
+});
