@@ -76,11 +76,12 @@ def check_language(response: dict, expected: str | tuple[str, ...]) -> tuple[boo
 
 
 def check_schema_shape(response: dict, expected=None) -> tuple[bool, str]:
-    """Validates all 11 model-schema fields are present and follow the
+    """Validates all 17 model-schema fields are present and follow the
     null/[] shape rules for whatever `type` the response actually is
-    (question/assessment/crisis/error) — mirrors gemini_client's own
-    _validate_payload, plus main.py's locally-constructed "error" type,
-    which always uses the same safe empty shape as crisis/question."""
+    (question/assessment/crisis/conversation/error) — mirrors
+    gemini_client's own _validate_payload, plus main.py's
+    locally-constructed "error" type, which always uses the same safe
+    empty shape as crisis."""
     missing = gemini_client.REQUIRED_FIELDS - response.keys()
     if missing:
         return False, f"missing fields: {sorted(missing)}"
@@ -129,6 +130,19 @@ def check_schema_shape(response: dict, expected=None) -> tuple[bool, str]:
             problems.append("question monitoring should be empty")
         if encouragement is not None:
             problems.append("question encouragement should be null")
+    elif response_type == "conversation":
+        # v2 plain reply turn: nulls/empties like crisis, EXCEPT up to 4
+        # quick_replies are allowed (e.g. "Start a new assessment").
+        if urgency is not None:
+            problems.append("conversation urgency should be null")
+        if isinstance(quick_replies, list) and len(quick_replies) > 4:
+            problems.append("conversation allows at most 4 quick_replies")
+        if self_care:
+            problems.append("conversation self_care should be empty")
+        if monitoring:
+            problems.append("conversation monitoring should be empty")
+        if encouragement is not None:
+            problems.append("conversation encouragement should be null")
     else:  # crisis or error — both use the same safe empty shape
         if urgency is not None:
             problems.append(f"{response_type} urgency should be null")
@@ -195,6 +209,29 @@ def check_min_question_turns(response: dict, expected: int) -> tuple[bool, str]:
     return passed, f"question_turns={actual} (expected >= {expected})"
 
 
+def check_card_action(response: dict, expected: str) -> tuple[bool, str]:
+    """expected: new | update | keep | clear — the server's card
+    directive (engine v2). Reads the envelope, not model output."""
+    card = response.get("card")
+    actual = card.get("action") if isinstance(card, dict) else None
+    return actual == expected, f"card.action={actual!r} (expected {expected!r})"
+
+
+def check_state_urgency(response: dict, expected: str | None) -> tuple[bool, str]:
+    """expected: a tier string or None — the post-turn
+    conversation_state.urgency (engine v2). The strongest single
+    assertion for de-escalation discipline: whatever the model said,
+    this is what the strip will show."""
+    state = response.get("conversation_state")
+    actual = state.get("urgency") if isinstance(state, dict) else None
+    return actual == expected, f"conversation_state.urgency={actual!r} (expected {expected!r})"
+
+
+def check_assessment_cleared(response: dict, expected: bool) -> tuple[bool, str]:
+    actual = response.get("assessment_cleared")
+    return actual is expected, f"assessment_cleared={actual!r} (expected {expected!r})"
+
+
 CHECKERS = {
     "check_tier": check_tier,
     "check_type": check_type,
@@ -205,4 +242,7 @@ CHECKERS = {
     "check_possibilities_mentioned": check_possibilities_mentioned,
     "check_crisis_persists": check_crisis_persists,
     "check_min_question_turns": check_min_question_turns,
+    "check_card_action": check_card_action,
+    "check_state_urgency": check_state_urgency,
+    "check_assessment_cleared": check_assessment_cleared,
 }

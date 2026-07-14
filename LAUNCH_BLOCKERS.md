@@ -35,6 +35,23 @@ the developer, in order of severity.
       model that is actually deployed; the model-swap guard
       (gemini_client.py MODEL_CHANGELOG + the eval runner's banner)
       flags when this needs re-doing.
+- [ ] Prompt 2.0.0 (conversation engine v2) full eval sweep +
+      re-baseline pending quota — THE deploy gate for the engine v2
+      branch. The offline goldens (test_golden_conversations.py) gate
+      merges; the live twins (evals categories intent_no_recard,
+      deescalation_discipline, reset_flow, mixed_intent_escalation —
+      authored 2026-07-14, never run) plus a full re-run of every
+      pre-existing category must be green on the deployed model
+      before deploy. New prompt copy (three 2.0.0 few-shot examples +
+      the TWO KINDS OF TURNS section) is AGENT-DRAFTED, PENDING OWNER
+      READ-ALOUD.
+- [ ] red_flags.py has NO rule matching blood in vomit (hematemesis) —
+      "vomiting blood", "throwing up blood", "blood in my vomit",
+      "nagsusuka ng dugo" all miss (found 2026-07-14 authoring the
+      golden conversations; the bleeding_uncontrolled "unexpected
+      body fluid" entry covers phlegm/urine/stool only). This is the
+      owner's own canonical emergency example. Clinical change —
+      fold into the clinician review below rather than self-adding.
 - [ ] Clinician review of functions/red_flags.py (REVIEWED_BY still
       None) — rule set needs sign-off from a nurse/med student
       minimum before real symptom data relies on it
