@@ -4,7 +4,7 @@ from episode_state import EpisodeState
 from safety_engine import apply_gates
 
 
-def model(type_="conversation", urgency=None, intents=("reassurance_seeking",),
+def model(type_="conversation", urgency=None, intents=("reporting_new_symptom",),
           requires=False, change="none", reason=None, card="keep", **over):
     p = {
         "type": type_, "message": "hi", "quick_replies": [], "urgency": urgency,
