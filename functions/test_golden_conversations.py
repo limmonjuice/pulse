@@ -231,7 +231,7 @@ def test_domain_boundary_programming_question_no_card(monkeypatch):
                 "That's outside what I'm built for, sorry — I focus on "
                 "health questions, symptoms, and figuring out when to "
                 "see a doctor. If you've got a health question though, "
-                "I'm all ears."
+                "I'd be glad to help."
             ),
             intents=("off_topic",),
         ),
@@ -310,6 +310,9 @@ def test_domain_boundary_medical_symptom_still_assesses(monkeypatch):
     assert r["card"]["action"] == "new"
 
 
+# g7/g8/g9 continue the domain-boundary-gate design's own numbering
+# (design doc 2026-07-15 §8, tests 6-8) — NOT an extension of spec §11's
+# six golden conversations above (g1-g6). Different design, same file.
 def test_g7_domain_gate_demotes_wrong_model_off_topic_assessment(monkeypatch):
     # Contrived: the model incorrectly assesses an off-topic-only
     # message. The domain gate must demote it before it ever reaches the
