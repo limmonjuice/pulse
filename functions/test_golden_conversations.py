@@ -215,3 +215,170 @@ def test_reset_gate_refuses_clear_on_a_red_flag_message(monkeypatch):
     assert r2["assessment_cleared"] is False
     assert r2["type"] == "assessment"          # floor guard substituted
     assert r2["urgency"] == "seek_care_now"
+
+
+# ---------------------------------------------------------------------------
+# Domain boundary gate (2026-07-15 design) — off-topic requests get a
+# warm redirect, never a card; genuine health content is unaffected.
+# ---------------------------------------------------------------------------
+
+def test_domain_boundary_programming_question_no_card(monkeypatch):
+    convo = Conversation(monkeypatch)
+    r = convo.turn(
+        "Can you explain peak input tokens per minute in Google AI Studio?",
+        conversation_payload(
+            message=(
+                "That's outside what I'm built for, sorry — I focus on "
+                "health questions, symptoms, and figuring out when to "
+                "see a doctor. If you've got a health question though, "
+                "I'm all ears."
+            ),
+            intents=("off_topic",),
+        ),
+    )
+    assert r["type"] == "conversation"
+    assert r["card"]["action"] == "keep"
+    assert r["conversation_state"] == {
+        "urgency": None, "assessment_active": False, "phase": "idle",
+    }
+
+
+def test_domain_boundary_debugging_question_no_card(monkeypatch):
+    convo = Conversation(monkeypatch)
+    r = convo.turn(
+        "Can you help me debug this Firebase Cloud Function? It keeps "
+        "throwing a 500 error.",
+        conversation_payload(
+            message=(
+                "That's outside what I'm built for, sorry — I focus on "
+                "health questions, symptoms, and figuring out when to "
+                "see a doctor. I can't really help with debugging code."
+            ),
+            intents=("off_topic",),
+        ),
+    )
+    assert r["type"] == "conversation"
+    assert r["card"]["action"] == "keep"
+
+
+def test_domain_boundary_finance_question_no_card(monkeypatch):
+    convo = Conversation(monkeypatch)
+    r = convo.turn(
+        "Should I invest in index funds or individual stocks right now?",
+        conversation_payload(
+            message=(
+                "That's outside what I focus on — I'm here for health "
+                "questions and knowing when to get care. Happy to help "
+                "if something's going on health-wise."
+            ),
+            intents=("off_topic",),
+        ),
+    )
+    assert r["type"] == "conversation"
+    assert r["card"]["action"] == "keep"
+
+
+def test_domain_boundary_health_education_no_card(monkeypatch):
+    convo = Conversation(monkeypatch)
+    r = convo.turn(
+        "How do antibiotics actually work?",
+        conversation_payload(
+            message=(
+                "Antibiotics kill or stop the growth of bacteria — they "
+                "don't do anything against viruses, which is why a "
+                "doctor won't prescribe them for something like a cold."
+            ),
+            intents=("health_education",),
+        ),
+    )
+    assert r["type"] == "conversation"
+    assert r["card"]["action"] == "keep"
+    assert r["conversation_state"] == {
+        "urgency": None, "assessment_active": False, "phase": "idle",
+    }
+
+
+def test_domain_boundary_medical_symptom_still_assesses(monkeypatch):
+    # Regression guard: the new gate must not touch a genuine assessment.
+    convo = Conversation(monkeypatch)
+    r = convo.turn(
+        "I've had a fever and a bad cough for three days now.",
+        assessment_payload("see_doctor_soon", findings=["fever 3 days", "cough"]),
+    )
+    assert r["type"] == "assessment"
+    assert r["urgency"] == "see_doctor_soon"
+    assert r["card"]["action"] == "new"
+
+
+def test_g7_domain_gate_demotes_wrong_model_off_topic_assessment(monkeypatch):
+    # Contrived: the model incorrectly assesses an off-topic-only
+    # message. The domain gate must demote it before it ever reaches the
+    # card matrix.
+    convo = Conversation(monkeypatch)
+    r = convo.turn(
+        "Can you help me debug this Python script?",
+        assessment_payload("monitor_at_home", intents=("off_topic",)),
+    )
+    assert r["type"] == "conversation"
+    assert r["card"]["action"] == "keep"
+    assert r["urgency"] is None
+
+
+def test_g8_domain_gate_cannot_suppress_the_floor(monkeypatch):
+    # The domain gate demotes an assessment turn lacking any
+    # assessment-eligible intent to "conversation" BEFORE the floor
+    # guard runs (gate order: crisis -> domain -> clamp -> floor ->
+    # reset -> card matrix). Proves demotion can never suppress a
+    # genuine red-flag floor: the floor guard doesn't care what type the
+    # payload already carries, only whether it already meets the floor,
+    # so a demoted-to-conversation payload always fails
+    # "turn_meets_floor" and gets replaced by the static fallback
+    # regardless.
+    convo = Conversation(monkeypatch)
+    r = convo.turn(
+        RED_FLAG_OPENER,
+        assessment_payload("monitor_at_home", intents=("off_topic",)),
+    )
+    assert r["type"] == "assessment"
+    assert r["urgency"] == "seek_care_now"
+    assert r["message"] == main.STATIC_SEEK_CARE_FALLBACK_EN
+    assert r["card"]["action"] == "new"
+
+
+def test_g9_domain_gate_mixed_intent_union_still_assesses(monkeypatch):
+    convo = Conversation(monkeypatch)
+    r = convo.turn(
+        "My chest has been aching and also can you help with my code?",
+        assessment_payload(
+            "monitor_at_home",
+            intents=("reporting_new_symptom", "off_topic"),
+        ),
+    )
+    assert r["type"] == "assessment"
+    assert r["card"]["action"] == "new"
+
+
+def test_domain_gate_question_type_passes_through_untouched(monkeypatch):
+    # Scoped to "assessment" only — a "question" turn already can't
+    # open/update a card regardless of intents, so the gate deliberately
+    # leaves it alone rather than risking a wrongful demotion of a
+    # genuine health_education/medical-conversation clarifying
+    # follow-up.
+    convo = Conversation(monkeypatch)
+    r = convo.turn(
+        "How do antibiotics work?",
+        {
+            "type": "question",
+            "message": "Are you asking generally, or about a specific type?",
+            "quick_replies": ["Generally", "A specific type"],
+            "urgency": None, "explanation": None, "watch_for": [],
+            "next_step": None, "possibilities_mentioned": False,
+            "self_care": [], "monitoring": [], "encouragement": None,
+            "intents": ["off_topic"],
+            "requires_clinical_reassessment": False, "change_type": "none",
+            "reassessment_reason": None, "proposed_card_action": "keep",
+            "findings": [],
+        },
+    )
+    assert r["type"] == "question"
+    assert r["card"]["action"] == "keep"
