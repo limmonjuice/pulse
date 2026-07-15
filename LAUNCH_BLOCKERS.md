@@ -60,7 +60,16 @@ the developer, in order of severity.
 - [ ] Mental-health-trained review of the crisis conversation flow
       (system_prompt.py crisis mode + this crisis card) — distinct
       from the clinical review above, flagged separately since day
-      one
+      one. Addendum from the domain-boundary-gate work (2026-07-15):
+      hard rule 9 now explicitly states it never overrides crisis mode
+      (rule 7), and safety_engine.py's crisis gate deterministically
+      forces type/urgency regardless of what the model does — but a
+      mid-crisis message the model mistakes for off-topic could still
+      produce off-topic-flavored message TEXT inside that
+      type-forced-to-crisis envelope (the deterministic gate only
+      overrides type/urgency, never the model's own message content).
+      Worth specifically probing crisis-adjacent + off-topic-adjacent
+      inputs during this review, not just the crisis flow in isolation.
 - [ ] Live end-to-end test of CallableChatRepository against the
       deployed function (blocked on Gemini free-tier quota /
       pending paid credits)
