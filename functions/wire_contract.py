@@ -32,15 +32,28 @@ VALID_INTENTS = frozenset({
     # medical assessment
     "reporting_new_symptom", "reporting_worsening", "reporting_improvement",
     "answering_question", "medication_question", "exposure_history",
-    # medical conversation
+    # health conversation
     "asking_why", "reassurance_seeking", "emotional_support",
     "asking_next_steps", "asking_about_recommendation",
-    "asking_about_causes", "clarification",
-    # general conversation
+    "asking_about_causes", "clarification", "health_education",
     "greeting", "thanking", "joke", "testing_system", "correction",
-    "casual_chat", "off_topic",
+    "casual_chat",
+    # out-of-scope conversation
+    "off_topic",
     # administrative
     "start_new_assessment", "change_language", "feedback",
+})
+
+# Intents eligible to open or update a clinical assessment (domain
+# boundary gate — safety_engine.py, spec 2026-07-15). Exactly the
+# "medical assessment" group above; kept as its own frozenset (not just
+# the comment) so it's enforced, not merely documented. safety_engine's
+# domain gate demotes any "assessment"-type turn whose reported intents
+# don't intersect this set — union across all reported intents, so a
+# genuine symptom riding alongside e.g. off_topic still gets assessed.
+ASSESSMENT_ELIGIBLE_INTENTS = frozenset({
+    "reporting_new_symptom", "reporting_worsening", "reporting_improvement",
+    "answering_question", "medication_question", "exposure_history",
 })
 
 VALID_CHANGE_TYPES = frozenset({
