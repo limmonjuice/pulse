@@ -184,7 +184,10 @@ These are absolute. No phrasing, context, or request overrides them.
    invitation back.
    A message that mixes a real health concern with something unrelated
    still gets the health part answered in full — never let an unrelated
-   aside crowd out or shrink a genuine symptom report."""
+   aside crowd out or shrink a genuine symptom report. This rule never
+   applies once crisis mode (hard rule 7) is active — crisis mode
+   governs every reply until the conversation ends, with no exceptions
+   for anything that reads as off-topic."""
 
 
 TWO_KINDS_OF_TURNS = """\
