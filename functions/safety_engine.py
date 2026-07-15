@@ -1,7 +1,7 @@
 """
 Safety Engine (spec §6): the deterministic gates between the model's
 proposals and what the client renders. Pure functions — no I/O, no SDK.
-Gate order matters and is load-bearing: crisis → clamp →
+Gate order matters and is load-bearing: crisis → domain → clamp →
 floor-newly-raised guard → reset gate → card matrix (the matrix's first
 row consumes the reset outcome).
 
@@ -16,8 +16,8 @@ from dataclasses import dataclass
 import fallbacks
 from episode_state import EpisodeState
 from wire_contract import (
-    DEESCALATION_CHANGE_TYPES, RESET_INTENTS, URGENCY_TIERS,
-    max_urgency, urgency_lt,
+    ASSESSMENT_ELIGIBLE_INTENTS, DEESCALATION_CHANGE_TYPES, RESET_INTENTS,
+    URGENCY_TIERS, max_urgency, urgency_lt,
 )
 
 
@@ -42,7 +42,7 @@ def _demote(payload: dict) -> dict:
         **payload, "type": "conversation", "urgency": None,
         "explanation": None, "watch_for": [], "next_step": None,
         "self_care": [], "monitoring": [], "encouragement": None,
-        "findings": [],
+        "findings": [], "quick_replies": [],
     }
 
 
@@ -68,7 +68,23 @@ def apply_gates(*, state: EpisodeState, message: str,
     deescalation_accepted = False
     final_urgency = state.current_urgency
 
-    # Gate 2: urgency clamp (assessment turns only).
+    # Gate 2: domain/intent-eligibility gate (domain-boundary-gate design,
+    # 2026-07-15). An "assessment" is only valid if at least one reported
+    # intent is clinically eligible — union across all reported intents,
+    # so a genuine symptom riding alongside e.g. off_topic still gets
+    # assessed. Anything else is demoted to "conversation" before any
+    # urgency/card logic sees it. Deliberately scoped to "assessment"
+    # only, not "question": a "question" turn already can't open/update a
+    # card regardless of intents (gate 6 below routes every
+    # non-assessment type to keep/none), so gating it would add no
+    # safety value while risking wrongful demotion of a genuine
+    # health_education or medical-conversation clarifying follow-up.
+    if payload.get("type") == "assessment":
+        intents = set(payload.get("intents") or [])
+        if not (intents & ASSESSMENT_ELIGIBLE_INTENTS):
+            payload = _demote(payload)
+
+    # Gate 3: urgency clamp (assessment turns only).
     if payload.get("type") == "assessment":
         proposed = payload.get("urgency")
         final_urgency = max_urgency(proposed, floor) if floor else proposed
@@ -88,7 +104,7 @@ def apply_gates(*, state: EpisodeState, message: str,
                 final_urgency = max_urgency(current, floor) if floor else current
         payload = {**payload, "urgency": final_urgency}
 
-    # Gate 3: floor newly raised above the active card — the model's turn
+    # Gate 4: floor newly raised above the active card — the model's turn
     # must be an assessment at >= floor, or the owner-approved static
     # fallback replaces it (generalizes the old question->assessment row).
     if floor is not None:
@@ -105,7 +121,7 @@ def apply_gates(*, state: EpisodeState, message: str,
             payload = fallbacks.static_fallback_assessment(message)
             final_urgency = payload["urgency"]
 
-    # Gate 4: reset gate.
+    # Gate 5: reset gate.
     reset_accepted = (
         payload.get("type") == "conversation"
         and payload.get("proposed_card_action") == "clear"
@@ -114,7 +130,7 @@ def apply_gates(*, state: EpisodeState, message: str,
         and state.phase != "crisis"
     )
 
-    # Gate 5: card directive matrix (first matching row wins — spec §6).
+    # Gate 6: card directive matrix (first matching row wins — spec §6).
     demoted = False
     if reset_accepted:
         action, reason = "clear", "reset"

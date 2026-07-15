@@ -169,3 +169,44 @@ def test_force_crisis_outranks_everything():
               force_crisis=True)
     assert r.payload["type"] == "crisis" and r.payload["urgency"] is None
     assert r.card_action == "keep"
+
+
+# --- domain gate (2026-07-15 design) ---
+
+def test_domain_gate_demotes_assessment_without_eligible_intent():
+    r = gates(IDLE, model("assessment", "monitor_at_home",
+                          intents=("off_topic",), requires=True,
+                          change="new_symptom", card="new"))
+    assert r.payload["type"] == "conversation"
+    assert r.card_action == "keep"
+    assert r.payload["urgency"] is None
+    # This is a distinct event from gate 6's redundant-collapse — demoted
+    # deliberately keeps its original narrow meaning (see plan Task 2
+    # preamble), so it stays False here.
+    assert r.demoted is False
+
+
+def test_domain_gate_union_lets_mixed_intents_through():
+    r = gates(IDLE, model("assessment", "monitor_at_home",
+                          intents=("reporting_new_symptom", "off_topic"),
+                          requires=True, change="new_symptom", card="new"))
+    assert r.payload["type"] == "assessment"
+    assert r.card_action == "new"
+
+
+def test_domain_gate_leaves_question_type_alone():
+    # Scoped to "assessment" only — a "question" turn already can't
+    # open/update a card regardless of intents (gate 6 routes every
+    # non-assessment type to keep/none), so gating it would add no
+    # safety value while risking wrongful demotion of a genuine
+    # health_education/medical-conversation clarifying follow-up.
+    r = gates(IDLE, model("question", intents=("off_topic",),
+                          quick_replies=["A", "B"]))
+    assert r.payload["type"] == "question"
+    assert r.card_action == "keep"
+
+
+def test_domain_gate_demotion_clears_stale_quick_replies():
+    r = gates(IDLE, model("assessment", "monitor_at_home",
+                          intents=("off_topic",), quick_replies=["A", "B"]))
+    assert r.payload["quick_replies"] == []
