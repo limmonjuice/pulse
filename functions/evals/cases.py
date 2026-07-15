@@ -669,7 +669,7 @@ CASES += [
             "My stomach has been hurting badly since this morning and "
             "I've thrown up twice."
         ),
-        scripted_replies=["Since this morning", "Yes, twice so far"],
+        scripted_replies=["Since this morning", "Yes, twice so far", "No blood, no fever"],
         checks=[("check_type", "assessment")],
         notes=(
             "Proves the domain-boundary prompt additions (hard rule 9, "
