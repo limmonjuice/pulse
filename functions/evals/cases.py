@@ -651,4 +651,46 @@ CASES += [
         ],
         notes="Live twin of golden G4 — guaranteed by the floor guard regardless of intent classification.",
     ),
+
+    # -------------------------------------------------------------------
+    # 12. domain_boundary (domain-boundary-gate design, 2026-07-15) —
+    # only the two categories with real calibration stakes get live
+    # coverage (a wrongly redirected symptom, or a badly answered
+    # health-knowledge question); programming/debugging/finance are
+    # deliberately left off the formal harness (design doc §8/§9) — a
+    # single manual spot-check covers something this low-stakes, and
+    # this harness already can't clear its existing backlog at 20
+    # requests/day.
+    # -------------------------------------------------------------------
+    EvalCase(
+        id="domain_boundary_medical_symptom_still_assesses",
+        category="domain_boundary",
+        message=(
+            "My stomach has been hurting badly since this morning and "
+            "I've thrown up twice."
+        ),
+        scripted_replies=["Since this morning", "Yes, twice so far"],
+        checks=[("check_type", "assessment")],
+        notes=(
+            "Proves the domain-boundary prompt additions (hard rule 9, "
+            "health_education intent, the two new few-shot examples) "
+            "don't suppress a genuine symptom report — the case must "
+            "still reach a real assessment, not get redirected as "
+            "off-topic."
+        ),
+    ),
+    EvalCase(
+        id="domain_boundary_health_education_antibiotics",
+        category="domain_boundary",
+        message="How do antibiotics work?",
+        checks=[("check_type", "conversation")],
+        notes=(
+            "check_type only rules out this being mistaken for a "
+            "symptom assessment — it can't distinguish a substantive "
+            "answer from a wrongful off-topic redirect (both are "
+            "type=conversation). FLAGGED FOR MANUAL READ: a human must "
+            "read the actual reply to confirm it answers the question "
+            "rather than redirecting."
+        ),
+    ),
 ]
