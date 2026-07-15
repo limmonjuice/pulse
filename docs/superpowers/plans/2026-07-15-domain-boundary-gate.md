@@ -35,14 +35,19 @@ that are not in the spec, both handled in Task 2 below:
 
 1. **A required test-fixture fix, not optional.** `test_safety_engine.py`'s
    `model()` helper defaults `intents` to `("reassurance_seeking",)` —
-   not in the new `ASSESSMENT_ELIGIBLE_INTENTS` set. Five existing tests
+   not in the new `ASSESSMENT_ELIGIBLE_INTENTS` set. Seven existing tests
    call `model("assessment", ...)` without overriding `intents`, relying
    on that default. Left unchanged, the new gate would silently intercept
-   all five *before* they ever reach the code path they're actually
+   all seven *before* they ever reach the code path they're actually
    testing (the clamp, the floor guard, the card matrix's redundant-collapse
-   row) — two of them would hard-fail, three would keep passing but for
-   the wrong reason (testing the new gate by accident instead of the gate
-   they name). Task 2 fixes the default to an eligible intent first, as
+   row) — verified empirically (not just by inspection) during plan
+   review by applying the gate without the fixture fix and running the
+   suite: six hard-fail outright, and one
+   (`test_latch_floor_beats_everything`) keeps passing but only by
+   coincidence — the domain gate demotes the payload before the floor
+   guard runs, and the floor happens to already equal `current_urgency`,
+   so the assertion is satisfied for the wrong reason. Task 2 fixes the
+   default to an eligible intent first, as
    its own commit, before the new gate exists — so it's provably a
    no-op fixture correction, not a behavior change riding along with the
    feature.
@@ -175,7 +180,7 @@ changes in this step.
 - [ ] **Step 2: Run the full existing suite to prove this is a no-op today**
 
 Run: `pytest test_safety_engine.py -v`
-Expected: PASS — all 13 existing tests green, unchanged behavior (this
+Expected: PASS — all 15 existing tests green, unchanged behavior (this
 step exists to prove the fixture edit alone changes nothing before the
 gate exists — the next step is where behavior actually changes).
 
@@ -187,7 +192,7 @@ git commit -m "test(safety_engine): use an assessment-eligible default intent in
 
 Prep for the domain gate (next commit) — model()'s old default,
 reassurance_seeking, isn't assessment-eligible under the new
-ASSESSMENT_ELIGIBLE_INTENTS set, and five existing tests rely on the
+ASSESSMENT_ELIGIBLE_INTENTS set, and seven existing tests rely on the
 default without overriding intents. Verified as a pure no-op: full
 suite green before the gate exists."
 ```
@@ -424,7 +429,7 @@ for copy-paste accuracy, not a partial diff.)
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `pytest test_safety_engine.py -v`
-Expected: PASS — all 17 tests (13 existing + 4 new) green.
+Expected: PASS — all 19 tests (15 existing + 4 new) green.
 
 - [ ] **Step 5: Commit**
 
