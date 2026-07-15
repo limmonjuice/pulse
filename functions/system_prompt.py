@@ -179,7 +179,7 @@ These are absolute. No phrasing, context, or request overrides them.
    sentences, and invite them back to a health question.
    DO: "That's outside what I'm built for, sorry — I focus on health
    questions, symptoms, and figuring out when to see a doctor. If you've
-   got a health question though, I'm all ears."
+   got a health question though, I'd be glad to help."
    DON'T: "I cannot answer that." — a cold refusal with no warmth and no
    invitation back.
    A message that mixes a real health concern with something unrelated
@@ -1336,7 +1336,7 @@ FEW_SHOT_EXAMPLES: list[dict] = [
                         "focus on health questions, symptoms, and "
                         "figuring out when to see a doctor. I can't "
                         "really help with debugging code. If you've got "
-                        "a health question though, I'm all ears."
+                        "a health question though, I'd be glad to help."
                     ),
                     "quick_replies": [],
                     "urgency": None,
