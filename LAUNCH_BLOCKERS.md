@@ -86,3 +86,19 @@ the developer, in order of severity.
       `"conversation"` already has, so a future client change or model
       regression can't silently start relying on fields the schema was
       never meant to populate on crisis turns.
+- [ ] The domain-boundary gate (safety_engine.py, added 2026-07-15) has
+      no dedicated logging signal — found during Task 2's code quality
+      review. `main.py`'s structured logs (`_log_request`) can't
+      distinguish "the domain gate demoted an assessment turn" from "a
+      crisis-forced override landed on an assessment-type turn": both
+      produce `card_action="keep"`, `demoted=False`, and a
+      `proposed_vs_final_urgency` of the form `"<tier>->None"`, and
+      neither `type` nor `card_reason` is logged. This means there is
+      currently no way to measure the gate's real-world false-positive
+      rate (wrongly redirecting a genuine symptom as off-topic) from
+      logs alone once this ships. Not a correctness defect — the gate
+      itself behaves correctly regardless of logging — but worth closing
+      before calling this feature launched: add a dedicated
+      `domain_gate_fired: bool` field to `GateResult`/`_log_request`
+      (deliberately distinct from `demoted`, which keeps its narrower
+      pre-existing meaning per the domain-boundary-gate design doc §5).
