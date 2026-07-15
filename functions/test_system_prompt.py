@@ -579,12 +579,10 @@ def _final_payload(example):
     return example["turns"][-1]["assistant"]
 
 
-def test_exactly_nine_examples():
-    # 1.5.4: the Taglish dengue example was removed (owner decision — its
-    # presence made English dengue-shaped openers mirror Tagalog; see the
-    # note atop FEW_SHOT_EXAMPLES). 2.0.0 added three conversation-engine
-    # examples: EN reassurance, TL anxious asking-why, testing reset.
-    assert len(FEW_SHOT_EXAMPLES) == 9
+def test_exactly_eleven_examples():
+    # 2.1.0 (domain boundary gate) added two: an out-of-scope redirect
+    # (software debugging) and a health_education example (diabetes).
+    assert len(FEW_SHOT_EXAMPLES) == 11
 
 
 REQUIRED_FIELDS = {
@@ -671,6 +669,8 @@ def test_example_tier_outcomes():
         None,                # EN reassurance — final turn is a conversation turn
         None,                # TL anxious asking-why — final turn is a conversation turn
         None,                # testing reset — final turn is a conversation turn
+        None,                # 2.1.0: out-of-scope redirect (software debugging)
+        None,                # 2.1.0: health_education (diabetes)
     ]
 
 
@@ -842,8 +842,8 @@ SAMPLE_STATE = {
 }
 
 
-def test_prompt_version_is_2_0_0():
-    assert PROMPT_VERSION == "2.0.0"
+def test_prompt_version_is_2_1_0():
+    assert PROMPT_VERSION == "2.1.0"
 
 
 def test_two_kinds_of_turns_teaches_golden_rule_and_every_intent():
@@ -915,3 +915,42 @@ def test_every_example_payload_passes_the_wire_validator():
     for example in FEW_SHOT_EXAMPLES:
         for turn in example["turns"]:
             gemini_client._validate_payload(turn["assistant"])
+
+
+# ---------------------------------------------------------------------------
+# v2.1.0 domain boundary gate (2026-07-15): hard rule 9, the
+# WHAT_YOU_ARE_NOT bullet, and two new few-shot examples (out-of-scope
+# software-debugging redirect, health_education diabetes answer).
+# ---------------------------------------------------------------------------
+
+def test_hard_rule_9_stays_in_scope():
+    prompt = build()
+    assert "Stay in your lane" in prompt
+    assert '"conversation"' in prompt  # already true generally, kept for locality
+    assert "off_topic" in prompt
+
+
+def test_what_you_are_not_names_the_domain_boundary():
+    prompt = build()
+    assert "general-purpose assistant for topics unrelated to health" in prompt
+
+
+def test_new_domain_boundary_examples_present_and_correctly_typed():
+    titles = " | ".join(e["title"] for e in FEW_SHOT_EXAMPLES)
+    assert "debugging" in titles.lower()
+    assert "health education" in titles.lower() or "diabetes" in titles.lower()
+
+    debugging = FEW_SHOT_EXAMPLES[9]
+    final = _final_payload(debugging)
+    assert final["type"] == "conversation"
+    assert final["intents"] == ["off_topic"]
+
+    health_ed = FEW_SHOT_EXAMPLES[10]
+    final = _final_payload(health_ed)
+    assert final["type"] == "conversation"
+    assert final["intents"] == ["health_education"]
+
+
+def test_new_domain_boundary_examples_flagged_for_owner_read_aloud():
+    source = (Path(__file__).parent / "system_prompt.py").read_text(encoding="utf-8")
+    assert "AGENT-DRAFTED, PENDING OWNER READ-ALOUD (2.1.0)" in source
