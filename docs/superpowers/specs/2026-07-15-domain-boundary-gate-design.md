@@ -1,11 +1,15 @@
 # Pulse Domain Boundary Gate — Design
 
 **Date:** 2026-07-15
-**Status:** Approved by owner (this document); implementation plan pending
+**Status:** Approved by owner 2026-07-15; implementation plan pending
 **Owner decisions incorporated:** `health_education` as a new intent,
 generalized intent-policy gate (not a one-off `off_topic` check), permissive
 union across multi-intent turns, offline-vs-live test split, explicit
-floor/gate-interaction proof (see §8)
+floor/gate-interaction proof (see §8), direct test coverage for
+`_demote()`'s `quick_replies` hardening (§8 test 10), the two review-found
+schema gaps logged in LAUNCH_BLOCKERS.md (crisis `explanation`/`next_step`)
+and POLISH_BACKLOG.md (`watch_for` emptiness) rather than fixed in this
+pass
 
 ## 1. Problem
 
@@ -289,6 +293,24 @@ sampled question (§9):
    card whether or not the gate touches it, and this pins that the gate
    in fact leaves it alone rather than relying on that being true by
    accident.
+
+**Offline (`test_safety_engine.py`) — free, row-level gate tests:**
+
+10. **`_demote()`'s `quick_replies` hardening is actually exercised.** None
+    of tests 1-9 above call `_demote()` with a non-empty `quick_replies`
+    input — every assessment payload in the existing fixtures already
+    sets it to `[]` by convention (§5), so the hardening added there
+    would otherwise ship with zero coverage proving it does anything.
+    Following this file's existing convention (`test_safety_engine.py`
+    drives every case through the public `apply_gates()`, via its local
+    `model()`/`gates()` helpers, never by calling private helpers like
+    `_demote()` directly — see e.g. `test_same_tier_no_change_demotes`):
+    `gates(IDLE, model("assessment", "monitor_at_home",
+    intents=("off_topic",), quick_replies=["A", "B"]))` → asserts
+    `r.payload["quick_replies"] == []`. This exercises the hardening
+    through the real gate path (domain gate → `_demote()`), not a
+    synthetic direct call, so it also re-proves the gate wires into
+    `_demote()` correctly, not just that `_demote()` in isolation works.
 
 **Live (`evals/cases.py`) — quota-gated, scoped deliberately narrow:**
 

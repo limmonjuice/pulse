@@ -74,3 +74,15 @@ the developer, in order of severity.
       succeed (enforce_app_check defaults to True in main.py). Blocks
       the item above, too — can't live-test the callable until this
       is done.
+- [ ] `gemini_client._validate_payload` doesn't null-check
+      `explanation`/`next_step` on `"crisis"`-type responses (found
+      2026-07-15 during the domain-boundary-gate spec review —
+      `"conversation"` type gets explicit checks on both, `"crisis"`
+      never did). Checked severity: `crisis_card.dart` only ever reads
+      `message` — a stray non-null `explanation`/`next_step` on a
+      crisis payload isn't currently rendered anywhere client-side, so
+      this is a latent schema gap, not a live user-facing bug. Still
+      worth closing before launch — add the same explicit null checks
+      `"conversation"` already has, so a future client change or model
+      regression can't silently start relying on fields the schema was
+      never meant to populate on crisis turns.
