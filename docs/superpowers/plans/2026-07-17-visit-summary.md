@@ -3408,7 +3408,9 @@ existing quick-reply test's placement):
     tester,
   ) async {
     await _pump(tester, _ScriptedRepository([]));
-    final button = tester.widget<IconButton>(find.byIcon(Icons.summarize_outlined));
+    final button = tester.widget<IconButton>(
+      find.widgetWithIcon(IconButton, Icons.summarize_outlined),
+    );
     expect(button.onPressed, isNull);
   });
 
@@ -3430,7 +3432,9 @@ existing quick-reply test's placement):
     await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
     await tester.pumpAndSettle();
 
-    final button = tester.widget<IconButton>(find.byIcon(Icons.summarize_outlined));
+    final button = tester.widget<IconButton>(
+      find.widgetWithIcon(IconButton, Icons.summarize_outlined),
+    );
     expect(button.onPressed, isNotNull);
   });
 ```
