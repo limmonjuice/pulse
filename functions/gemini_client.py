@@ -327,6 +327,16 @@ _TIER_LANGUAGE_BLOCKLIST = (
     "dalhin sa ospital",
 )
 
+# Word-boundary guard: plain substring matching on short phrases like
+# "go to the er" would false-positive inside ordinary words ("errand",
+# "era") — a wasted retry against Gemini's free-tier quota, and a hard
+# failure if the retry also trips it. Requiring the phrase not be
+# immediately followed by a lowercase letter stops that without touching
+# the whitespace/punctuation-normalization gap (an accepted v1 tradeoff).
+_TIER_LANGUAGE_BLOCKLIST_PATTERNS = tuple(
+    re.compile(re.escape(phrase) + r"(?![a-z])") for phrase in _TIER_LANGUAGE_BLOCKLIST
+)
+
 
 def _validate_visit_summary_payload(payload: object) -> dict:
     if not isinstance(payload, dict):
@@ -344,10 +354,11 @@ def _validate_visit_summary_payload(payload: object) -> dict:
         raise ValueError("questions_for_doctor must be an array of strings")
 
     haystack = " ".join([summary, *questions]).lower()
-    for phrase in _TIER_LANGUAGE_BLOCKLIST:
-        if phrase in haystack:
+    for pattern in _TIER_LANGUAGE_BLOCKLIST_PATTERNS:
+        match = pattern.search(haystack)
+        if match:
             raise TierLanguageDetectedError(
-                f"tier-recommendation language detected: {phrase!r}"
+                f"tier-recommendation language detected: {match.group()!r}"
             )
 
     return {"summary": summary, "questions_for_doctor": questions}

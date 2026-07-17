@@ -644,3 +644,30 @@ def test_get_visit_summary_sends_history_as_contents_with_no_trailing_message(mo
     get_visit_summary("system prompt", history)
     sent = fake_models.calls[0]
     assert len(sent) == 3  # exactly the 3 history turns — no extra trailing content
+
+
+def test_get_visit_summary_does_not_false_positive_on_word_containing_a_short_phrase(monkeypatch):
+    # "go to the er" is a blocklisted phrase, but plain substring matching
+    # would also match it inside ordinary words like "errand" — this must
+    # NOT raise TierLanguageDetectedError (or retry/fail at all).
+    payload = {
+        **VALID_VISIT_SUMMARY,
+        "summary": "The doctor recommended I go to the errand office for a form.",
+    }
+    fake_models = _install_fake_genai(monkeypatch, [json.dumps(payload)])
+    result = get_visit_summary("system prompt", [])
+    assert result["summary"] == payload["summary"]
+    assert len(fake_models.calls) == 1  # no retry triggered
+
+
+@pytest.mark.parametrize("summary", [
+    "The person was told to go to the ER.",
+    "go to the er",
+])
+def test_get_visit_summary_still_detects_the_real_phrase_at_a_word_boundary(monkeypatch, summary):
+    bad = {**VALID_VISIT_SUMMARY, "summary": summary}
+    _install_fake_genai(
+        monkeypatch, [json.dumps(bad), json.dumps(VALID_VISIT_SUMMARY)]
+    )
+    result = get_visit_summary("system prompt", [])
+    assert result["summary"] == VALID_VISIT_SUMMARY["summary"]
