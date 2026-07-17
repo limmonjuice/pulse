@@ -213,8 +213,9 @@ byte-for-byte identical before and after. No existing test in
 - [ ] **Step 1: Run the existing suite to confirm the current baseline**
 
 Run (from `functions/`): `pytest test_gemini_client.py -v`
-Expected: all tests PASS (28 tests as of this writing — record the count
-so Step 4 can compare).
+Expected: all tests PASS — record the printed count so Step 4 can
+compare against it (don't rely on a hardcoded number here; the exact
+count drifts as this file gains tests over time).
 
 - [ ] **Step 2: Add one new test for the extracted helper's `_retry_used` contract**
 
@@ -918,6 +919,12 @@ def _pick_fallback_copy(message: str, *, en: str, tl: str) -> str:
    `AttributeError: module 'fallbacks' has no attribute '_message_signals_tagalog'`
    on a test this task didn't otherwise touch — easy to mistake for an
    unrelated regression if you don't already know it's there.
+
+   **Also update the module docstring's reference to the old name**:
+   `functions/fallbacks.py:15` currently reads "...see
+   `_message_signals_tagalog` for why..." — change it to
+   `` `message_signals_tagalog` `` (no leading underscore) so the
+   docstring doesn't point at a name that no longer exists.
 
 2. Add the degenerate-case copy and payload builder at the end of the
    file:
@@ -3004,13 +3011,18 @@ void main() {
     await tester.pump();
     expect(find.text('Try again'), findsOneWidget);
 
-    // Retrying against the same throwing repository re-enters loading,
-    // then lands back on the error state rather than crashing or
-    // getting stuck — proves the retry action is wired, not just present.
+    // Retrying against the same throwing repository lands back on the
+    // error state rather than crashing or getting stuck — proves the
+    // retry action is wired, not just present. Deliberately not
+    // asserting the in-between loading frame here: unlike the dedicated
+    // loading-state test above (which uses _DelayedStubRepository
+    // specifically so the loading frame is observable), this repository
+    // throws synchronously enough inside AsyncValue.guard that the
+    // state can already be AsyncError by the next pump — asserting a
+    // spinner in between would be asserting timing this double doesn't
+    // control, not real behavior.
     await tester.tap(find.text('Try again'));
-    await tester.pump();
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.text('Try again'), findsOneWidget);
   });
 }
