@@ -38,6 +38,16 @@ are promoted to public names since they're now shared across two prompt
 modules (§4.2); a history-size ceiling, `urgencyChanged`'s derivation,
 and the degenerate response's `type`/`metadata` shape are all stated
 explicitly (§4.1, §5.1).
+**Owner-approved-for-implementation additions:** both fixed crisis-adjacent
+strings (the crisis-mention line and the degenerate-case summary) now
+ship as drafted EN/TL canonical pairs, flagged AGENT-DRAFTED — PENDING
+OWNER READ-ALOUD rather than left English-only (§6, §4.1); crisis
+exchanges are now stripped at two independent points — client before
+sending, server on receipt — with no crisis-derived artifact (not even
+a boolean) crossing the wire at all (§5.2, §6); staleness detection
+added as a first-class requirement — the narrative block must never
+silently serve a stale paraphrase after the conversation has continued
+past generation (§5.5).
 
 ## 1. Problem
 
@@ -149,7 +159,11 @@ testing §8's hand-run transcripts.
 
 - `history`: the same wire shape the client already produces via
   `Message.toHistoryJson()` for `assess_symptoms` — no new client-side
-  serialization. Same rejection ceiling as `assess_symptoms`
+  serialization, aside from the client's own crisis-exchange strip
+  applied first (§5.2, §6). The server treats this as untrusted input
+  regardless and re-strips independently (§6) — it never assumes the
+  client already did its part correctly. Same rejection ceiling as
+  `assess_symptoms`
   (`MAX_ACCEPTED_HISTORY_TURNS = 200`) applies here too — this endpoint
   is user-triggered at most once or twice per visit rather than once per
   message, so it doesn't need its own `MODEL_HISTORY_WINDOW`-style
@@ -375,12 +389,23 @@ than trying to narrate a full path.
   fixture repository extends that to the narrative half too, so the
   whole screen is demoable with zero API calls.
 - `lib/features/visit_summary/providers/visit_summary_provider.dart` —
-  `VisitSummaryController extends AsyncNotifier<VisitSummaryResult?>`,
+  `VisitSummaryController extends AsyncNotifier<VisitSummaryState?>`
+  (`VisitSummaryState` bundles the `VisitSummaryResult` with the
+  message ID it was generated against — see §5.5's staleness design),
   `build()` returns `null` synchronously (idle — no fetch on creation),
   with a `generate({required List<Message> messages, required
   UrgencyLevel? finalUrgency})` method mirroring `ChatController.send`'s
   guard/loading/error pattern: re-entrancy guard via `state.isLoading`,
-  `AsyncValue.guard` around the repository call.
+  `AsyncValue.guard` around the repository call. Before building the
+  request, `generate()` runs `messages` through a client-side
+  `stripCrisisExchanges()` (same pairing rule as §6's server-side
+  strip — the `type == "crisis"` assistant turn plus its immediately
+  preceding user turn) so crisis text never leaves the device in the
+  first place. This is defense-in-depth, not the only enforcement
+  point: `run_visit_summary_pipeline`'s own independent re-strip (§6)
+  stays exactly as specified, so a client bug or a stale app version
+  can't be the sole thing standing between crisis content and the
+  model.
 
 ### 5.3 Screen — `lib/features/visit_summary/screens/visit_summary_screen.dart`
 
@@ -453,6 +478,42 @@ paid call. A future contributor who wonders "why doesn't this auto-load,
 seems like friction" should find this paragraph before removing the
 button.
 
+### 5.5 Staleness
+
+The conversation can continue after a narrative is generated: user
+generates a summary, backs out to the chat, exchanges more turns
+(possibly changing the urgency tier), returns to the summary screen.
+The deterministic sections (§5.1) rebuild fresh every time from
+`chatControllerProvider`'s live state, but without detection the
+narrative block would keep showing the old paraphrase of a
+now-shorter, now-superseded conversation — a document that disagrees
+with itself: header says `see_doctor_soon` → `seek_care_now`, prose
+describes neither.
+
+**Detection is mandatory; the exact resulting UI is an implementation
+choice.** `VisitSummaryController`'s state bundles the result with the
+message ID it was generated against
+(`VisitSummaryState(result, generatedAtMessageId)`, using the last
+message's `id` at the moment `generate()` was called — `Message.id` is
+already a monotonic timestamp-derived string, no new identity scheme
+needed). The screen compares that recorded ID against
+`chatControllerProvider`'s current last message ID on every rebuild; a
+mismatch means the conversation has grown since generation. When stale,
+the narrative block must not silently keep showing the old prose as if
+current — at minimum a "conversation has continued — regenerate?"
+state replacing the stale content, with a regenerate action that
+re-runs `generate()` (another deliberate, quota'd call, consistent with
+§5.4's trigger discipline — staleness doesn't get a free pass on that).
+Whether stale content is fully hidden, dimmed-and-labeled, or shown
+with an inline "this may be out of date" banner is left to the
+implementation plan; what's not optional is that staleness is detected
+and surfaced, never silently served.
+
+This carries forward to the deferred PDF export (§9): whenever that
+ships, it inherits the same check — export while stale either
+regenerates first or clearly marks what the narrative does and doesn't
+cover, never exports silently-stale prose as if it were current.
+
 ## 6. Crisis handling
 
 Crisis content in a printable, shareable document — visible to a family
@@ -462,10 +523,15 @@ locked:
 
 - `VisitSummaryFacts.fromMessages` (§5.1) excludes crisis turns from
   every aggregate.
-- `run_visit_summary_pipeline` strips crisis **exchanges** from
-  `history` before building the prompt or calling `get_visit_summary` —
-  in code, not left to a prompt instruction. That means both halves of
-  the exchange: the assistant turn with `type == "crisis"`, *and* the
+- **Two independent strip points, not one.** The client
+  (`VisitSummaryController.generate()`, §5.2) strips crisis exchanges
+  from the outgoing request before it's ever sent, so crisis text
+  doesn't leave the device when the client is behaving correctly.
+  `run_visit_summary_pipeline` strips crisis **exchanges** from
+  `history` again, server-side, before building the prompt or calling
+  `get_visit_summary` — in code, not left to a prompt instruction, and
+  not relying on the client having done its part. Both apply the same
+  pairing rule: the assistant turn with `type == "crisis"`, *and* the
   user turn immediately preceding it — the actual statement that
   prompted the crisis reply. This pairing matters concretely:
   `Message.toHistoryJson()` (§1) only ever tags `type` on assistant
@@ -476,29 +542,71 @@ locked:
   rule: for every assistant turn with `type == "crisis"`, drop it and
   the user turn immediately before it by list adjacency; applied for
   every crisis-type turn in the conversation, not just the first. After
-  stripping, no crisis exchange — either side of it — ever reaches the
-  model, so there is no paraphrase risk in the recap.
+  both strips, no crisis exchange — either side of it — ever reaches the
+  model, so there is no paraphrase risk in the recap. And critically:
+  **no crisis-derived artifact crosses the wire at all** — not the text,
+  and not even a boolean flag. The client doesn't need to tell the
+  server "a crisis happened," because the crisis-mention line is
+  rendered entirely client-side from `hadCrisisTurn`, independent of
+  any server response (§5.3). There is nothing to smuggle because
+  nothing crisis-related needs to travel in either direction.
 - When any crisis turn occurred, the screen renders one **fixed,
-  non-generated** line — *"This conversation included a moment of
-  emotional distress — consider mentioning it to your doctor."* (EN) /
-  its Taglish equivalent (TL) — rendered from a boolean
+  non-generated** line, rendered from a boolean
   (`VisitSummaryFacts.hadCrisisTurn`), never from model output. The one
   sentence about a person's crisis moment is the one sentence the model
-  can never touch. **Ships as a fixed EN/TL pair**
-  (`_CRISIS_MENTION_EN`/`_CRISIS_MENTION_TL`, Claude-drafted, same
-  clinician-review convention as other crisis copy), matching
-  `fallbacks.py`'s existing bilingual convention for crisis-adjacent
-  strings (`CRISIS_DEGRADED_FALLBACK_EN`/`_TL`) rather than shipping
-  English-only. Selection can't reuse the backend's `conversation_language`
-  value (§4.2) — the header renders instantly, before the user may ever
-  tap "Generate summary," so no server response exists yet to read it
-  from. Instead, `VisitSummaryFacts.fromMessages` picks the TL variant
-  if any user message in the conversation matches a small fixed
-  Tagalog/Taglish keyword list, defaulting to English otherwise — a
-  narrow heuristic scoped only to choosing between two fixed strings
-  (not a language classifier, not held to the same bar as the server's
+  can never touch. **Ships as a fixed EN/TL pair, not an English
+  default with a TL afterthought** — a Tagalog-language conversation
+  producing a document whose most sensitive sentence arrives in English
+  boilerplate is both jarring and worse for comprehension, for exactly
+  the reader it matters most to reach.
+
+  > **`_CRISIS_MENTION_EN`** (draft): "This conversation included a
+  > moment of emotional distress — consider mentioning it to your
+  > doctor."
+  > **`_CRISIS_MENTION_TL`** (draft): "May sandali ng matinding
+  > pag-aalala sa kausapang ito — makabubuting banggitin din ito sa
+  > iyong doktor."
+
+  **AGENT-DRAFTED — PENDING OWNER READ-ALOUD.** Both strings are
+  canonical, owner-approved copy, same as every other canonical string
+  in this project (the `_CONVERSATION_LANGUAGE_COPY` entries, the
+  `fallbacks.py` pairs, the 2.1.0 few-shot examples) — this draft is
+  not implementation-ready until the Tagalog line has been read aloud
+  and approved. Do not wire the TL string into code from this draft
+  without that pass.
+
+  Selection can't reuse the backend's `conversation_language` value
+  (§4.2) — the header renders instantly, before the user may ever tap
+  "Generate summary," so no server response exists yet to read it from.
+  Instead, `VisitSummaryFacts.fromMessages` classifies the language of
+  the single most relevant turn — the user turn immediately preceding
+  the latest non-crisis assessment, or (crisis-only conversation) the
+  latest user turn overall — against a small fixed Tagalog/Taglish
+  keyword list, defaulting to English otherwise. A narrow heuristic
+  scoped only to choosing between two fixed strings (not a language
+  classifier, not held to the same bar as the server's
   `mirror_probes.detect_language`), fail-open to English the same way
-  the server's own `_conversation_language` defaults to `None`.
+  the server's own `_conversation_language` defaults to `None`. This
+  must stay a deterministic, keyword-driven choice — never a model
+  decision, for the same reason the line's content is fixed rather than
+  generated.
+
+  **Same treatment for §4.1's degenerate-case string**, which was
+  English-only and unaddressed until now:
+
+  > **EN** (draft): "No other symptoms were discussed in this
+  > conversation."
+  > **TL** (draft): "Wala nang ibang sintomas na napag-usapan sa
+  > kausapang ito."
+
+  Also AGENT-DRAFTED — PENDING OWNER READ-ALOUD. Selection here can't
+  use the crisis-stripped `history` (§4.1's whole point is that it's
+  empty in this case) — `run_visit_summary_pipeline` classifies
+  language from the **pre-strip** history instead, for classification
+  only, never reproduction: reading crisis-turn text to decide "was
+  this Tagalog" doesn't touch the no-paraphrase guarantee above, since
+  nothing from that text is echoed, generated from, or exposed — only a
+  two-way enum choice comes out the other side.
 - **Crisis-only-conversation edge case, resolved now**: if the *only*
   assessment-shaped turn was a crisis turn, `finalUrgency` is null and
   the header renders just the crisis-mention line with no tier badge —
@@ -546,6 +654,18 @@ locked:
   "crisis"` entries would pass even if the untagged preceding user turn
   leaked through, so the assertion must check the actual user
   statement's content, not just the `type` tag.
+- **Strengthen that same test into a structural property, not just a
+  content check**: assert that *nothing* crisis-derived survives
+  anywhere in what reaches `get_visit_summary` — no crisis text in
+  `contents` (above), no crisis-derived flag or marker anywhere in the
+  call args, and `final_urgency` was not populated from a crisis turn
+  (provable structurally: `gemini_client._validate_payload` already
+  requires `urgency is None` on every `type == "crisis"` payload, so a
+  crisis turn is *incapable* of supplying a non-null urgency — assert
+  this holds for a fixture conversation whose only assessment-shaped
+  turn is a crisis turn: `final_urgency` arrives `None`). This converts
+  "we strip the turns" into the actually-protected property: crisis
+  content structurally cannot cross the wire, in any form.
 - A test for the degenerate empty-transcript case (§4.1): a
   crisis-only conversation → `run_visit_summary_pipeline` returns the
   fixed no-content response without calling `get_visit_summary` at all
@@ -569,8 +689,17 @@ locked:
 - Header composition's three reachable states (§5.3): tier badge alone,
   crisis line alone, both stacked — asserting the mixed case actually
   renders both rather than one suppressing the other.
+- `stripCrisisExchanges()` / `VisitSummaryController.generate()`:
+  assert the payload the repository is called with contains no crisis
+  turn's text (mock the repository, inspect the call args) — the
+  client-side half of the two-strip-points property in §6, tested
+  independently of the backend's own test for the same property.
 - Narrative block's four states: idle/CTA, loading, error-with-retry,
   loaded.
+- Staleness (§5.5): generate a narrative, append a new message to
+  `chatControllerProvider`, assert the screen detects the mismatch
+  between the current last-message ID and `generatedAtMessageId` and
+  no longer renders the stale narrative as current.
 
 **Manual (no eval harness yet for this prompt — §9)**
 
@@ -595,13 +724,20 @@ locked:
   the same live-eval discipline `system_prompt.py` already has.
 - **PDF export** (`pdf` + `printing`, per `PULSE_TECHNICAL_PLAN.md`
   §2) — natural next step once this on-screen content is shipped and
-  validated, not bundled into this pass.
+  validated, not bundled into this pass. Must inherit §5.5's staleness
+  check when built — export-while-stale is not a new problem to solve
+  later, it's the same one carried forward.
 - **Ilocano tier-language blocklist entries** — drafted, needs the same
   clinician review pass as other Ilocano copy in this project before
   shipping.
 - **Deploy gate**: this feature's crisis-handling (§6) joins the crisis
   card and crisis prompt copy on the standing mental-health-review flag
-  before launch.
+  before launch. Concretely: the four AGENT-DRAFTED — PENDING OWNER
+  READ-ALOUD strings in §6 (crisis-mention EN/TL, degenerate-case
+  summary EN/TL) block implementation of those specific lines until
+  read aloud and approved — the mechanism around them (selection logic,
+  rendering, stripping) can be built and tested now with the drafts as
+  placeholders, but the drafts themselves are not final copy.
 - Once the episode data model exists, this feature is the natural place
   to grow into multi-conversation history and profile-aware content —
   explicitly out of scope until that prerequisite lands (§2).
