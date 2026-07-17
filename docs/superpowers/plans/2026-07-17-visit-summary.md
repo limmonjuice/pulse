@@ -94,7 +94,19 @@ them up front:
    variables, assessment wins if it exists) rather than "whichever turn
    is chronologically last," which would have silently done the wrong
    thing for the mixed case.
-7. **The `/visit-summary` route sits outside the bottom-nav shell** (a
+7. **`final_urgency` is wired into the prompt as internal grounding,
+   not left unused.** The spec calls it "grounding" (§4.1/§4.5) but its
+   §4.2 prompt sketch never actually says how. Task 4 adds a
+   `_render_final_urgency_block` mirroring `system_prompt.py`'s existing
+   `CONVERSATION STATE` pattern ("this card is already visible... do not
+   restate it") — the model is told the real tier internally, purely to
+   keep the recap's tone consistent with how the conversation actually
+   ended, with an explicit do-not-restate instruction. This is grounding
+   only, not the enforcement mechanism: the code-level blocklist
+   (Task 3) is still what actually prevents leakage if this instruction
+   is ever violated. Leaving `final_urgency` validated-but-unused would
+   have silently discarded a value the spec named as load-bearing.
+8. **The `/visit-summary` route sits outside the bottom-nav shell** (a
    top-level `GoRoute`, same tier as `/disclaimer`/`/login`/`/signup`),
    not nested under `/chat`. It's a pushed detail screen, not a tab — it
    should render without the bottom nav bar.
@@ -646,6 +658,16 @@ def test_reuses_system_prompt_language_copy_not_a_duplicate():
         visit_summary_prompt.render_conversation_language_block
         is system_prompt.render_conversation_language_block
     )
+
+
+def test_final_urgency_block_absent_by_default():
+    assert "INTERNAL CONTEXT" not in build_system_prompt(final_urgency=None)
+
+
+def test_final_urgency_block_present_when_given_and_says_do_not_restate():
+    prompt = build_system_prompt(final_urgency="see_doctor_soon")
+    assert "see_doctor_soon" in prompt
+    assert "do not restate" in prompt.lower()
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -730,7 +752,33 @@ OUTPUT_FORMAT = (
 )
 
 
-def build_system_prompt(conversation_language: str | None = None) -> str:
+def _render_final_urgency_block(final_urgency: str | None) -> str:
+    """Internal grounding only — never surfaced to the person, and HARD
+    RULES rule 2 forbids the model from restating it. Mirrors
+    system_prompt.py's existing CONVERSATION STATE pattern ("this card
+    is already visible... do not restate it"): telling the model the
+    real conclusion keeps the recap's tone internally consistent (e.g.
+    not reading as reassuring when the conversation actually escalated)
+    without ever needing to name the tier. The code-enforced blocklist
+    (gemini_client._TIER_LANGUAGE_BLOCKLIST) is the actual backstop if
+    this instruction is ever violated — this block is grounding, not the
+    enforcement mechanism."""
+    if final_urgency is None:
+        return ""
+    return (
+        "INTERNAL CONTEXT (not for the person to see, do not restate): "
+        f"this conversation concluded at the '{final_urgency}' guidance "
+        "tier. This is already shown elsewhere on the screen — never "
+        "mention it, name it, or imply it in your own words. Use it "
+        "only to keep your recap internally consistent with how the "
+        "conversation actually ended."
+    )
+
+
+def build_system_prompt(
+    conversation_language: str | None = None,
+    final_urgency: str | None = None,
+) -> str:
     """Assemble the full system prompt for one generate_visit_summary
     request.
 
@@ -738,6 +786,9 @@ def build_system_prompt(conversation_language: str | None = None) -> str:
         detect_language vocabulary, derived server-side by main.py's
         _visit_summary_conversation_language), or None to omit the
         directive.
+    final_urgency: one of wire_contract.URGENCY_TIERS, or None (design
+        spec §4.1/§4.5) — internal grounding only, see
+        _render_final_urgency_block.
     """
     sections = [
         f"[Pulse visit-summary prompt v{PROMPT_VERSION}]",
@@ -748,6 +799,9 @@ def build_system_prompt(conversation_language: str | None = None) -> str:
     language_block = render_conversation_language_block(conversation_language)
     if language_block:
         sections.append(language_block.strip())
+    urgency_block = _render_final_urgency_block(final_urgency)
+    if urgency_block:
+        sections.append(urgency_block)
     return "\n\n".join(sections)
 ```
 
@@ -836,7 +890,7 @@ name yet.
 In `functions/fallbacks.py`:
 
 1. Rename `_message_signals_tagalog` → `message_signals_tagalog` (drop
-   the leading underscore), and update its one internal call site inside
+   the leading underscore), and update its internal call site inside
    `_pick_fallback_copy`:
 
 ```python
@@ -848,6 +902,22 @@ def message_signals_tagalog(message: str) -> bool:
 def _pick_fallback_copy(message: str, *, en: str, tl: str) -> str:
     return tl if message_signals_tagalog(message) else en
 ```
+
+   **Also update the one existing external call site**, easy to miss
+   since it's in a different file: `functions/test_main.py:440-441` has
+   a pre-existing, currently-passing parametrized test that calls the
+   private name directly —
+
+   ```python
+   def test_language_heuristic(message, expected):
+       assert fallbacks._message_signals_tagalog(message) is expected
+   ```
+
+   Change line 441 to `assert fallbacks.message_signals_tagalog(message) is expected`.
+   Skipping this makes Step 6 below fail with
+   `AttributeError: module 'fallbacks' has no attribute '_message_signals_tagalog'`
+   on a test this task didn't otherwise touch — easy to mistake for an
+   unrelated regression if you don't already know it's there.
 
 2. Add the degenerate-case copy and payload builder at the end of the
    file:
@@ -1175,6 +1245,29 @@ def test_run_visit_summary_pipeline_accepts_null_final_urgency(monkeypatch):
     assert result["type"] == "visit_summary"
 
 
+def test_run_visit_summary_pipeline_grounds_the_prompt_with_final_urgency(monkeypatch):
+    # final_urgency is grounding for the model, not just a validated
+    # pass-through (design spec §4.1/§4.5) — assert it actually reaches
+    # build_system_prompt, not just that the call succeeds.
+    captured = {}
+
+    def _capture(prompt, history):
+        captured["prompt"] = prompt
+        return dict(VALID_VISIT_SUMMARY)
+
+    _mock_get_visit_summary(monkeypatch, _capture)
+    history = [
+        {"role": "user", "content": "I have a mild headache since this morning"},
+        {
+            "role": "assistant", "content": "Noted.", "type": "assessment",
+            "urgency": "see_doctor_soon", "findings": [], "explanation": None,
+            "next_step": None,
+        },
+    ]
+    run_visit_summary_pipeline(history=history, final_urgency="see_doctor_soon")
+    assert "see_doctor_soon" in captured["prompt"]
+
+
 def test_run_visit_summary_pipeline_rejects_oversized_history():
     history = [{"role": "user", "content": "hi"}] * (main.MAX_ACCEPTED_HISTORY_TURNS + 1)
     with pytest.raises(InvalidRequestError):
@@ -1321,6 +1414,7 @@ def run_visit_summary_pipeline(
     conversation_language = _visit_summary_conversation_language(stripped_history)
     prompt = visit_summary_prompt.build_system_prompt(
         conversation_language=conversation_language,
+        final_urgency=final_urgency,
     )
 
     try:
@@ -1738,7 +1832,7 @@ import '../../../shared/widgets/warning_pill.dart';
 
 5. Delete the three now-unused private classes entirely: `_SelfCareRow`
    (lines 175-236), `_MonitoringRow` (lines 238-268), `_WatchForPill`
-   (lines 270-304).
+   (lines 270-303, plus the trailing blank line at 304).
 
 - [ ] **Step 7: Run `assessment_card_test.dart` to prove the refactor is behavior-preserving**
 
@@ -2722,6 +2816,33 @@ class _StubRepository implements VisitSummaryRepository {
   }) async => _result;
 }
 
+/// Never resolves within a single pump — lets a test observe the loading
+/// state (spec §8's "four states: idle/CTA, loading, error-with-retry,
+/// loaded") before the future completes.
+class _DelayedStubRepository implements VisitSummaryRepository {
+  _DelayedStubRepository(this._result);
+  final VisitSummaryResult _result;
+
+  @override
+  Future<VisitSummaryResult> generate({
+    required List<Message> messages,
+    required UrgencyLevel? finalUrgency,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    return _result;
+  }
+}
+
+class _ThrowingRepository implements VisitSummaryRepository {
+  @override
+  Future<VisitSummaryResult> generate({
+    required List<Message> messages,
+    required UrgencyLevel? finalUrgency,
+  }) {
+    throw Exception('network down');
+  }
+}
+
 Message _assessment(UrgencyLevel urgency, {List<String> watchFor = const []}) =>
     Message.assistant(
       UrgencyResult(
@@ -2834,6 +2955,63 @@ void main() {
       ],
     );
     expect(find.text('Trouble breathing'), findsOneWidget);
+  });
+
+  testWidgets('narrative loading state shows a spinner, not the CTA or old content', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      seedMessages: [_assessment(UrgencyLevel.monitorAtHome)],
+      repository: _DelayedStubRepository(
+        const VisitSummaryResult(isError: false, summary: 'A plain recap.'),
+      ),
+    );
+    await tester.tap(find.text('Generate summary'));
+    await tester.pump(); // enter loading — the delayed future has not resolved yet
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.text('Generate summary'), findsNothing);
+    expect(find.text('A plain recap.'), findsNothing);
+    await tester.pumpAndSettle(); // let the delayed future resolve before teardown
+  });
+
+  testWidgets('a repository failure renders the error state with a Try again action', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      seedMessages: [_assessment(UrgencyLevel.monitorAtHome)],
+      repository: _ThrowingRepository(),
+    );
+    await tester.tap(find.text('Generate summary'));
+    await tester.pump(); // enter loading
+    await tester.pump(); // AsyncValue.guard resolves to AsyncError
+    expect(
+      find.text("Couldn't put together a visit summary right now."),
+      findsOneWidget,
+    );
+    expect(find.text('Try again'), findsOneWidget);
+  });
+
+  testWidgets('tapping Try again re-attempts generation', (tester) async {
+    await _pump(
+      tester,
+      seedMessages: [_assessment(UrgencyLevel.monitorAtHome)],
+      repository: _ThrowingRepository(),
+    );
+    await tester.tap(find.text('Generate summary'));
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Try again'), findsOneWidget);
+
+    // Retrying against the same throwing repository re-enters loading,
+    // then lands back on the error state rather than crashing or
+    // getting stuck — proves the retry action is wired, not just present.
+    await tester.tap(find.text('Try again'));
+    await tester.pump();
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    await tester.pump();
+    expect(find.text('Try again'), findsOneWidget);
   });
 }
 ```
