@@ -124,6 +124,16 @@ class ModelResponseError(Exception):
     this is the signal to fall back to degraded mode instead."""
 
 
+class TierLanguageDetectedError(ValueError):
+    """Raised by _validate_visit_summary_payload when the model's own
+    text states or implies an urgency tier — a ValueError subclass so
+    _call_gemini_with_retry's existing retry-on-ValueError mechanism
+    treats it identically to a schema failure, while callers can still
+    distinguish the cause after a ModelResponseError via
+    exc.__cause__ (see run_visit_summary_pipeline's structured logging
+    in main.py)."""
+
+
 def _strip_markdown_fences(text: str) -> str:
     match = _FENCE_RE.match(text.strip())
     return match.group(1).strip() if match else text.strip()
@@ -289,3 +299,77 @@ def get_assessment(system_prompt: str, history: list[dict], user_message: str) -
     """
     contents = _build_contents(history, user_message)
     return _call_gemini_with_retry(system_prompt, contents, _validate_payload)
+
+
+REQUIRED_VISIT_SUMMARY_FIELDS = frozenset({"summary", "questions_for_doctor"})
+
+# v1 ships EN + Taglish phrases active only (design spec §4.4). Ilocano
+# entries are drafted separately and held out of this list until they've
+# had the same clinician review other Ilocano copy in this project gets
+# — an enforcement mechanism is the wrong place for unreviewed phrasing.
+_TIER_LANGUAGE_BLOCKLIST = (
+    "monitor at home",
+    "see a doctor soon",
+    "seek care now",
+    "seek care immediately",
+    "seek immediate care",
+    "go to the er",
+    "go to the emergency room",
+    "go to the hospital immediately",
+    "you should see a doctor",
+    "you should seek care",
+    "kailangan mo nang pumunta sa doktor",
+    "pumunta ka na sa ospital",
+    "puntahan mo agad ang ospital",
+    "magpatingin ka na",
+    "magpatingin ka na agad",
+    "kumonsulta ka agad",
+    "dalhin sa ospital",
+)
+
+
+def _validate_visit_summary_payload(payload: object) -> dict:
+    if not isinstance(payload, dict):
+        raise ValueError("response is not a JSON object")
+    missing = REQUIRED_VISIT_SUMMARY_FIELDS - payload.keys()
+    if missing:
+        raise ValueError(f"missing required fields: {sorted(missing)}")
+
+    summary = payload["summary"]
+    if not isinstance(summary, str) or not summary.strip():
+        raise ValueError("summary must be a non-empty string")
+
+    questions = payload["questions_for_doctor"]
+    if not isinstance(questions, list) or not all(isinstance(q, str) for q in questions):
+        raise ValueError("questions_for_doctor must be an array of strings")
+
+    haystack = " ".join([summary, *questions]).lower()
+    for phrase in _TIER_LANGUAGE_BLOCKLIST:
+        if phrase in haystack:
+            raise TierLanguageDetectedError(
+                f"tier-recommendation language detected: {phrase!r}"
+            )
+
+    return {"summary": summary, "questions_for_doctor": questions}
+
+
+def _build_visit_summary_contents(history: list[dict]) -> list[types.Content]:
+    """No trailing 'new message' — unlike _build_contents, this is a
+    retrospective summary over a whole transcript, not a reply to the
+    newest turn."""
+    return [
+        types.Content(
+            role=_ROLE_MAP.get(turn.get("role"), "user"),
+            parts=[types.Part(text=turn.get("content", ""))],
+        )
+        for turn in history
+    ]
+
+
+def get_visit_summary(system_prompt: str, history: list[dict]) -> dict:
+    """Call Gemini for a retrospective visit-summary recap + doctor
+    questions. Retries once on schema/blocklist failure via
+    _call_gemini_with_retry; raises ModelResponseError if the retry also
+    fails. Never returns malformed data or tier-recommendation language."""
+    contents = _build_visit_summary_contents(history)
+    return _call_gemini_with_retry(system_prompt, contents, _validate_visit_summary_payload)
