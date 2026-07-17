@@ -1493,7 +1493,10 @@ def _render_profile_block(profile: dict | None) -> str:
 # situation beat that prior — only an explicit per-request directive did.
 # main.py derives the value deterministically from the user's own turns
 # (_conversation_language there); chip taps are too short to ever flip it.
-_CONVERSATION_LANGUAGE_COPY = {
+# Public (not _-prefixed): visit_summary_prompt.py is a second consumer
+# (design spec 2026-07-17 §4.2) — promoted so it imports this directly
+# instead of reaching across a module boundary for a private symbol.
+CONVERSATION_LANGUAGE_COPY = {
     "english": ("English", "Reply in English."),
     "tagalog": ("Tagalog", "Reply in natural, warm Taglish."),
     "mixed": (
@@ -1503,10 +1506,10 @@ _CONVERSATION_LANGUAGE_COPY = {
 }
 
 
-def _render_conversation_language_block(conversation_language: str | None) -> str:
+def render_conversation_language_block(conversation_language: str | None) -> str:
     if conversation_language is None:
         return ""
-    copy = _CONVERSATION_LANGUAGE_COPY.get(conversation_language)
+    copy = CONVERSATION_LANGUAGE_COPY.get(conversation_language)
     if copy is None:
         logger.warning(
             "system_prompt: unrecognized conversation_language %r — omitting the directive",
@@ -1588,7 +1591,7 @@ def _render_context_section(
         'no "according to your profile". And never present a regional '
         "advisory as the explanation for these symptoms — an advisory earns "
         "a question or a watch-for, never a conclusion."
-        f"{_render_conversation_language_block(conversation_language)}"
+        f"{render_conversation_language_block(conversation_language)}"
         f"{_render_conversation_state_block(conversation_state)}"
     )
 
