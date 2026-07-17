@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import re
+from typing import Callable
 
 from google import genai
 from google.genai import types
@@ -211,13 +212,12 @@ def _validate_payload(payload: object) -> dict:
     return payload
 
 
-def _parse_and_validate(raw_text: str) -> dict:
+def _parse_json(raw_text: str) -> object:
     stripped = _strip_markdown_fences(raw_text)
     try:
-        payload = json.loads(stripped)
+        return json.loads(stripped)
     except json.JSONDecodeError as exc:
         raise ValueError(f"invalid JSON: {exc}") from exc
-    return _validate_payload(payload)
 
 
 def _build_contents(history: list[dict], user_message: str) -> list[types.Content]:
@@ -232,12 +232,20 @@ def _build_contents(history: list[dict], user_message: str) -> list[types.Conten
     return contents
 
 
-def get_assessment(system_prompt: str, history: list[dict], user_message: str) -> dict:
-    """Call Gemini and return a validated 8-field assessment payload.
+def _call_gemini_with_retry(
+    system_prompt: str,
+    contents: list[types.Content],
+    validator: "Callable[[dict], dict]",
+) -> dict:
+    """Calls Gemini, parses+validates the response, retries once with a
+    corrective suffix on failure, raises ModelResponseError if the retry
+    also fails. Shared by get_assessment and get_visit_summary — the
+    retry/parsing mechanism is identical; only the schema differs.
 
-    Retries once with a corrective suffix if the response fails schema
-    validation; raises ModelResponseError if the retry also fails. Never
-    returns malformed data.
+    Sets result["_retry_used"] on the returned dict — main.py's
+    run_pipeline pops this for structured logging
+    (test_logging_reports_retry_used_true_when_the_client_retried in
+    test_main.py pins this), so it is not dropped in this extraction.
     """
     client = genai.Client()
     config = types.GenerateContentConfig(
@@ -246,11 +254,10 @@ def get_assessment(system_prompt: str, history: list[dict], user_message: str) -
         response_mime_type="application/json",
     )
 
-    contents = _build_contents(history, user_message)
     response = client.models.generate_content(model=MODEL_NAME, contents=contents, config=config)
 
     try:
-        result = _parse_and_validate(response.text)
+        result = validator(_parse_json(response.text))
         result["_retry_used"] = False
         return result
     except ValueError:
@@ -264,10 +271,21 @@ def get_assessment(system_prompt: str, history: list[dict], user_message: str) -
         model=MODEL_NAME, contents=retry_contents, config=config
     )
     try:
-        result = _parse_and_validate(retry_response.text)
+        result = validator(_parse_json(retry_response.text))
         result["_retry_used"] = True
         return result
     except ValueError as exc:
         raise ModelResponseError(
             "model response failed schema validation twice"
         ) from exc
+
+
+def get_assessment(system_prompt: str, history: list[dict], user_message: str) -> dict:
+    """Call Gemini and return a validated 8-field assessment payload.
+
+    Retries once with a corrective suffix if the response fails schema
+    validation; raises ModelResponseError if the retry also fails. Never
+    returns malformed data.
+    """
+    contents = _build_contents(history, user_message)
+    return _call_gemini_with_retry(system_prompt, contents, _validate_payload)

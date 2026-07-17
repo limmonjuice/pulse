@@ -434,6 +434,20 @@ def test_does_not_retry_when_first_response_is_valid(monkeypatch):
     assert len(fake_models.calls) == 1
 
 
+def test_retry_used_is_false_on_first_attempt_success(monkeypatch):
+    _install_fake_genai(monkeypatch, [json.dumps(VALID_ASSESSMENT)])
+    result = get_assessment("system prompt", [], "some message")
+    assert result["_retry_used"] is False
+
+
+def test_retry_used_is_true_when_the_retry_succeeded(monkeypatch):
+    _install_fake_genai(
+        monkeypatch, ["garbage", json.dumps(VALID_ASSESSMENT)]
+    )
+    result = get_assessment("system prompt", [], "some message")
+    assert result["_retry_used"] is True
+
+
 # ---------------------------------------------------------------------------
 # Request construction
 # ---------------------------------------------------------------------------
