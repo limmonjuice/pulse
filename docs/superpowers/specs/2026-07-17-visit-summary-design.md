@@ -25,6 +25,19 @@ the degenerate empty-transcript case (§4.1); conversation-language
 mirroring reuses `main.py`'s existing deterministic derivation rather
 than prompt-only instruction, given this model's demonstrated mirroring
 regression on exactly this task shape (§4.2).
+**Second-pass additions:** the crisis-mention line and the tier badge
+render independently, not either/or — a conversation can have both a
+real assessed tier and a later crisis moment, and the doctor needs both
+signals (§5.3, §6); the crisis-mention line ships as a fixed EN/TL pair
+with its own narrowly-scoped selection heuristic, matching
+`fallbacks.py`'s existing bilingual convention for crisis-adjacent copy
+(§6); the `_call_gemini_with_retry` extraction explicitly preserves the
+`_retry_used` signal `run_pipeline`'s structured logging already depends
+on (§4.3); `_render_conversation_language_block`/`_CONVERSATION_LANGUAGE_COPY`
+are promoted to public names since they're now shared across two prompt
+modules (§4.2); a history-size ceiling, `urgencyChanged`'s derivation,
+and the degenerate response's `type`/`metadata` shape are all stated
+explicitly (§4.1, §5.1).
 
 ## 1. Problem
 
@@ -132,7 +145,12 @@ existing split so the orchestration logic stays unit-testable without
 
 - `history`: the same wire shape the client already produces via
   `Message.toHistoryJson()` for `assess_symptoms` — no new client-side
-  serialization.
+  serialization. Same rejection ceiling as `assess_symptoms`
+  (`MAX_ACCEPTED_HISTORY_TURNS = 200`) applies here too — this endpoint
+  is user-triggered at most once or twice per visit rather than once per
+  message, so it doesn't need its own `MODEL_HISTORY_WINDOW`-style
+  truncation; the full (crisis-stripped) transcript is sent to Gemini
+  every time (§4.2).
 - `final_urgency`: one of `wire_contract.URGENCY_TIERS`, **or `null`**.
   Null is a real, reachable state — not an error — for exactly the
   crisis-only-conversation case §5.1 and §6 already design around: when
@@ -161,7 +179,14 @@ call entirely and returns a fixed deterministic response (`summary`: a
 plain "no other symptoms were discussed" line; `questions_for_doctor:
 []`) rather than asking the model to summarize nothing. Same principle
 as §6's crisis-mention line: a degenerate, safety-adjacent case gets a
-fixed, non-generated answer, not an LLM improvisation.
+fixed, non-generated answer, not an LLM improvisation. Stated explicitly
+since it's otherwise easy to get wrong by analogy with `run_pipeline`'s
+locally-constructed responses: `type` is still `"visit_summary"` (this
+is a valid, complete result, not a failure — `"error"` stays reserved
+for §4.4's actual validation-exhausted path), and `metadata.model_name`
+is still populated with `gemini_client.MODEL_NAME` (identifies what
+*would* have been called, for consistency with every other response's
+metadata shape) even though no call was made this time.
 
 ### 4.2 New prompt module: `functions/visit_summary_prompt.py`
 
@@ -187,9 +212,14 @@ triggered that regression — so it inherits the mechanism rather than
 re-solving it: `run_visit_summary_pipeline` derives the conversation's
 language from the crisis-stripped history the same deterministic way,
 and `visit_summary_prompt.build_system_prompt` accepts a
-`conversation_language` parameter and renders the same directive block,
-reusing `system_prompt._render_conversation_language_block`/
-`_CONVERSATION_LANGUAGE_COPY` rather than duplicating the copy. Left to
+`conversation_language` parameter and renders the same directive block.
+Since this helper is now shared across two prompt modules,
+`_render_conversation_language_block`/`_CONVERSATION_LANGUAGE_COPY` are
+promoted to public names in `system_prompt.py` (drop the leading
+underscore) rather than have `visit_summary_prompt.py` reach across a
+module boundary to import a private symbol — same "second consumer
+means promote, don't duplicate or reach into internals" rule already
+applied to the shared widget extraction in §5.3. Left to
 the implementation plan: `_conversation_language`'s current signature
 takes a distinct newest `message` plus prior `history`, shaped for
 live triage's per-turn call; the visit-summary call site has only a full
@@ -211,18 +241,34 @@ def _call_gemini_with_retry(
     """Calls Gemini, parses+validates the response, retries once with a
     corrective suffix on failure, raises ModelResponseError if the retry
     also fails. Shared by get_assessment and get_visit_summary — the
-    retry/parsing mechanism is identical; only the schema differs."""
+    retry/parsing mechanism is identical; only the schema differs.
+    Sets result["_retry_used"] on the returned dict exactly as
+    get_assessment does today — this is not dropped in the extraction."""
 ```
 
-`get_assessment` becomes a thin wrapper: build contents via the existing
+**Explicit carry-over, not an incidental detail**: `get_assessment`
+today sets `result["_retry_used"]`, and `main.py`'s `run_pipeline`
+depends on it (`retry_used = bool(model_result.pop("_retry_used",
+False))`, feeding the structured-logging `retry_used` field, which has
+its own dedicated regression test,
+`test_logging_reports_retry_used_true_when_the_client_retried`). The
+extraction must preserve this: `_call_gemini_with_retry` sets
+`_retry_used` itself (both branches — the first-attempt-succeeds path
+sets `False`, the retry-succeeds path sets `True`), so `get_assessment`
+becomes a thin wrapper that returns the helper's result unchanged and
+`run_pipeline`'s existing logging keeps working without modification.
+`get_visit_summary` gets the same key on its return dict for free,
+whether or not it ends up using it.
+
+`get_assessment` becomes: build contents via the existing
 `_build_contents`, call `_call_gemini_with_retry(system_prompt, contents,
 _validate_payload)`. The new `get_visit_summary(system_prompt, contents)`
 calls the same helper with `_validate_visit_summary_payload` (§4.4) as
 its validator. This keeps the safety plumbing (never surface malformed
-output, never skip the retry) DRY across both call sites while keeping
-each prompt's schema and content cleanly separate — the same
-separation-of-concerns instinct already applied between
-`red_flags.py` and `system_prompt.py`.
+output, never skip the retry, never lose the retry signal) DRY across
+both call sites while keeping each prompt's schema and content cleanly
+separate — the same separation-of-concerns instinct already applied
+between `red_flags.py` and `system_prompt.py`.
 
 How the crisis-stripped transcript becomes `contents` for this call is
 left to the implementation plan: the existing `_build_contents(history,
@@ -302,6 +348,12 @@ first and last `urgency` seen. **Crisis turns
 edge case: if every assessment-shaped turn was a crisis turn, there is
 no non-crisis urgency to report, and the screen must render that
 gracefully (§6), not crash or show an empty badge.
+`urgencyChanged` is simple first-vs-last: `initialUrgency` (the first
+non-crisis assessment turn's tier) compared to `finalUrgency` (the
+last) — not "did it ever fluctuate mid-conversation." A conversation
+that went monitor→see-doctor-soon→monitor reports `urgencyChanged:
+false`, matching the header's "started at X, now at Y" framing rather
+than trying to narrate a full path.
 
 ### 5.2 LLM narrative
 
@@ -328,13 +380,29 @@ gracefully (§6), not crash or show an empty badge.
 
 ### 5.3 Screen — `lib/features/visit_summary/screens/visit_summary_screen.dart`
 
-Top to bottom: header (tier badge + progression line, or the crisis
-mention line if `finalUrgency == null` — §6; instant, deterministic) →
-narrative block (idle: "Generate summary" CTA; loading: skeleton;
-error: inline message + "Try again", both disabled while in flight;
-loaded: recap paragraph + doctor-questions list) → findings/watch-for/
+Top to bottom: header → narrative block → findings/watch-for/
 self-care/monitoring sections (deterministic, instant, hidden when
 empty — same convention `AssessmentCard` already uses).
+
+**Header composition — the tier badge and the crisis-mention line
+render independently, not either/or.** Gated separately:
+`finalUrgency != null` shows the tier badge + progression line;
+`hadCrisisTurn` shows the crisis-mention line (§6). These are not
+mutually exclusive: the conversation engine's crisis lock is absorbing
+and doesn't clear a prior card (`2026-07-13-conversation-engine-design.md`
+§6/§9), so "an earlier real assessment, then a later crisis moment" is
+an expected shape, not a corner case — and the doctor needs both
+signals when it happens. Three reachable header states: tier badge
+alone (`finalUrgency != null`, no crisis turn), crisis line alone
+(crisis-only conversation, `finalUrgency == null`), or both stacked
+(`finalUrgency != null && hadCrisisTurn`). The unreachable fourth
+combination (neither) can't occur — the AppBar entry point (§5.4)
+requires at least one assessment/crisis turn to exist before the screen
+is reachable at all.
+
+Narrative block: idle: "Generate summary" CTA; loading: skeleton;
+error: inline message + "Try again", both disabled while in flight;
+loaded: recap paragraph + doctor-questions list.
 
 **Shared widget extraction, in scope because this screen needs it now**:
 `AssessmentCard`'s list-row visuals (`_SelfCareRow`, `_MonitoringRow`,
@@ -395,11 +463,26 @@ locked:
   stripping, no crisis exchange — either side of it — ever reaches the
   model, so there is no paraphrase risk in the recap.
 - When any crisis turn occurred, the screen renders one **fixed,
-  non-generated** line: *"This conversation included a moment of
-  emotional distress — consider mentioning it to your doctor."* Rendered
-  from a boolean (`VisitSummaryFacts.hadCrisisTurn`), never from model
-  output — the one sentence about a person's crisis moment is the one
-  sentence the model can never touch.
+  non-generated** line — *"This conversation included a moment of
+  emotional distress — consider mentioning it to your doctor."* (EN) /
+  its Taglish equivalent (TL) — rendered from a boolean
+  (`VisitSummaryFacts.hadCrisisTurn`), never from model output. The one
+  sentence about a person's crisis moment is the one sentence the model
+  can never touch. **Ships as a fixed EN/TL pair**
+  (`_CRISIS_MENTION_EN`/`_CRISIS_MENTION_TL`, Claude-drafted, same
+  clinician-review convention as other crisis copy), matching
+  `fallbacks.py`'s existing bilingual convention for crisis-adjacent
+  strings (`CRISIS_DEGRADED_FALLBACK_EN`/`_TL`) rather than shipping
+  English-only. Selection can't reuse the backend's `conversation_language`
+  value (§4.2) — the header renders instantly, before the user may ever
+  tap "Generate summary," so no server response exists yet to read it
+  from. Instead, `VisitSummaryFacts.fromMessages` picks the TL variant
+  if any user message in the conversation matches a small fixed
+  Tagalog/Taglish keyword list, defaulting to English otherwise — a
+  narrow heuristic scoped only to choosing between two fixed strings
+  (not a language classifier, not held to the same bar as the server's
+  `mirror_probes.detect_language`), fail-open to English the same way
+  the server's own `_conversation_language` defaults to `None`.
 - **Crisis-only-conversation edge case, resolved now**: if the *only*
   assessment-shaped turn was a crisis turn, `finalUrgency` is null and
   the header renders just the crisis-mention line with no tier badge —
@@ -459,10 +542,17 @@ locked:
 **Client (`flutter test`)**
 
 - `VisitSummaryFacts.fromMessages`: empty conversation, single
-  assessment, multi-turn urgency progression, crisis-only conversation
+  assessment, multi-turn urgency progression (including a
+  monitor→see-doctor-soon→monitor case asserting `urgencyChanged ==
+  false`, per the first-vs-last rule), crisis-only conversation
   (nullable `finalUrgency` path), mixed crisis+assessment (crisis
-  excluded from aggregates, `hadCrisisTurn` set).
+  excluded from aggregates, `hadCrisisTurn` set), and the TL-keyword
+  heuristic (a Taglish user turn selects `_CRISIS_MENTION_TL`; an
+  all-English conversation defaults to EN).
 - AppBar action enabled/disabled state.
+- Header composition's three reachable states (§5.3): tier badge alone,
+  crisis line alone, both stacked — asserting the mixed case actually
+  renders both rather than one suppressing the other.
 - Narrative block's four states: idle/CTA, loading, error-with-retry,
   loaded.
 
