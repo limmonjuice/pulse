@@ -139,7 +139,11 @@ region `asia-southeast1`, App Check enforced via the existing
 `run_visit_summary_pipeline(history, final_urgency)` sits behind the
 thin Callable wrapper, mirroring `run_pipeline`/`_handle_request`'s
 existing split so the orchestration logic stays unit-testable without
-`https_fn` plumbing.
+`https_fn` plumbing. Gets its own structured log line, mirroring
+`run_pipeline`'s `_log_request` (prompt_version, retry_used,
+blocklist_triggered, whether the degenerate-case path fired) — with no
+eval harness yet (§9), this is the only signal available while manually
+testing §8's hand-run transcripts.
 
 **Request**
 
@@ -398,7 +402,9 @@ alone (`finalUrgency != null`, no crisis turn), crisis line alone
 (`finalUrgency != null && hadCrisisTurn`). The unreachable fourth
 combination (neither) can't occur — the AppBar entry point (§5.4)
 requires at least one assessment/crisis turn to exist before the screen
-is reachable at all.
+is reachable at all. The progression line itself only appears when
+`urgencyChanged`: unchanged, the badge shows a single tier with no
+"started at / now at" framing — there's no progression to narrate.
 
 Narrative block: idle: "Generate summary" CTA; loading: skeleton;
 error: inline message + "Try again", both disabled while in flight;
@@ -413,6 +419,16 @@ visual language — exactly AGENTS.md's bar for promoting a shared widget
 (`checklist_row.dart`, `warning_pill.dart`); both `AssessmentCard` and
 this screen consume them, keeping the two surfaces visually in lockstep
 automatically rather than by convention.
+
+**Self-care is read-only here.** `AssessmentCard`'s `_SelfCareRow` is
+checkbox-interactive (`Message.checkedSelfCare`, session-only UI state
+tied to one specific message). `VisitSummaryFacts.selfCare` is a deduped
+aggregate across every assessment turn with no per-item identity to back
+a "checked" state — this screen shows what was already suggested, past
+tense, nothing to check off. The extracted `checklist_row.dart` needs
+its checkbox/`onTap` made optional (renders as a plain row when absent)
+rather than an implementer inventing a meaningless checked-state
+provider just to satisfy a required parameter.
 
 ### 5.4 Entry point and the deliberate-trigger decision
 
