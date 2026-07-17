@@ -17,6 +17,14 @@ turns excluded from both the facts model and the narrative call, with a
 fixed non-generated mention line rather than silence or a full export
 ban (§6); the narrative Gemini call is user-triggered inside the screen
 ("Generate summary" button), not fired on screen open (§5.4).
+**Post spec-review additions:** crisis stripping is defined precisely as
+removing both the `type: "crisis"` assistant turn and its paired
+preceding user turn, not just the tagged assistant payload (§6); `final_urgency`
+is nullable on the wire with a deterministic no-Gemini-call response for
+the degenerate empty-transcript case (§4.1); conversation-language
+mirroring reuses `main.py`'s existing deterministic derivation rather
+than prompt-only instruction, given this model's demonstrated mirroring
+regression on exactly this task shape (§4.2).
 
 ## 1. Problem
 
@@ -42,8 +50,8 @@ the conversation currently on screen.
 
 1. From the current conversation, produce: a plain-language recap, the
    urgency tier and whether it changed during the conversation, findings
-   noted, self-care already suggested, watch-for signs, and a generated
-   "questions to ask your doctor" list.
+   noted, self-care already suggested, things flagged to monitor,
+   watch-for signs, and a generated "questions to ask your doctor" list.
 2. The user triggers this deliberately (AppBar action → screen → an
    explicit in-screen action for the generated part) — never automatic,
    never ambient quota spend.
@@ -87,8 +95,10 @@ ChatController's in-memory List<Message>
         └── (user taps "Generate summary") ──▶ generate_visit_summary
               [new Callable Function, functions/main.py]
                     │
-                    ├── strip crisis turns from history (code, not
-                    │   prompt instruction — §6)
+                    ├── strip crisis exchanges from history — the
+                    │   type:"crisis" assistant turn AND its paired
+                    │   preceding user turn (code, not prompt
+                    │   instruction — §6)
                     ├── visit_summary_prompt.build_system_prompt()
                     │   [new, functions/visit_summary_prompt.py]
                     └── gemini_client.get_visit_summary()
@@ -123,9 +133,12 @@ existing split so the orchestration logic stays unit-testable without
 - `history`: the same wire shape the client already produces via
   `Message.toHistoryJson()` for `assess_symptoms` — no new client-side
   serialization.
-- `final_urgency`: one of `wire_contract.URGENCY_TIERS`. Grounding only
-  — see §4.5 for why this is the *only* urgency-adjacent value in the
-  payload.
+- `final_urgency`: one of `wire_contract.URGENCY_TIERS`, **or `null`**.
+  Null is a real, reachable state — not an error — for exactly the
+  crisis-only-conversation case §5.1 and §6 already design around: when
+  no non-crisis assessment ever set an urgency tier, there is no tier to
+  send. Grounding only when present — see §4.5 for why this is the
+  *only* urgency-adjacent value in the payload.
 
 **Response**
 
@@ -141,6 +154,15 @@ monitoring are *not* in this contract — they're already fully covered by
 `VisitSummaryFacts` client-side (§5.1), sourced from data the model
 would otherwise be asked to reproduce and could get subtly wrong.
 
+**Degenerate case, resolved**: if crisis-stripping (§6) leaves `history`
+empty — the conversation consisted solely of a crisis exchange, nothing
+else was ever discussed — `run_visit_summary_pipeline` skips the Gemini
+call entirely and returns a fixed deterministic response (`summary`: a
+plain "no other symptoms were discussed" line; `questions_for_doctor:
+[]`) rather than asking the model to summarize nothing. Same principle
+as §6's crisis-mention line: a degenerate, safety-adjacent case gets a
+fixed, non-generated answer, not an LLM improvisation.
+
 ### 4.2 New prompt module: `functions/visit_summary_prompt.py`
 
 Separate file from `system_prompt.py`, own `PROMPT_VERSION` (starts at
@@ -153,6 +175,26 @@ produce a cohesive plain-language recap plus a grounded
 to live triage: never assert a diagnosis, hedged/plural language only.
 Plus the new hard rule from §4.4: never state or imply an urgency tier
 in its own voice.
+
+**Language mirroring.** `gemini-3.1-flash-lite` has twice regressed on
+conversation-language mirroring badly enough that live triage needed a
+server-derived directive, not prompt instruction alone, to hold it
+(`main.py`'s `_conversation_language`, feeding `system_prompt.py`'s
+`CONVERSATION LANGUAGE` block — see `flash_lite_31_mirroring_regression`
+history). `visit_summary_prompt.py` is a new, open-ended narrative
+prompt over a Taglish-capable transcript — the same task shape that
+triggered that regression — so it inherits the mechanism rather than
+re-solving it: `run_visit_summary_pipeline` derives the conversation's
+language from the crisis-stripped history the same deterministic way,
+and `visit_summary_prompt.build_system_prompt` accepts a
+`conversation_language` parameter and renders the same directive block,
+reusing `system_prompt._render_conversation_language_block`/
+`_CONVERSATION_LANGUAGE_COPY` rather than duplicating the copy. Left to
+the implementation plan: `_conversation_language`'s current signature
+takes a distinct newest `message` plus prior `history`, shaped for
+live triage's per-turn call; the visit-summary call site has only a full
+transcript and no separate new message, so it calls the same derivation
+over that transcript's own newest user turn instead.
 
 ### 4.3 Shared retry/parsing extraction (`gemini_client.py`)
 
@@ -182,6 +224,13 @@ each prompt's schema and content cleanly separate — the same
 separation-of-concerns instinct already applied between
 `red_flags.py` and `system_prompt.py`.
 
+How the crisis-stripped transcript becomes `contents` for this call is
+left to the implementation plan: the existing `_build_contents(history,
+user_message)` is shaped around "answer this new message," not
+"summarize this whole transcript with no new message," so
+`get_visit_summary` likely needs a small dedicated contents builder
+rather than reusing `_build_contents` as-is.
+
 ### 4.4 Tier-language enforcement — code, not prompt alone
 
 A schema requiring `summary: string` has no opinion about what words go
@@ -197,10 +246,14 @@ actually matters:
   the model as: that information is already shown elsewhere on the
   screen from a trusted source, so the recap doesn't need to carry it.
 - **Code-side** (`gemini_client.py`): a `_TIER_LANGUAGE_BLOCKLIST`
-  constant (EN + Taglish phrases now; Ilocano drafted the same
-  Claude-drafts/clinician-reviews way other Ilocano copy in this project
-  has been handled — flagged for that review, not invented unreviewed
-  here). `_validate_visit_summary_payload` case-insensitively scans
+  constant. **v1 ships with EN + Taglish phrases active only.** Ilocano
+  entries are drafted alongside them (same Claude-drafts/
+  clinician-reviews convention already established for other Ilocano
+  copy in this project) but held out of the active blocklist until that
+  review lands — an enforcement mechanism is exactly the wrong place to
+  wire in unreviewed medical-adjacent phrasing, so "drafted" means
+  written down for the reviewer, not yet checked at runtime (tracked in
+  §9). `_validate_visit_summary_payload` case-insensitively scans
   `summary` and each `questions_for_doctor` entry against it. A match is
   a validation failure — same treatment as structurally malformed JSON:
   retried once via `_call_gemini_with_retry`, and if it still fails, the
@@ -325,11 +378,22 @@ locked:
 
 - `VisitSummaryFacts.fromMessages` (§5.1) excludes crisis turns from
   every aggregate.
-- `run_visit_summary_pipeline` strips crisis turns from `history`
-  **before** building the prompt or calling `get_visit_summary` — in
-  code, not left to a prompt instruction to avoid repeating it. No
-  crisis exchange ever reaches the model, so there is no paraphrase risk
-  in the recap.
+- `run_visit_summary_pipeline` strips crisis **exchanges** from
+  `history` before building the prompt or calling `get_visit_summary` —
+  in code, not left to a prompt instruction. That means both halves of
+  the exchange: the assistant turn with `type == "crisis"`, *and* the
+  user turn immediately preceding it — the actual statement that
+  prompted the crisis reply. This pairing matters concretely:
+  `Message.toHistoryJson()` (§1) only ever tags `type` on assistant
+  turns — a preceding user turn is an untagged `{'role': 'user',
+  'content': text}` entry, so a filter that only drops `type ==
+  "crisis"` entries would leave the raw triggering statement in the
+  transcript sent to Gemini, silently defeating the guarantee below. The
+  rule: for every assistant turn with `type == "crisis"`, drop it and
+  the user turn immediately before it by list adjacency; applied for
+  every crisis-type turn in the conversation, not just the first. After
+  stripping, no crisis exchange — either side of it — ever reaches the
+  model, so there is no paraphrase risk in the recap.
 - When any crisis turn occurred, the screen renders one **fixed,
   non-generated** line: *"This conversation included a moment of
   emotional distress — consider mentioning it to your doctor."* Rendered
@@ -339,10 +403,13 @@ locked:
 - **Crisis-only-conversation edge case, resolved now**: if the *only*
   assessment-shaped turn was a crisis turn, `finalUrgency` is null and
   the header renders just the crisis-mention line with no tier badge —
-  not a blank header, not a crash. Export stays enabled for
+  not a blank header, not a crash. `final_urgency: null` is sent to
+  `generate_visit_summary` in this state (§4.1); if crisis-stripping also
+  leaves the transcript otherwise empty, the backend's degenerate-case
+  handling (§4.1) applies. The visit-summary screen stays reachable for
   crisis-containing conversations (the point of excluding-with-mention
-  over a full export ban); this is exactly the state that path has to
-  handle.
+  over disabling the feature entirely, §2 goal 4) — this is exactly the
+  state that path has to handle.
 - This gets the standing mental-health-review flag alongside the crisis
   card and crisis prompt copy — carried into the deploy-gates note for
   this feature (§9), same tracking discipline as other crisis-adjacent
@@ -371,10 +438,21 @@ locked:
   the tier-blocklist validator — cases that must fail (EN tier phrases,
   Taglish equivalents, mixed case/punctuation) and cases that must pass
   (a clean recap).
-- A test asserting `run_visit_summary_pipeline` strips crisis turns from
-  the payload sent to `get_visit_summary` **in code** — i.e. mock/spy the
-  call and assert no crisis-turn content is present in `contents`, not
-  just that the prompt asks the model to ignore it.
+- A test asserting `run_visit_summary_pipeline` strips crisis
+  **exchanges** — both the `type == "crisis"` assistant turn and its
+  paired preceding user turn (§6) — from the payload sent to
+  `get_visit_summary` **in code**: mock/spy the call and assert neither
+  the crisis reply's text nor the triggering user statement's text is
+  present in `contents`. Checking only for the absence of `type ==
+  "crisis"` entries would pass even if the untagged preceding user turn
+  leaked through, so the assertion must check the actual user
+  statement's content, not just the `type` tag.
+- A test for the degenerate empty-transcript case (§4.1): a
+  crisis-only conversation → `run_visit_summary_pipeline` returns the
+  fixed no-content response without calling `get_visit_summary` at all
+  (mock/spy asserting zero calls).
+- A test that `final_urgency: null` is accepted and handled without
+  error (the crisis-only-conversation case, §5.1/§6).
 - Schema/contract tests for `generate_visit_summary`'s response shape,
   following the existing `test_main.py` pattern.
 
