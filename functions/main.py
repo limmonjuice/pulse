@@ -154,7 +154,11 @@ def _strip_crisis_exchanges(history: list[dict]) -> list[dict]:
             and turn.get("type") == "crisis"
         ):
             drop_indices.add(i)
-            if i > 0 and history[i - 1].get("role") == "user":
+            if (
+                i > 0
+                and isinstance(history[i - 1], dict)
+                and history[i - 1].get("role") == "user"
+            ):
                 drop_indices.add(i - 1)
     return [turn for i, turn in enumerate(history) if i not in drop_indices]
 

@@ -952,6 +952,21 @@ def test_strip_crisis_exchanges_never_leaks_crisis_turn_text():
     assert "I'm here for you." not in texts
 
 
+def test_strip_crisis_exchanges_tolerates_malformed_preceding_turn():
+    # A malformed (non-dict) entry immediately before a crisis turn must
+    # not crash the strip — it's client-supplied JSON, and the whole
+    # point of this server-side re-strip is not trusting the client. The
+    # crisis turn itself is still dropped; the malformed entry can't be
+    # safely identified as "the preceding user turn" so it is left alone.
+    history = [
+        "not a dict",
+        {"role": "assistant", "content": "reply", "type": "crisis"},
+        {"role": "user", "content": "a benign follow-up"},
+    ]
+    result = _strip_crisis_exchanges(history)
+    assert result == ["not a dict", {"role": "user", "content": "a benign follow-up"}]
+
+
 # ---------------------------------------------------------------------------
 # Visit summary: conversation-language derivation with no distinct "new
 # message" (design spec §4.2)
