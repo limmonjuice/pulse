@@ -967,6 +967,20 @@ def test_strip_crisis_exchanges_tolerates_malformed_preceding_turn():
     assert result == ["not a dict", {"role": "user", "content": "a benign follow-up"}]
 
 
+def test_strip_crisis_exchanges_drops_all_contiguous_preceding_user_turns():
+    # A malformed/tampered-client history could have more than one
+    # consecutive user turn before a crisis reply. Only stripping the
+    # nearest one would leak the earlier (possibly crisis-triggering)
+    # statement into the transcript. Both must go.
+    history = [
+        {"role": "user", "content": "I want to kill myself tonight"},
+        {"role": "user", "content": "sorry, ignore that, just kidding"},
+        {"role": "assistant", "content": "I am here for you.", "type": "crisis"},
+    ]
+    result = _strip_crisis_exchanges(history)
+    assert result == []
+
+
 # ---------------------------------------------------------------------------
 # Visit summary: conversation-language derivation with no distinct "new
 # message" (design spec §4.2)

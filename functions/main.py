@@ -136,16 +136,22 @@ def _conversation_language(message: str, history: list[dict]) -> str | None:
 
 
 def _strip_crisis_exchanges(history: list[dict]) -> list[dict]:
-    """Removes each assistant turn with type == "crisis" AND the user
-    turn immediately preceding it (design spec §6). Message.toHistoryJson()
-    on the client only ever tags `type` on assistant turns — the
-    preceding user turn is an untagged {"role": "user", "content": ...}
-    entry, so a filter that only drops type == "crisis" entries would
-    leave the triggering statement in the transcript. Applied for every
-    crisis turn in the conversation, not just the first — this is the
-    server-side half of the two-strip-points design (the client runs the
-    same rule before the request is ever sent; this re-strip does not
-    assume the client did its part correctly)."""
+    """Removes each assistant turn with type == "crisis" AND every
+    contiguous user turn immediately preceding it (design spec §6).
+    Message.toHistoryJson() on the client only ever tags `type` on
+    assistant turns — the preceding user turn(s) are untagged
+    {"role": "user", "content": ...} entries, so a filter that only
+    drops type == "crisis" entries would leave the triggering
+    statement(s) in the transcript. A well-formed history has exactly
+    one user turn before a crisis reply, but this is the server-side
+    half of the two-strip-points design (the client runs the same rule
+    before the request is ever sent; this re-strip does not assume the
+    client did its part correctly, or that its history is well-formed)
+    — so the walk continues backward through however many consecutive
+    user turns it finds, stopping at the first non-user or non-dict
+    entry, to guarantee no crisis-adjacent user statement survives.
+    Applied for every crisis turn in the conversation, not just the
+    first."""
     drop_indices: set[int] = set()
     for i, turn in enumerate(history):
         if (
@@ -154,12 +160,10 @@ def _strip_crisis_exchanges(history: list[dict]) -> list[dict]:
             and turn.get("type") == "crisis"
         ):
             drop_indices.add(i)
-            if (
-                i > 0
-                and isinstance(history[i - 1], dict)
-                and history[i - 1].get("role") == "user"
-            ):
-                drop_indices.add(i - 1)
+            j = i - 1
+            while j >= 0 and isinstance(history[j], dict) and history[j].get("role") == "user":
+                drop_indices.add(j)
+                j -= 1
     return [turn for i, turn in enumerate(history) if i not in drop_indices]
 
 
