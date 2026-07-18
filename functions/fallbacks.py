@@ -12,7 +12,7 @@ import re
 # Owner-approved copy (2026-07-08) for the floor-must-reach-the-user
 # fallback (used both by the merge table's question->assessment override
 # and by degraded mode). Every fallback below has an EN and TL variant —
-# see _message_signals_tagalog for why: Gemini itself, the thing that
+# see message_signals_tagalog for why: Gemini itself, the thing that
 # normally mirrors the user's language, is exactly what's unavailable in
 # this path, so a cheap heuristic on the user's own words is the only
 # signal left for picking between them.
@@ -60,13 +60,13 @@ _TAGALOG_MARKER_WORDS = frozenset({
 _WORD_RE = re.compile(r"[A-Za-z']+")
 
 
-def _message_signals_tagalog(message: str) -> bool:
+def message_signals_tagalog(message: str) -> bool:
     words = {w.lower() for w in _WORD_RE.findall(message)}
     return not _TAGALOG_MARKER_WORDS.isdisjoint(words)
 
 
 def _pick_fallback_copy(message: str, *, en: str, tl: str) -> str:
-    return tl if _message_signals_tagalog(message) else en
+    return tl if message_signals_tagalog(message) else en
 
 
 def static_fallback_assessment(message: str) -> dict:
@@ -138,4 +138,21 @@ def degraded_error_payload(message: str) -> dict:
         "reassessment_reason": None,
         "proposed_card_action": "keep",
         "findings": [],
+    }
+
+
+# AGENT-DRAFTED — PENDING OWNER READ-ALOUD (design spec
+# 2026-07-17-visit-summary-design.md §6): NOT yet owner-approved, unlike
+# every other string in this file. Used only when a visit-summary
+# conversation consisted solely of a crisis exchange — nothing else to
+# summarize (run_visit_summary_pipeline's degenerate case, main.py).
+VISIT_SUMMARY_NO_CONTENT_EN = "No other symptoms were discussed in this conversation."
+VISIT_SUMMARY_NO_CONTENT_TL = "Wala nang ibang sintomas na napag-usapan sa kausapang ito."
+
+
+def visit_summary_no_content_payload(*, tagalog: bool) -> dict:
+    return {
+        "type": "visit_summary",
+        "summary": VISIT_SUMMARY_NO_CONTENT_TL if tagalog else VISIT_SUMMARY_NO_CONTENT_EN,
+        "questions_for_doctor": [],
     }

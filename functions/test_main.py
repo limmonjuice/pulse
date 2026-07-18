@@ -438,7 +438,7 @@ def test_matched_non_self_harm_question_is_overridden_to_assessment_mirrors_taga
     ],
 )
 def test_language_heuristic(message, expected):
-    assert fallbacks._message_signals_tagalog(message) is expected
+    assert fallbacks.message_signals_tagalog(message) is expected
 
 
 # ---------------------------------------------------------------------------
