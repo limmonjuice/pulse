@@ -877,3 +877,92 @@ def test_logging_includes_v2_structured_fields(monkeypatch, caplog):
     assert record.demoted is False
     assert record.reset_accepted is False
     assert record.deescalation_accepted is False
+
+
+# ---------------------------------------------------------------------------
+# Visit summary: crisis-exchange stripping (design spec §6)
+# ---------------------------------------------------------------------------
+
+from main import _strip_crisis_exchanges, _visit_summary_conversation_language
+
+
+def test_strip_crisis_exchanges_removes_crisis_reply_and_its_preceding_user_turn():
+    history = [
+        {"role": "user", "content": "I have a mild headache"},
+        {"role": "assistant", "content": "That sounds manageable.", "type": "conversation"},
+        {"role": "user", "content": "I want to kill myself"},
+        {"role": "assistant", "content": "I'm here for you.", "type": "crisis"},
+    ]
+    result = _strip_crisis_exchanges(history)
+    assert result == history[:2]
+
+
+def test_strip_crisis_exchanges_handles_multiple_crisis_turns():
+    history = [
+        {"role": "user", "content": "first crisis statement"},
+        {"role": "assistant", "content": "reply 1", "type": "crisis"},
+        {"role": "user", "content": "I'm okay now, just a headache"},
+        {"role": "assistant", "content": "Glad to hear it.", "type": "conversation"},
+        {"role": "user", "content": "second crisis statement"},
+        {"role": "assistant", "content": "reply 2", "type": "crisis"},
+    ]
+    result = _strip_crisis_exchanges(history)
+    assert result == history[2:4]
+
+
+def test_strip_crisis_exchanges_no_op_when_no_crisis_turn():
+    history = [
+        {"role": "user", "content": "I have a mild headache"},
+        {"role": "assistant", "content": "That sounds manageable.", "type": "conversation"},
+    ]
+    assert _strip_crisis_exchanges(history) == history
+
+
+def test_strip_crisis_exchanges_crisis_only_conversation_strips_to_empty():
+    history = [
+        {"role": "user", "content": "crisis statement"},
+        {"role": "assistant", "content": "reply", "type": "crisis"},
+    ]
+    assert _strip_crisis_exchanges(history) == []
+
+
+def test_strip_crisis_exchanges_handles_leading_crisis_turn_with_no_preceding_user_turn():
+    # Defensive: a crisis turn at index 0 has no preceding turn to drop.
+    history = [
+        {"role": "assistant", "content": "reply", "type": "crisis"},
+        {"role": "user", "content": "I'm okay now"},
+    ]
+    result = _strip_crisis_exchanges(history)
+    assert result == history[1:]
+
+
+def test_strip_crisis_exchanges_never_leaks_crisis_turn_text():
+    # The structural property (spec §6/§8), not just "the right length":
+    # assert the actual crisis-turn text and its paired user statement's
+    # text are both gone, not merely that *a* turn was removed.
+    history = [
+        {"role": "user", "content": "I want to end my life"},
+        {"role": "assistant", "content": "I'm here for you.", "type": "crisis"},
+        {"role": "user", "content": "a benign follow-up"},
+        {"role": "assistant", "content": "glad to hear it", "type": "conversation"},
+    ]
+    result = _strip_crisis_exchanges(history)
+    texts = [turn["content"] for turn in result]
+    assert "I want to end my life" not in texts
+    assert "I'm here for you." not in texts
+
+
+# ---------------------------------------------------------------------------
+# Visit summary: conversation-language derivation with no distinct "new
+# message" (design spec §4.2)
+# ---------------------------------------------------------------------------
+
+def test_visit_summary_conversation_language_derives_from_history_alone():
+    history = [
+        {"role": "user", "content": "Masakit ang ulo ko simula kagabi pa"},
+    ]
+    assert _visit_summary_conversation_language(history) == "tagalog"
+
+
+def test_visit_summary_conversation_language_none_on_empty_history():
+    assert _visit_summary_conversation_language([]) is None

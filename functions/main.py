@@ -134,6 +134,42 @@ def _conversation_language(message: str, history: list[dict]) -> str | None:
             return detected
     return newest_confident
 
+
+def _strip_crisis_exchanges(history: list[dict]) -> list[dict]:
+    """Removes each assistant turn with type == "crisis" AND the user
+    turn immediately preceding it (design spec §6). Message.toHistoryJson()
+    on the client only ever tags `type` on assistant turns — the
+    preceding user turn is an untagged {"role": "user", "content": ...}
+    entry, so a filter that only drops type == "crisis" entries would
+    leave the triggering statement in the transcript. Applied for every
+    crisis turn in the conversation, not just the first — this is the
+    server-side half of the two-strip-points design (the client runs the
+    same rule before the request is ever sent; this re-strip does not
+    assume the client did its part correctly)."""
+    drop_indices: set[int] = set()
+    for i, turn in enumerate(history):
+        if (
+            isinstance(turn, dict)
+            and turn.get("role") == "assistant"
+            and turn.get("type") == "crisis"
+        ):
+            drop_indices.add(i)
+            if i > 0 and history[i - 1].get("role") == "user":
+                drop_indices.add(i - 1)
+    return [turn for i, turn in enumerate(history) if i not in drop_indices]
+
+
+def _visit_summary_conversation_language(history: list[dict]) -> str | None:
+    """Reuses _conversation_language's deterministic derivation for a
+    transcript with no distinct "new message" — generate_visit_summary is
+    retrospective, not a live turn. Passing message="" is safe:
+    mirror_probes.detect_language("") always returns "unknown" (an empty
+    string never confidently classifies), so the newest-turn-first walk
+    falls straight through to history's own user turns, exactly as
+    intended."""
+    return _conversation_language(message="", history=history)
+
+
 logger = logging.getLogger("pulse.assess_symptoms")
 
 
