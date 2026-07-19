@@ -1162,3 +1162,130 @@ def test_run_visit_summary_pipeline_returns_error_type_on_unexpected_exception(m
     ]
     result = run_visit_summary_pipeline(history=history, final_urgency="monitor_at_home")
     assert result["type"] == "error"
+
+
+# ---------------------------------------------------------------------------
+# Visit summary: run_visit_summary_pipeline logging (mirrors run_pipeline's
+# caplog-based logging tests above — same logger, same at_level convention)
+# ---------------------------------------------------------------------------
+
+def test_run_visit_summary_pipeline_logging_degenerate_case_english(monkeypatch, caplog):
+    _mock_get_visit_summary(monkeypatch, VALID_VISIT_SUMMARY)
+    history = [
+        {"role": "user", "content": "I want to end my life"},
+        {"role": "assistant", "content": "I'm here for you.", "type": "crisis"},
+    ]
+    with caplog.at_level(logging.INFO, logger=main.logger.name):
+        run_visit_summary_pipeline(history=history, final_urgency=None)
+    assert len(caplog.records) == 1
+    record = caplog.records[0]
+    assert record.degenerate is True
+    assert record.conversation_language == "english"
+    assert record.retry_used is False
+    assert record.blocklist_triggered is False
+
+
+def test_run_visit_summary_pipeline_logging_degenerate_case_tagalog(monkeypatch, caplog):
+    _mock_get_visit_summary(monkeypatch, VALID_VISIT_SUMMARY)
+    history = [
+        {"role": "user", "content": "Gusto ko nang mamatay"},
+        {"role": "assistant", "content": "Nandito ako para sa'yo.", "type": "crisis"},
+    ]
+    with caplog.at_level(logging.INFO, logger=main.logger.name):
+        run_visit_summary_pipeline(history=history, final_urgency=None)
+    assert len(caplog.records) == 1
+    record = caplog.records[0]
+    assert record.degenerate is True
+    assert record.conversation_language == "tagalog"
+
+
+def test_run_visit_summary_pipeline_logging_blocklist_triggered_on_tier_language_detected(monkeypatch, caplog):
+    # exc.__cause__ must actually be a TierLanguageDetectedError instance —
+    # unlike the other ModelResponseError tests in this file, which raise it
+    # bare (no cause), to prove blocklist_triggered discriminates on the
+    # real cause chain rather than on ModelResponseError alone.
+    def _raise(*args, **kwargs):
+        try:
+            raise gemini_client.TierLanguageDetectedError("tier language detected")
+        except gemini_client.TierLanguageDetectedError as exc:
+            raise gemini_client.ModelResponseError("boom") from exc
+
+    _mock_get_visit_summary(monkeypatch, _raise)
+    history = [
+        {"role": "user", "content": "I have a mild headache since this morning"},
+        {
+            "role": "assistant", "content": "Noted.", "type": "assessment",
+            "urgency": "monitor_at_home", "findings": [], "explanation": None,
+            "next_step": None,
+        },
+    ]
+    with caplog.at_level(logging.INFO, logger=main.logger.name):
+        run_visit_summary_pipeline(history=history, final_urgency="monitor_at_home")
+    assert len(caplog.records) == 1
+    record = caplog.records[0]
+    assert record.blocklist_triggered is True
+    assert record.retry_used is True
+    assert record.degenerate is False
+    assert record.conversation_language == "english"
+
+
+def test_run_visit_summary_pipeline_logging_schema_failure_is_not_blocklist_triggered(monkeypatch, caplog):
+    _mock_get_visit_summary(monkeypatch, lambda *a, **k: (_ for _ in ()).throw(gemini_client.ModelResponseError("boom")))
+    history = [
+        {"role": "user", "content": "I have a mild headache since this morning"},
+        {
+            "role": "assistant", "content": "Noted.", "type": "assessment",
+            "urgency": "monitor_at_home", "findings": [], "explanation": None,
+            "next_step": None,
+        },
+    ]
+    with caplog.at_level(logging.INFO, logger=main.logger.name):
+        run_visit_summary_pipeline(history=history, final_urgency="monitor_at_home")
+    assert caplog.records[0].blocklist_triggered is False
+
+
+def test_run_visit_summary_pipeline_logging_generic_failure_reports_fields(monkeypatch, caplog):
+    _mock_get_visit_summary(monkeypatch, lambda *a, **k: (_ for _ in ()).throw(RuntimeError("503")))
+    history = [
+        {"role": "user", "content": "I have a mild headache since this morning"},
+        {
+            "role": "assistant", "content": "Noted.", "type": "assessment",
+            "urgency": "monitor_at_home", "findings": [], "explanation": None,
+            "next_step": None,
+        },
+    ]
+    with caplog.at_level(logging.INFO, logger=main.logger.name):
+        run_visit_summary_pipeline(history=history, final_urgency="monitor_at_home")
+    # The generic except block also calls logger.exception, which emits its
+    # own ERROR record alongside the structured INFO one — filter to the
+    # structured log line rather than assuming it's the only record.
+    structured = [
+        r for r in caplog.records
+        if r.getMessage() == "generate_visit_summary request completed"
+    ]
+    assert len(structured) == 1
+    record = structured[0]
+    assert record.retry_used is False
+    assert record.blocklist_triggered is False
+    assert record.degenerate is False
+    assert record.conversation_language == "english"
+
+
+def test_run_visit_summary_pipeline_logging_reports_retry_used_on_success(monkeypatch, caplog):
+    payload = {**VALID_VISIT_SUMMARY, "_retry_used": True}
+    _mock_get_visit_summary(monkeypatch, payload)
+    history = [
+        {"role": "user", "content": "I have a mild headache since this morning"},
+        {
+            "role": "assistant", "content": "That sounds manageable.",
+            "type": "assessment", "urgency": "monitor_at_home",
+            "findings": ["mild headache"], "explanation": "e", "next_step": "n",
+        },
+    ]
+    with caplog.at_level(logging.INFO, logger=main.logger.name):
+        run_visit_summary_pipeline(history=history, final_urgency="monitor_at_home")
+    assert len(caplog.records) == 1
+    record = caplog.records[0]
+    assert record.retry_used is True
+    assert record.blocklist_triggered is False
+    assert record.degenerate is False

@@ -472,15 +472,19 @@ def _log_visit_summary_request(
     )
 
 
+def _visit_summary_metadata() -> dict:
+    return {
+        "prompt_version": visit_summary_prompt.PROMPT_VERSION,
+        "model_name": gemini_client.MODEL_NAME,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 def _visit_summary_error_response() -> dict:
     return {
         "type": "error",
         "message": "Couldn't put together a visit summary right now — try again in a bit.",
-        "metadata": {
-            "prompt_version": visit_summary_prompt.PROMPT_VERSION,
-            "model_name": gemini_client.MODEL_NAME,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-        },
+        "metadata": _visit_summary_metadata(),
     }
 
 
@@ -524,11 +528,7 @@ def run_visit_summary_pipeline(
         payload = fallbacks.visit_summary_no_content_payload(tagalog=tagalog)
         return {
             **payload,
-            "metadata": {
-                "prompt_version": visit_summary_prompt.PROMPT_VERSION,
-                "model_name": gemini_client.MODEL_NAME,
-                "generated_at": datetime.now(timezone.utc).isoformat(),
-            },
+            "metadata": _visit_summary_metadata(),
         }
 
     conversation_language = _visit_summary_conversation_language(stripped_history)
@@ -563,11 +563,7 @@ def run_visit_summary_pipeline(
         "type": "visit_summary",
         "summary": result["summary"],
         "questions_for_doctor": result["questions_for_doctor"],
-        "metadata": {
-            "prompt_version": visit_summary_prompt.PROMPT_VERSION,
-            "model_name": gemini_client.MODEL_NAME,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-        },
+        "metadata": _visit_summary_metadata(),
     }
 
 
