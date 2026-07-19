@@ -607,16 +607,46 @@ locked:
   this Tagalog" doesn't touch the no-paraphrase guarantee above, since
   nothing from that text is echoed, generated from, or exposed — only a
   two-way enum choice comes out the other side.
-- **Crisis-only-conversation edge case, resolved now**: if the *only*
-  assessment-shaped turn was a crisis turn, `finalUrgency` is null and
-  the header renders just the crisis-mention line with no tier badge —
-  not a blank header, not a crash. `final_urgency: null` is sent to
-  `generate_visit_summary` in this state (§4.1); if crisis-stripping also
-  leaves the transcript otherwise empty, the backend's degenerate-case
-  handling (§4.1) applies. The visit-summary screen stays reachable for
-  crisis-containing conversations (the point of excluding-with-mention
-  over disabling the feature entirely, §2 goal 4) — this is exactly the
-  state that path has to handle.
+- **The sticky crisis lock means "strip everything after the lock" and
+  "crisis-only conversation" are the same behavior at different points
+  in the conversation — written down here as one rule, not two a future
+  reader has to reconcile.** `safety_engine.py`'s crisis lock is
+  absorbing: once a crisis turn occurs anywhere in a conversation, every
+  subsequent assistant reply is force-labeled `type: "crisis"` for the
+  rest of that conversation (`episode_state.py`: "a reset never clears
+  crisis"). Since crisis-exchange stripping (above) removes every
+  crisis-tagged exchange, this strips everything from the lock's first
+  trigger onward, not just one exchange. The crisis-only-conversation
+  case — crisis is the *first* turn, so the lock triggers immediately —
+  is simply the earliest possible point that can happen at; a crisis
+  triggered mid-conversation produces the identical shape, just with
+  real content preserved *before* the lock and nothing preserved after
+  it. In both cases: `finalUrgency` reflects only what happened before
+  any crisis turn (null if nothing did), the crisis-mention line always
+  renders when `hadCrisisTurn`, and if crisis-stripping leaves the
+  transcript empty — crisis was the only content, or the only content
+  after the last non-crisis assessment — the backend's degenerate-case
+  handling (§4.1) applies. The visit-summary screen stays reachable and
+  useful (deterministic facts, crisis-mention line, no tier badge when
+  `finalUrgency` is null) even when there's nothing left for the model
+  to summarize — the point of excluding-with-mention over disabling the
+  feature entirely (§2 goal 4).
+
+  **Accepted for v1, not worked around**: a conversation that touches
+  crisis and continues with genuine, unrelated symptoms afterward will
+  have that later content excluded from the visit summary too — the
+  lock never distinguishes "the real crisis exchange" from "a later
+  reply merely relabeled by the sticky lock." The correct product answer
+  lives one level up, not in this feature's stripping logic: a person
+  with a genuine new concern after a crisis conversation should start a
+  new conversation — fresh lock state, full triage available, a clean
+  summary. That's clinically correct (the crisis conversation stays
+  private) and correct for the document (the symptom conversation stays
+  useful). Once persistence lands (episode data model), this gets
+  structurally cleaner: separate episodes, separate summaries. A gentle
+  in-app nudge toward starting a new conversation is a real idea, but
+  it's a copy decision for the mental-health-review pile (§9), not v1
+  logic — see the backlog note.
 - This gets the standing mental-health-review flag alongside the crisis
   card and crisis prompt copy — carried into the deploy-gates note for
   this feature (§9), same tracking discipline as other crisis-adjacent
@@ -730,6 +760,12 @@ locked:
 - **Ilocano tier-language blocklist entries** — drafted, needs the same
   clinician review pass as other Ilocano copy in this project before
   shipping.
+- **Post-crisis new-conversation affordance (copy, not logic).** A
+  gentle in-app nudge suggesting a person start a new conversation when
+  they have a separate, genuine concern after a crisis exchange (§6's
+  sticky-lock note) — drafted for the mental-health reviewer's queue
+  alongside the other AGENT-DRAFTED crisis-adjacent strings, not v1
+  scope.
 - **Deploy gate**: this feature's crisis-handling (§6) joins the crisis
   card and crisis prompt copy on the standing mental-health-review flag
   before launch. Concretely: the four AGENT-DRAFTED — PENDING OWNER
