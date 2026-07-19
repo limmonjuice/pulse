@@ -592,21 +592,49 @@ locked:
   generated.
 
   **Same treatment for §4.1's degenerate-case string**, which was
-  English-only and unaddressed until now:
+  English-only and unaddressed until first written:
 
-  > **EN** (draft): "No other symptoms were discussed in this
-  > conversation."
-  > **TL** (draft): "Wala nang ibang sintomas na napag-usapan sa
-  > kausapang ito."
+  > **`visitSummaryNoContentEn`**: "No other symptoms were discussed in
+  > this conversation."
+  > **`visitSummaryNoContentTl`**: "Wala nang ibang sintomas na
+  > napag-usapan sa kausapang ito."
 
-  Also AGENT-DRAFTED — PENDING OWNER READ-ALOUD. Selection here can't
-  use the crisis-stripped `history` (§4.1's whole point is that it's
-  empty in this case) — `run_visit_summary_pipeline` classifies
-  language from the **pre-strip** history instead, for classification
-  only, never reproduction: reading crisis-turn text to decide "was
-  this Tagalog" doesn't touch the no-paraphrase guarantee above, since
-  nothing from that text is echoed, generated from, or exposed — only a
-  two-way enum choice comes out the other side.
+  Also AGENT-DRAFTED — PENDING OWNER READ-ALOUD. **Revised after the
+  final whole-branch review found the original design here was dead on
+  arrival.** The original plan was for `run_visit_summary_pipeline` to
+  classify language from the request's **pre-strip** history (the
+  history as received, before the server's own
+  `_strip_crisis_exchanges` runs) — reasoning that the crisis-stripped
+  history is empty by definition in the degenerate case, so there'd be
+  nothing left to classify from otherwise. That reasoning assumed a
+  client could plausibly send unstripped history; in practice the real
+  client (`VisitSummaryController.generate()`, §5.2) always strips
+  client-side *before building the request at all*, so the server's
+  "pre-strip" history is already empty on arrival for every degenerate
+  case the real client produces — the Tagalog branch was unreachable,
+  and a Tagalog crisis-only conversation would render the (correctly
+  Tagalog) crisis-mention line directly above an always-English
+  no-content line.
+
+  Fixed by moving degenerate-case detection and language selection
+  client-side, where the real signal already lives:
+  `VisitSummaryController.generate()` checks
+  `stripCrisisExchanges(messages).isEmpty` immediately after computing
+  it — before entering `AsyncLoading` or touching the repository at
+  all — and if true, resolves the state locally rather than making a
+  network call. The EN/TL choice reuses the exact signal the
+  crisis-mention banner above already used
+  (`VisitSummaryFacts.fromMessages(messages).crisisMentionText ==
+  crisisMentionTl`), so the banner and the no-content line are
+  structurally guaranteed to agree in language — they're now the same
+  decision, not two heuristics that happen to usually align. This also
+  removes a pointless round-trip for a conversation with nothing to
+  summarize.
+  `run_visit_summary_pipeline`'s server-side degenerate-case handling
+  (§4.1) is left as-is, not deleted: it remains correct, tested
+  behavior and a reasonable defense-in-depth backstop for a
+  hypothetical non-compliant client that skips the client-side strip —
+  it's simply no longer on the path the real client exercises.
 - **The sticky crisis lock means "strip everything after the lock" and
   "crisis-only conversation" are the same behavior at different points
   in the conversation — written down here as one rule, not two a future
