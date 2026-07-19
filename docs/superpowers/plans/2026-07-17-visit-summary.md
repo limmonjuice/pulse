@@ -2019,6 +2019,18 @@ void main() {
       ];
       expect(stripCrisisExchanges(messages), messages);
     });
+
+    test('drops all contiguous preceding user turns, not just the nearest one', () {
+      // Mirrors main.py's test_strip_crisis_exchanges_drops_all_contiguous_preceding_user_turns
+      // (Task 6) — a malformed/tampered history with two consecutive
+      // user turns before the crisis reply must not leak the earlier one.
+      final stripped = stripCrisisExchanges([
+        Message.user('I want to kill myself tonight'),
+        Message.user('sorry, ignore that, just kidding'),
+        _crisis(),
+      ]);
+      expect(stripped, isEmpty);
+    });
   });
 }
 ```
@@ -2168,10 +2180,17 @@ class VisitSummaryFacts {
   }
 }
 
-/// Removes each assistant turn with type == ChatTurnType.crisis and the
-/// user turn immediately preceding it — the client-side half of the
-/// two-strip-points design (design spec §6). Mirrors main.py's
-/// _strip_crisis_exchanges exactly. Used by VisitSummaryController
+/// Removes each assistant turn with type == ChatTurnType.crisis and
+/// every contiguous user turn immediately preceding it — the
+/// client-side half of the two-strip-points design (design spec §6).
+/// Mirrors main.py's _strip_crisis_exchanges exactly, including its
+/// walk-back-through-all-consecutive-user-turns fix (functions/main.py
+/// commit 755ba64, applied after Task 6's code review found that
+/// stripping only the single nearest preceding turn under-strips a
+/// malformed/tampered history with two or more consecutive user turns
+/// before the crisis reply). A well-formed history has exactly one user
+/// turn before a crisis reply, but this re-strip doesn't assume the
+/// history it's given is well-formed. Used by VisitSummaryController
 /// before sending the request; NOT used by VisitSummaryFacts.fromMessages
 /// above, which needs the original, unstripped messages to detect
 /// hadCrisisTurn in the first place.
@@ -2180,8 +2199,10 @@ List<Message> stripCrisisExchanges(List<Message> messages) {
   for (var i = 0; i < messages.length; i++) {
     if (messages[i].payload?.type == ChatTurnType.crisis) {
       dropIndices.add(i);
-      if (i > 0 && messages[i - 1].role == MessageRole.user) {
-        dropIndices.add(i - 1);
+      var j = i - 1;
+      while (j >= 0 && messages[j].role == MessageRole.user) {
+        dropIndices.add(j);
+        j--;
       }
     }
   }
