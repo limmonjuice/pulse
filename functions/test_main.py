@@ -438,7 +438,7 @@ def test_matched_non_self_harm_question_is_overridden_to_assessment_mirrors_taga
     ],
 )
 def test_language_heuristic(message, expected):
-    assert fallbacks._message_signals_tagalog(message) is expected
+    assert fallbacks.message_signals_tagalog(message) is expected
 
 
 # ---------------------------------------------------------------------------
@@ -877,3 +877,458 @@ def test_logging_includes_v2_structured_fields(monkeypatch, caplog):
     assert record.demoted is False
     assert record.reset_accepted is False
     assert record.deescalation_accepted is False
+
+
+# ---------------------------------------------------------------------------
+# Visit summary: crisis-exchange stripping (design spec §6)
+# ---------------------------------------------------------------------------
+
+from main import _strip_crisis_exchanges, _visit_summary_conversation_language
+
+
+def test_strip_crisis_exchanges_removes_crisis_reply_and_its_preceding_user_turn():
+    history = [
+        {"role": "user", "content": "I have a mild headache"},
+        {"role": "assistant", "content": "That sounds manageable.", "type": "conversation"},
+        {"role": "user", "content": "I want to kill myself"},
+        {"role": "assistant", "content": "I'm here for you.", "type": "crisis"},
+    ]
+    result = _strip_crisis_exchanges(history)
+    assert result == history[:2]
+
+
+def test_strip_crisis_exchanges_handles_multiple_crisis_turns():
+    history = [
+        {"role": "user", "content": "first crisis statement"},
+        {"role": "assistant", "content": "reply 1", "type": "crisis"},
+        {"role": "user", "content": "I'm okay now, just a headache"},
+        {"role": "assistant", "content": "Glad to hear it.", "type": "conversation"},
+        {"role": "user", "content": "second crisis statement"},
+        {"role": "assistant", "content": "reply 2", "type": "crisis"},
+    ]
+    result = _strip_crisis_exchanges(history)
+    assert result == history[2:4]
+
+
+def test_strip_crisis_exchanges_no_op_when_no_crisis_turn():
+    history = [
+        {"role": "user", "content": "I have a mild headache"},
+        {"role": "assistant", "content": "That sounds manageable.", "type": "conversation"},
+    ]
+    assert _strip_crisis_exchanges(history) == history
+
+
+def test_strip_crisis_exchanges_crisis_only_conversation_strips_to_empty():
+    history = [
+        {"role": "user", "content": "crisis statement"},
+        {"role": "assistant", "content": "reply", "type": "crisis"},
+    ]
+    assert _strip_crisis_exchanges(history) == []
+
+
+def test_strip_crisis_exchanges_handles_leading_crisis_turn_with_no_preceding_user_turn():
+    # Defensive: a crisis turn at index 0 has no preceding turn to drop.
+    history = [
+        {"role": "assistant", "content": "reply", "type": "crisis"},
+        {"role": "user", "content": "I'm okay now"},
+    ]
+    result = _strip_crisis_exchanges(history)
+    assert result == history[1:]
+
+
+def test_strip_crisis_exchanges_never_leaks_crisis_turn_text():
+    # The structural property (spec §6/§8), not just "the right length":
+    # assert the actual crisis-turn text and its paired user statement's
+    # text are both gone, not merely that *a* turn was removed.
+    history = [
+        {"role": "user", "content": "I want to end my life"},
+        {"role": "assistant", "content": "I'm here for you.", "type": "crisis"},
+        {"role": "user", "content": "a benign follow-up"},
+        {"role": "assistant", "content": "glad to hear it", "type": "conversation"},
+    ]
+    result = _strip_crisis_exchanges(history)
+    texts = [turn["content"] for turn in result]
+    assert "I want to end my life" not in texts
+    assert "I'm here for you." not in texts
+
+
+def test_strip_crisis_exchanges_tolerates_malformed_preceding_turn():
+    # A malformed (non-dict) entry immediately before a crisis turn must
+    # not crash the strip — it's client-supplied JSON, and the whole
+    # point of this server-side re-strip is not trusting the client. The
+    # crisis turn itself is still dropped; the malformed entry can't be
+    # safely identified as "the preceding user turn" so it is left alone.
+    history = [
+        "not a dict",
+        {"role": "assistant", "content": "reply", "type": "crisis"},
+        {"role": "user", "content": "a benign follow-up"},
+    ]
+    result = _strip_crisis_exchanges(history)
+    assert result == ["not a dict", {"role": "user", "content": "a benign follow-up"}]
+
+
+def test_strip_crisis_exchanges_drops_all_contiguous_preceding_user_turns():
+    # A malformed/tampered-client history could have more than one
+    # consecutive user turn before a crisis reply. Only stripping the
+    # nearest one would leak the earlier (possibly crisis-triggering)
+    # statement into the transcript. Both must go.
+    history = [
+        {"role": "user", "content": "I want to kill myself tonight"},
+        {"role": "user", "content": "sorry, ignore that, just kidding"},
+        {"role": "assistant", "content": "I am here for you.", "type": "crisis"},
+    ]
+    result = _strip_crisis_exchanges(history)
+    assert result == []
+
+
+# ---------------------------------------------------------------------------
+# Visit summary: conversation-language derivation with no distinct "new
+# message" (design spec §4.2)
+# ---------------------------------------------------------------------------
+
+def test_visit_summary_conversation_language_derives_from_history_alone():
+    history = [
+        {"role": "user", "content": "Masakit ang ulo ko simula kagabi pa"},
+    ]
+    assert _visit_summary_conversation_language(history) == "tagalog"
+
+
+def test_visit_summary_conversation_language_none_on_empty_history():
+    assert _visit_summary_conversation_language([]) is None
+
+
+# ---------------------------------------------------------------------------
+# Visit summary: run_visit_summary_pipeline
+# ---------------------------------------------------------------------------
+
+import visit_summary_prompt
+from main import run_visit_summary_pipeline
+
+
+def _mock_get_visit_summary(monkeypatch, payload_or_fn):
+    if callable(payload_or_fn) and not isinstance(payload_or_fn, dict):
+        fn = payload_or_fn
+    else:
+        fn = lambda *args, **kwargs: dict(payload_or_fn)
+    monkeypatch.setattr(main.gemini_client, "get_visit_summary", fn)
+
+
+VALID_VISIT_SUMMARY = {
+    "summary": "The conversation covered a mild headache.",
+    "questions_for_doctor": ["Could this be related to sleep?"],
+}
+
+
+def test_run_visit_summary_pipeline_returns_narrative_on_success(monkeypatch):
+    _mock_get_visit_summary(monkeypatch, VALID_VISIT_SUMMARY)
+    history = [
+        {"role": "user", "content": "I have a mild headache since this morning"},
+        {
+            "role": "assistant", "content": "That sounds manageable.",
+            "type": "assessment", "urgency": "monitor_at_home",
+            "findings": ["mild headache"], "explanation": "e", "next_step": "n",
+        },
+    ]
+    result = run_visit_summary_pipeline(history=history, final_urgency="monitor_at_home")
+    assert result["type"] == "visit_summary"
+    assert result["summary"] == VALID_VISIT_SUMMARY["summary"]
+    assert result["questions_for_doctor"] == VALID_VISIT_SUMMARY["questions_for_doctor"]
+    assert result["metadata"]["prompt_version"] == visit_summary_prompt.PROMPT_VERSION
+    assert result["metadata"]["model_name"] == gemini_client.MODEL_NAME
+    assert "generated_at" in result["metadata"]
+
+
+def test_run_visit_summary_pipeline_strips_crisis_exchanges_before_calling_gemini(monkeypatch):
+    captured = {}
+
+    def _capture(prompt, history):
+        captured["history"] = history
+        return dict(VALID_VISIT_SUMMARY)
+
+    _mock_get_visit_summary(monkeypatch, _capture)
+    history = [
+        {"role": "user", "content": "I want to end my life"},
+        {"role": "assistant", "content": "I'm here for you.", "type": "crisis"},
+        {"role": "user", "content": "I have a mild headache since this morning"},
+        {
+            "role": "assistant", "content": "That sounds manageable.",
+            "type": "assessment", "urgency": "monitor_at_home",
+            "findings": [], "explanation": None, "next_step": None,
+        },
+    ]
+    run_visit_summary_pipeline(history=history, final_urgency="monitor_at_home")
+    sent_texts = [turn["content"] for turn in captured["history"]]
+    assert "I want to end my life" not in sent_texts
+    assert "I'm here for you." not in sent_texts
+
+
+def test_run_visit_summary_pipeline_degenerate_case_skips_gemini_entirely(monkeypatch):
+    calls = []
+    _mock_get_visit_summary(monkeypatch, lambda *a, **k: calls.append(1) or dict(VALID_VISIT_SUMMARY))
+    history = [
+        {"role": "user", "content": "I want to end my life"},
+        {"role": "assistant", "content": "I'm here for you.", "type": "crisis"},
+    ]
+    result = run_visit_summary_pipeline(history=history, final_urgency=None)
+    assert calls == []  # gemini_client.get_visit_summary never called
+    assert result["type"] == "visit_summary"
+    assert result["summary"] == fallbacks.VISIT_SUMMARY_NO_CONTENT_EN
+    assert result["questions_for_doctor"] == []
+
+
+def test_run_visit_summary_pipeline_degenerate_case_picks_tagalog_from_pre_strip_history(monkeypatch):
+    _mock_get_visit_summary(monkeypatch, lambda *a, **k: dict(VALID_VISIT_SUMMARY))
+    history = [
+        {"role": "user", "content": "Gusto ko nang mamatay"},
+        {"role": "assistant", "content": "Nandito ako para sa'yo.", "type": "crisis"},
+    ]
+    result = run_visit_summary_pipeline(history=history, final_urgency=None)
+    assert result["summary"] == fallbacks.VISIT_SUMMARY_NO_CONTENT_TL
+
+
+def test_run_visit_summary_pipeline_accepts_null_final_urgency(monkeypatch):
+    _mock_get_visit_summary(monkeypatch, VALID_VISIT_SUMMARY)
+    history = [
+        {"role": "user", "content": "I want to end my life"},
+        {"role": "assistant", "content": "I'm here for you.", "type": "crisis"},
+        {"role": "user", "content": "actually just a mild headache too"},
+        {
+            "role": "assistant", "content": "Noted.", "type": "assessment",
+            "urgency": "monitor_at_home", "findings": [], "explanation": None,
+            "next_step": None,
+        },
+    ]
+    result = run_visit_summary_pipeline(history=history, final_urgency=None)
+    assert result["type"] == "visit_summary"
+
+
+def test_run_visit_summary_pipeline_grounds_the_prompt_with_final_urgency(monkeypatch):
+    # final_urgency is grounding for the model, not just a validated
+    # pass-through (design spec §4.1/§4.5) — assert it actually reaches
+    # build_system_prompt, not just that the call succeeds.
+    captured = {}
+
+    def _capture(prompt, history):
+        captured["prompt"] = prompt
+        return dict(VALID_VISIT_SUMMARY)
+
+    _mock_get_visit_summary(monkeypatch, _capture)
+    history = [
+        {"role": "user", "content": "I have a mild headache since this morning"},
+        {
+            "role": "assistant", "content": "Noted.", "type": "assessment",
+            "urgency": "see_doctor_soon", "findings": [], "explanation": None,
+            "next_step": None,
+        },
+    ]
+    run_visit_summary_pipeline(history=history, final_urgency="see_doctor_soon")
+    assert "see_doctor_soon" in captured["prompt"]
+
+
+def test_run_visit_summary_pipeline_rejects_oversized_history():
+    history = [{"role": "user", "content": "hi"}] * (main.MAX_ACCEPTED_HISTORY_TURNS + 1)
+    with pytest.raises(InvalidRequestError):
+        run_visit_summary_pipeline(history=history, final_urgency=None)
+
+
+def test_run_visit_summary_pipeline_rejects_invalid_final_urgency():
+    with pytest.raises(InvalidRequestError):
+        run_visit_summary_pipeline(history=[], final_urgency="call_911")
+
+
+def test_run_visit_summary_pipeline_returns_error_type_on_model_response_error(monkeypatch):
+    _mock_get_visit_summary(monkeypatch, lambda *a, **k: (_ for _ in ()).throw(gemini_client.ModelResponseError("boom")))
+    history = [
+        {"role": "user", "content": "I have a mild headache since this morning"},
+        {
+            "role": "assistant", "content": "Noted.", "type": "assessment",
+            "urgency": "monitor_at_home", "findings": [], "explanation": None,
+            "next_step": None,
+        },
+    ]
+    result = run_visit_summary_pipeline(history=history, final_urgency="monitor_at_home")
+    assert result["type"] == "error"
+
+
+def test_run_visit_summary_pipeline_returns_error_type_on_unexpected_exception(monkeypatch):
+    _mock_get_visit_summary(monkeypatch, lambda *a, **k: (_ for _ in ()).throw(RuntimeError("503")))
+    history = [
+        {"role": "user", "content": "I have a mild headache since this morning"},
+        {
+            "role": "assistant", "content": "Noted.", "type": "assessment",
+            "urgency": "monitor_at_home", "findings": [], "explanation": None,
+            "next_step": None,
+        },
+    ]
+    result = run_visit_summary_pipeline(history=history, final_urgency="monitor_at_home")
+    assert result["type"] == "error"
+
+
+# ---------------------------------------------------------------------------
+# Visit summary: run_visit_summary_pipeline logging (mirrors run_pipeline's
+# caplog-based logging tests above — same logger, same at_level convention)
+# ---------------------------------------------------------------------------
+
+def test_run_visit_summary_pipeline_logging_degenerate_case_english(monkeypatch, caplog):
+    _mock_get_visit_summary(monkeypatch, VALID_VISIT_SUMMARY)
+    history = [
+        {"role": "user", "content": "I want to end my life"},
+        {"role": "assistant", "content": "I'm here for you.", "type": "crisis"},
+    ]
+    with caplog.at_level(logging.INFO, logger=main.logger.name):
+        run_visit_summary_pipeline(history=history, final_urgency=None)
+    assert len(caplog.records) == 1
+    record = caplog.records[0]
+    assert record.degenerate is True
+    assert record.conversation_language == "english"
+    assert record.retry_used is False
+    assert record.blocklist_triggered is False
+
+
+def test_run_visit_summary_pipeline_logging_degenerate_case_tagalog(monkeypatch, caplog):
+    _mock_get_visit_summary(monkeypatch, VALID_VISIT_SUMMARY)
+    history = [
+        {"role": "user", "content": "Gusto ko nang mamatay"},
+        {"role": "assistant", "content": "Nandito ako para sa'yo.", "type": "crisis"},
+    ]
+    with caplog.at_level(logging.INFO, logger=main.logger.name):
+        run_visit_summary_pipeline(history=history, final_urgency=None)
+    assert len(caplog.records) == 1
+    record = caplog.records[0]
+    assert record.degenerate is True
+    assert record.conversation_language == "tagalog"
+
+
+def test_run_visit_summary_pipeline_logging_blocklist_triggered_on_tier_language_detected(monkeypatch, caplog):
+    # exc.__cause__ must actually be a TierLanguageDetectedError instance —
+    # unlike the other ModelResponseError tests in this file, which raise it
+    # bare (no cause), to prove blocklist_triggered discriminates on the
+    # real cause chain rather than on ModelResponseError alone.
+    def _raise(*args, **kwargs):
+        try:
+            raise gemini_client.TierLanguageDetectedError("tier language detected")
+        except gemini_client.TierLanguageDetectedError as exc:
+            raise gemini_client.ModelResponseError("boom") from exc
+
+    _mock_get_visit_summary(monkeypatch, _raise)
+    history = [
+        {"role": "user", "content": "I have a mild headache since this morning"},
+        {
+            "role": "assistant", "content": "Noted.", "type": "assessment",
+            "urgency": "monitor_at_home", "findings": [], "explanation": None,
+            "next_step": None,
+        },
+    ]
+    with caplog.at_level(logging.INFO, logger=main.logger.name):
+        run_visit_summary_pipeline(history=history, final_urgency="monitor_at_home")
+    assert len(caplog.records) == 1
+    record = caplog.records[0]
+    assert record.blocklist_triggered is True
+    assert record.retry_used is True
+    assert record.degenerate is False
+    assert record.conversation_language == "english"
+
+
+def test_run_visit_summary_pipeline_logging_schema_failure_is_not_blocklist_triggered(monkeypatch, caplog):
+    _mock_get_visit_summary(monkeypatch, lambda *a, **k: (_ for _ in ()).throw(gemini_client.ModelResponseError("boom")))
+    history = [
+        {"role": "user", "content": "I have a mild headache since this morning"},
+        {
+            "role": "assistant", "content": "Noted.", "type": "assessment",
+            "urgency": "monitor_at_home", "findings": [], "explanation": None,
+            "next_step": None,
+        },
+    ]
+    with caplog.at_level(logging.INFO, logger=main.logger.name):
+        run_visit_summary_pipeline(history=history, final_urgency="monitor_at_home")
+    assert caplog.records[0].blocklist_triggered is False
+
+
+def test_run_visit_summary_pipeline_logging_generic_failure_reports_fields(monkeypatch, caplog):
+    _mock_get_visit_summary(monkeypatch, lambda *a, **k: (_ for _ in ()).throw(RuntimeError("503")))
+    history = [
+        {"role": "user", "content": "I have a mild headache since this morning"},
+        {
+            "role": "assistant", "content": "Noted.", "type": "assessment",
+            "urgency": "monitor_at_home", "findings": [], "explanation": None,
+            "next_step": None,
+        },
+    ]
+    with caplog.at_level(logging.INFO, logger=main.logger.name):
+        run_visit_summary_pipeline(history=history, final_urgency="monitor_at_home")
+    # The generic except block also calls logger.exception, which emits its
+    # own ERROR record alongside the structured INFO one — filter to the
+    # structured log line rather than assuming it's the only record.
+    structured = [
+        r for r in caplog.records
+        if r.getMessage() == "generate_visit_summary request completed"
+    ]
+    assert len(structured) == 1
+    record = structured[0]
+    assert record.retry_used is False
+    assert record.blocklist_triggered is False
+    assert record.degenerate is False
+    assert record.conversation_language == "english"
+
+
+def test_run_visit_summary_pipeline_logging_reports_retry_used_on_success(monkeypatch, caplog):
+    payload = {**VALID_VISIT_SUMMARY, "_retry_used": True}
+    _mock_get_visit_summary(monkeypatch, payload)
+    history = [
+        {"role": "user", "content": "I have a mild headache since this morning"},
+        {
+            "role": "assistant", "content": "That sounds manageable.",
+            "type": "assessment", "urgency": "monitor_at_home",
+            "findings": ["mild headache"], "explanation": "e", "next_step": "n",
+        },
+    ]
+    with caplog.at_level(logging.INFO, logger=main.logger.name):
+        run_visit_summary_pipeline(history=history, final_urgency="monitor_at_home")
+    assert len(caplog.records) == 1
+    record = caplog.records[0]
+    assert record.retry_used is True
+    assert record.blocklist_triggered is False
+    assert record.degenerate is False
+
+
+# ---------------------------------------------------------------------------
+# Visit summary: _handle_visit_summary_request
+# ---------------------------------------------------------------------------
+
+from main import _handle_visit_summary_request
+
+
+class _FakeVisitSummaryRequest:
+    def __init__(self, data):
+        self.data = data
+
+
+def test_handle_visit_summary_request_happy_path(monkeypatch):
+    _mock_get_visit_summary(monkeypatch, VALID_VISIT_SUMMARY)
+    request = _FakeVisitSummaryRequest({
+        "history": [
+            {"role": "user", "content": "I have a mild headache since this morning"},
+            {
+                "role": "assistant", "content": "Noted.", "type": "assessment",
+                "urgency": "monitor_at_home", "findings": [], "explanation": None,
+                "next_step": None,
+            },
+        ],
+        "final_urgency": "monitor_at_home",
+    })
+    result = _handle_visit_summary_request(request)
+    assert result["type"] == "visit_summary"
+
+
+def test_handle_visit_summary_request_raises_https_error_on_oversized_history():
+    history = [{"role": "user", "content": "hi"}] * (main.MAX_ACCEPTED_HISTORY_TURNS + 1)
+    request = _FakeVisitSummaryRequest({"history": history, "final_urgency": None})
+    with pytest.raises(https_fn.HttpsError):
+        _handle_visit_summary_request(request)
+
+
+def test_handle_visit_summary_request_defaults_missing_data_to_empty():
+    request = _FakeVisitSummaryRequest({})
+    result = _handle_visit_summary_request(request)
+    # Empty history strips to empty -> degenerate path, no crash.
+    assert result["type"] == "visit_summary"

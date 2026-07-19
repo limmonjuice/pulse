@@ -1,7 +1,9 @@
 // lib/features/chat/screens/chat_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../models/message.dart';
 import '../models/urgency_result.dart';
@@ -78,6 +80,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
     final state = ref.watch(chatControllerProvider);
     final messages = state.value ?? const <Message>[];
+    final hasVisitSummaryContent = messages.any(
+      (m) =>
+          m.payload?.type == ChatTurnType.assessment ||
+          m.payload?.type == ChatTurnType.crisis,
+    );
     // Not state.isLoading: see chatIsSendingProvider's doc comment in
     // chat_provider.dart for why (AsyncLoading.copyWithPrevious is
     // @internal in this Riverpod version, so chatControllerProvider's
@@ -124,6 +131,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.summarize_outlined),
+            tooltip: 'Visit summary',
+            onPressed: hasVisitSummaryContent
+                ? () => context.push(AppRoutes.visitSummary)
+                : null,
+          ),
+        ],
       ),
       body: Column(
         children: [

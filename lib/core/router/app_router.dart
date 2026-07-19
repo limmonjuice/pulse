@@ -14,6 +14,7 @@ import '../../features/onboarding/providers/onboarding_provider.dart';
 import '../../features/onboarding/screens/disclaimer_screen.dart';
 import '../../features/profile/screens/profile_list_screen.dart';
 import '../../features/settings/screens/settings_screen.dart';
+import '../../features/visit_summary/screens/visit_summary_screen.dart';
 
 /// Route paths used across the app. Centralized so screens navigate via
 /// `context.go(AppRoutes.chat)` instead of hardcoded path strings.
@@ -28,6 +29,7 @@ class AppRoutes {
   static const history = '/history';
   static const family = '/family';
   static const settings = '/settings';
+  static const visitSummary = '/visit-summary';
 }
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -100,6 +102,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.signup,
         builder: (context, state) => const SignupScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.visitSummary,
+        builder: (context, state) => const VisitSummaryScreen(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {

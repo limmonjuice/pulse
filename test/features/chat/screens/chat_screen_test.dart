@@ -191,6 +191,42 @@ void main() {
       expect(controller.offset, offsetBeforeToggle);
     },
   );
+
+  testWidgets(
+    'the visit-summary AppBar action is disabled with no assessment/crisis turn',
+    (tester) async {
+      await _pump(tester, _ScriptedRepository([]));
+      final button = tester.widget<IconButton>(
+        find.widgetWithIcon(IconButton, Icons.summarize_outlined),
+      );
+      expect(button.onPressed, isNull);
+    },
+  );
+
+  testWidgets(
+    'the visit-summary AppBar action enables once an assessment exists',
+    (tester) async {
+      await _pump(
+        tester,
+        _ScriptedRepository([
+          const UrgencyResult(
+            type: ChatTurnType.assessment,
+            message: 'Noted.',
+            urgency: UrgencyLevel.monitorAtHome,
+            cardAction: CardAction.newCard,
+          ),
+        ]),
+      );
+      await tester.enterText(find.byType(TextField), 'I have a headache');
+      await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
+      await tester.pumpAndSettle();
+
+      final button = tester.widget<IconButton>(
+        find.widgetWithIcon(IconButton, Icons.summarize_outlined),
+      );
+      expect(button.onPressed, isNotNull);
+    },
+  );
 }
 
 class _CountingThenSucceedingRepository implements ChatRepository {

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import re
+from typing import Callable
 
 from google import genai
 from google.genai import types
@@ -123,6 +124,16 @@ class ModelResponseError(Exception):
     this is the signal to fall back to degraded mode instead."""
 
 
+class TierLanguageDetectedError(ValueError):
+    """Raised by _validate_visit_summary_payload when the model's own
+    text states or implies an urgency tier — a ValueError subclass so
+    _call_gemini_with_retry's existing retry-on-ValueError mechanism
+    treats it identically to a schema failure, while callers can still
+    distinguish the cause after a ModelResponseError via
+    exc.__cause__ (see run_visit_summary_pipeline's structured logging
+    in main.py)."""
+
+
 def _strip_markdown_fences(text: str) -> str:
     match = _FENCE_RE.match(text.strip())
     return match.group(1).strip() if match else text.strip()
@@ -211,13 +222,12 @@ def _validate_payload(payload: object) -> dict:
     return payload
 
 
-def _parse_and_validate(raw_text: str) -> dict:
+def _parse_json(raw_text: str) -> object:
     stripped = _strip_markdown_fences(raw_text)
     try:
-        payload = json.loads(stripped)
+        return json.loads(stripped)
     except json.JSONDecodeError as exc:
         raise ValueError(f"invalid JSON: {exc}") from exc
-    return _validate_payload(payload)
 
 
 def _build_contents(history: list[dict], user_message: str) -> list[types.Content]:
@@ -232,12 +242,20 @@ def _build_contents(history: list[dict], user_message: str) -> list[types.Conten
     return contents
 
 
-def get_assessment(system_prompt: str, history: list[dict], user_message: str) -> dict:
-    """Call Gemini and return a validated 8-field assessment payload.
+def _call_gemini_with_retry(
+    system_prompt: str,
+    contents: list[types.Content],
+    validator: "Callable[[dict], dict]",
+) -> dict:
+    """Calls Gemini, parses+validates the response, retries once with a
+    corrective suffix on failure, raises ModelResponseError if the retry
+    also fails. Shared by get_assessment and get_visit_summary — the
+    retry/parsing mechanism is identical; only the schema differs.
 
-    Retries once with a corrective suffix if the response fails schema
-    validation; raises ModelResponseError if the retry also fails. Never
-    returns malformed data.
+    Sets result["_retry_used"] on the returned dict — main.py's
+    run_pipeline pops this for structured logging
+    (test_logging_reports_retry_used_true_when_the_client_retried in
+    test_main.py pins this), so it is not dropped in this extraction.
     """
     client = genai.Client()
     config = types.GenerateContentConfig(
@@ -246,11 +264,10 @@ def get_assessment(system_prompt: str, history: list[dict], user_message: str) -
         response_mime_type="application/json",
     )
 
-    contents = _build_contents(history, user_message)
     response = client.models.generate_content(model=MODEL_NAME, contents=contents, config=config)
 
     try:
-        result = _parse_and_validate(response.text)
+        result = validator(_parse_json(response.text))
         result["_retry_used"] = False
         return result
     except ValueError:
@@ -264,10 +281,106 @@ def get_assessment(system_prompt: str, history: list[dict], user_message: str) -
         model=MODEL_NAME, contents=retry_contents, config=config
     )
     try:
-        result = _parse_and_validate(retry_response.text)
+        result = validator(_parse_json(retry_response.text))
         result["_retry_used"] = True
         return result
     except ValueError as exc:
         raise ModelResponseError(
             "model response failed schema validation twice"
         ) from exc
+
+
+def get_assessment(system_prompt: str, history: list[dict], user_message: str) -> dict:
+    """Call Gemini and return a validated 8-field assessment payload.
+
+    Retries once with a corrective suffix if the response fails schema
+    validation; raises ModelResponseError if the retry also fails. Never
+    returns malformed data.
+    """
+    contents = _build_contents(history, user_message)
+    return _call_gemini_with_retry(system_prompt, contents, _validate_payload)
+
+
+REQUIRED_VISIT_SUMMARY_FIELDS = frozenset({"summary", "questions_for_doctor"})
+
+# v1 ships EN + Taglish phrases active only (design spec §4.4). Ilocano
+# entries are drafted separately and held out of this list until they've
+# had the same clinician review other Ilocano copy in this project gets
+# — an enforcement mechanism is the wrong place for unreviewed phrasing.
+_TIER_LANGUAGE_BLOCKLIST = (
+    "monitor at home",
+    "see a doctor soon",
+    "seek care now",
+    "seek care immediately",
+    "seek immediate care",
+    "go to the er",
+    "go to the emergency room",
+    "go to the hospital immediately",
+    "you should see a doctor",
+    "you should seek care",
+    "kailangan mo nang pumunta sa doktor",
+    "pumunta ka na sa ospital",
+    "puntahan mo agad ang ospital",
+    "magpatingin ka na",
+    "magpatingin ka na agad",
+    "kumonsulta ka agad",
+    "dalhin sa ospital",
+)
+
+# Word-boundary guard: plain substring matching on short phrases like
+# "go to the er" would false-positive inside ordinary words ("errand",
+# "era") — a wasted retry against Gemini's free-tier quota, and a hard
+# failure if the retry also trips it. Requiring the phrase not be
+# immediately followed by a lowercase letter stops that without touching
+# the whitespace/punctuation-normalization gap (an accepted v1 tradeoff).
+_TIER_LANGUAGE_BLOCKLIST_PATTERNS = tuple(
+    re.compile(re.escape(phrase) + r"(?![a-z])") for phrase in _TIER_LANGUAGE_BLOCKLIST
+)
+
+
+def _validate_visit_summary_payload(payload: object) -> dict:
+    if not isinstance(payload, dict):
+        raise ValueError("response is not a JSON object")
+    missing = REQUIRED_VISIT_SUMMARY_FIELDS - payload.keys()
+    if missing:
+        raise ValueError(f"missing required fields: {sorted(missing)}")
+
+    summary = payload["summary"]
+    if not isinstance(summary, str) or not summary.strip():
+        raise ValueError("summary must be a non-empty string")
+
+    questions = payload["questions_for_doctor"]
+    if not isinstance(questions, list) or not all(isinstance(q, str) for q in questions):
+        raise ValueError("questions_for_doctor must be an array of strings")
+
+    haystack = " ".join([summary, *questions]).lower()
+    for pattern in _TIER_LANGUAGE_BLOCKLIST_PATTERNS:
+        match = pattern.search(haystack)
+        if match:
+            raise TierLanguageDetectedError(
+                f"tier-recommendation language detected: {match.group()!r}"
+            )
+
+    return {"summary": summary, "questions_for_doctor": questions}
+
+
+def _build_visit_summary_contents(history: list[dict]) -> list[types.Content]:
+    """No trailing 'new message' — unlike _build_contents, this is a
+    retrospective summary over a whole transcript, not a reply to the
+    newest turn."""
+    return [
+        types.Content(
+            role=_ROLE_MAP.get(turn.get("role"), "user"),
+            parts=[types.Part(text=turn.get("content", ""))],
+        )
+        for turn in history
+    ]
+
+
+def get_visit_summary(system_prompt: str, history: list[dict]) -> dict:
+    """Call Gemini for a retrospective visit-summary recap + doctor
+    questions. Retries once on schema/blocklist failure via
+    _call_gemini_with_retry; raises ModelResponseError if the retry also
+    fails. Never returns malformed data or tier-recommendation language."""
+    contents = _build_visit_summary_contents(history)
+    return _call_gemini_with_retry(system_prompt, contents, _validate_visit_summary_payload)

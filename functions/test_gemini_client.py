@@ -434,6 +434,20 @@ def test_does_not_retry_when_first_response_is_valid(monkeypatch):
     assert len(fake_models.calls) == 1
 
 
+def test_retry_used_is_false_on_first_attempt_success(monkeypatch):
+    _install_fake_genai(monkeypatch, [json.dumps(VALID_ASSESSMENT)])
+    result = get_assessment("system prompt", [], "some message")
+    assert result["_retry_used"] is False
+
+
+def test_retry_used_is_true_when_the_retry_succeeded(monkeypatch):
+    _install_fake_genai(
+        monkeypatch, ["garbage", json.dumps(VALID_ASSESSMENT)]
+    )
+    result = get_assessment("system prompt", [], "some message")
+    assert result["_retry_used"] is True
+
+
 # ---------------------------------------------------------------------------
 # Request construction
 # ---------------------------------------------------------------------------
@@ -525,3 +539,135 @@ def test_changelog_is_ordered_and_ends_with_current_model():
     assert gemini_client.MODEL_CHANGELOG[-1]["model"] == gemini_client.MODEL_NAME
     dates = [entry["date"] for entry in gemini_client.MODEL_CHANGELOG]
     assert dates == sorted(dates)
+
+
+# ---------------------------------------------------------------------------
+# get_visit_summary + tier-language blocklist (design spec 2026-07-17 §4.4)
+# ---------------------------------------------------------------------------
+
+from gemini_client import TierLanguageDetectedError, get_visit_summary
+
+VALID_VISIT_SUMMARY = {
+    "summary": "The conversation covered a mild headache that started this morning.",
+    "questions_for_doctor": [
+        "Could this be related to recent sleep changes?",
+    ],
+}
+
+
+def test_get_visit_summary_accepts_a_valid_payload(monkeypatch):
+    _install_fake_genai(monkeypatch, [json.dumps(VALID_VISIT_SUMMARY)])
+    result = get_visit_summary("system prompt", [])
+    assert result["summary"] == VALID_VISIT_SUMMARY["summary"]
+    assert result["questions_for_doctor"] == VALID_VISIT_SUMMARY["questions_for_doctor"]
+    assert result["_retry_used"] is False
+
+
+def test_get_visit_summary_rejects_missing_summary_then_retries(monkeypatch):
+    bad = {"questions_for_doctor": []}
+    fake_models = _install_fake_genai(
+        monkeypatch, [json.dumps(bad), json.dumps(VALID_VISIT_SUMMARY)]
+    )
+    result = get_visit_summary("system prompt", [])
+    assert result["summary"] == VALID_VISIT_SUMMARY["summary"]
+    assert len(fake_models.calls) == 2
+
+
+def test_get_visit_summary_rejects_empty_summary(monkeypatch):
+    bad = {**VALID_VISIT_SUMMARY, "summary": "   "}
+    _install_fake_genai(
+        monkeypatch, [json.dumps(bad), json.dumps(VALID_VISIT_SUMMARY)]
+    )
+    result = get_visit_summary("system prompt", [])
+    assert result["summary"] == VALID_VISIT_SUMMARY["summary"]
+
+
+def test_get_visit_summary_rejects_non_string_question(monkeypatch):
+    bad = {**VALID_VISIT_SUMMARY, "questions_for_doctor": [42]}
+    _install_fake_genai(
+        monkeypatch, [json.dumps(bad), json.dumps(VALID_VISIT_SUMMARY)]
+    )
+    result = get_visit_summary("system prompt", [])
+    assert result["questions_for_doctor"] == VALID_VISIT_SUMMARY["questions_for_doctor"]
+
+
+@pytest.mark.parametrize("phrase", [
+    "you should see a doctor soon",
+    "SEEK CARE NOW",
+    "Monitor at Home for now",
+    "kailangan mo nang pumunta sa doktor",
+    "magpatingin ka na agad",
+])
+def test_get_visit_summary_rejects_tier_language_in_summary(monkeypatch, phrase):
+    bad = {**VALID_VISIT_SUMMARY, "summary": f"The conversation suggested {phrase}."}
+    _install_fake_genai(
+        monkeypatch, [json.dumps(bad), json.dumps(VALID_VISIT_SUMMARY)]
+    )
+    result = get_visit_summary("system prompt", [])
+    assert result["summary"] == VALID_VISIT_SUMMARY["summary"]
+
+
+def test_get_visit_summary_rejects_tier_language_in_a_question(monkeypatch):
+    bad = {
+        **VALID_VISIT_SUMMARY,
+        "questions_for_doctor": ["Should I seek care now given the fever?"],
+    }
+    _install_fake_genai(
+        monkeypatch, [json.dumps(bad), json.dumps(VALID_VISIT_SUMMARY)]
+    )
+    result = get_visit_summary("system prompt", [])
+    assert result["questions_for_doctor"] == VALID_VISIT_SUMMARY["questions_for_doctor"]
+
+
+def test_get_visit_summary_blocklist_failure_is_a_tier_language_detected_error(monkeypatch):
+    bad = {**VALID_VISIT_SUMMARY, "summary": "You should seek care now."}
+    _install_fake_genai(monkeypatch, [json.dumps(bad), json.dumps(bad)])
+    with pytest.raises(ModelResponseError) as exc_info:
+        get_visit_summary("system prompt", [])
+    assert isinstance(exc_info.value.__cause__, TierLanguageDetectedError)
+
+
+def test_get_visit_summary_schema_failure_is_not_a_tier_language_detected_error(monkeypatch):
+    _install_fake_genai(monkeypatch, ["garbage one", "garbage two"])
+    with pytest.raises(ModelResponseError) as exc_info:
+        get_visit_summary("system prompt", [])
+    assert not isinstance(exc_info.value.__cause__, TierLanguageDetectedError)
+
+
+def test_get_visit_summary_sends_history_as_contents_with_no_trailing_message(monkeypatch):
+    fake_models = _install_fake_genai(monkeypatch, [json.dumps(VALID_VISIT_SUMMARY)])
+    history = [
+        {"role": "user", "content": "I have a headache"},
+        {"role": "assistant", "content": "How long?", "type": "question"},
+        {"role": "user", "content": "Since this morning"},
+    ]
+    get_visit_summary("system prompt", history)
+    sent = fake_models.calls[0]
+    assert len(sent) == 3  # exactly the 3 history turns — no extra trailing content
+
+
+def test_get_visit_summary_does_not_false_positive_on_word_containing_a_short_phrase(monkeypatch):
+    # "go to the er" is a blocklisted phrase, but plain substring matching
+    # would also match it inside ordinary words like "errand" — this must
+    # NOT raise TierLanguageDetectedError (or retry/fail at all).
+    payload = {
+        **VALID_VISIT_SUMMARY,
+        "summary": "The doctor recommended I go to the errand office for a form.",
+    }
+    fake_models = _install_fake_genai(monkeypatch, [json.dumps(payload)])
+    result = get_visit_summary("system prompt", [])
+    assert result["summary"] == payload["summary"]
+    assert len(fake_models.calls) == 1  # no retry triggered
+
+
+@pytest.mark.parametrize("summary", [
+    "The person was told to go to the ER.",
+    "go to the er",
+])
+def test_get_visit_summary_still_detects_the_real_phrase_at_a_word_boundary(monkeypatch, summary):
+    bad = {**VALID_VISIT_SUMMARY, "summary": summary}
+    _install_fake_genai(
+        monkeypatch, [json.dumps(bad), json.dumps(VALID_VISIT_SUMMARY)]
+    )
+    result = get_visit_summary("system prompt", [])
+    assert result["summary"] == VALID_VISIT_SUMMARY["summary"]

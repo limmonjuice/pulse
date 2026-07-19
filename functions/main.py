@@ -43,6 +43,7 @@ from __future__ import annotations
 import logging
 import os
 import time
+from datetime import datetime, timezone
 
 import firebase_admin
 from firebase_functions import https_fn
@@ -54,6 +55,8 @@ import mirror_probes
 import red_flags
 import safety_engine
 import system_prompt
+import visit_summary_prompt
+import wire_contract
 
 # Required once per process: firebase_functions' App Check/auth token
 # verification (used by the enforce_app_check=True below) reads through
@@ -133,6 +136,50 @@ def _conversation_language(message: str, history: list[dict]) -> str | None:
         if len(text.split()) >= _LANGUAGE_SWITCH_MIN_WORDS:
             return detected
     return newest_confident
+
+
+def _strip_crisis_exchanges(history: list[dict]) -> list[dict]:
+    """Removes each assistant turn with type == "crisis" AND every
+    contiguous user turn immediately preceding it (design spec §6).
+    Message.toHistoryJson() on the client only ever tags `type` on
+    assistant turns — the preceding user turn(s) are untagged
+    {"role": "user", "content": ...} entries, so a filter that only
+    drops type == "crisis" entries would leave the triggering
+    statement(s) in the transcript. A well-formed history has exactly
+    one user turn before a crisis reply, but this is the server-side
+    half of the two-strip-points design (the client runs the same rule
+    before the request is ever sent; this re-strip does not assume the
+    client did its part correctly, or that its history is well-formed)
+    — so the walk continues backward through however many consecutive
+    user turns it finds, stopping at the first non-user or non-dict
+    entry, to guarantee no crisis-adjacent user statement survives.
+    Applied for every crisis turn in the conversation, not just the
+    first."""
+    drop_indices: set[int] = set()
+    for i, turn in enumerate(history):
+        if (
+            isinstance(turn, dict)
+            and turn.get("role") == "assistant"
+            and turn.get("type") == "crisis"
+        ):
+            drop_indices.add(i)
+            j = i - 1
+            while j >= 0 and isinstance(history[j], dict) and history[j].get("role") == "user":
+                drop_indices.add(j)
+                j -= 1
+    return [turn for i, turn in enumerate(history) if i not in drop_indices]
+
+
+def _visit_summary_conversation_language(history: list[dict]) -> str | None:
+    """Reuses _conversation_language's deterministic derivation for a
+    transcript with no distinct "new message" — generate_visit_summary is
+    retrospective, not a live turn. Passing message="" is safe:
+    mirror_probes.detect_language("") always returns "unknown" (an empty
+    string never confidently classifies), so the newest-turn-first walk
+    falls straight through to history's own user turns, exactly as
+    intended."""
+    return _conversation_language(message="", history=history)
+
 
 logger = logging.getLogger("pulse.assess_symptoms")
 
@@ -409,6 +456,117 @@ def run_pipeline(
     }
 
 
+def _log_visit_summary_request(
+    *, retry_used: bool, blocklist_triggered: bool, degenerate: bool,
+    conversation_language: str | None,
+) -> None:
+    logger.info(
+        "generate_visit_summary request completed",
+        extra={
+            "prompt_version": visit_summary_prompt.PROMPT_VERSION,
+            "retry_used": retry_used,
+            "blocklist_triggered": blocklist_triggered,
+            "degenerate": degenerate,
+            "conversation_language": conversation_language,
+        },
+    )
+
+
+def _visit_summary_metadata() -> dict:
+    return {
+        "prompt_version": visit_summary_prompt.PROMPT_VERSION,
+        "model_name": gemini_client.MODEL_NAME,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def _visit_summary_error_response() -> dict:
+    return {
+        "type": "error",
+        "message": "Couldn't put together a visit summary right now — try again in a bit.",
+        "metadata": _visit_summary_metadata(),
+    }
+
+
+def run_visit_summary_pipeline(
+    *, history: list[dict] | None, final_urgency: str | None,
+) -> dict:
+    """Pure orchestration for generate_visit_summary — mirrors
+    run_pipeline/_handle_request's split so this is unit-testable
+    without https_fn plumbing. See design spec §4.1.
+
+    The narrative call is scoped narrowly to the recap + doctor
+    questions; urgency, findings, watch-for, and self-care all stay
+    client-side (design spec §4.5) — final_urgency is grounding only.
+    """
+    pre_strip_history = history or []
+    if len(pre_strip_history) > MAX_ACCEPTED_HISTORY_TURNS:
+        raise InvalidRequestError(HISTORY_TOO_LONG_MESSAGE)
+    if final_urgency is not None and final_urgency not in wire_contract.URGENCY_TIERS:
+        raise InvalidRequestError("final_urgency must be a valid urgency tier or null.")
+
+    stripped_history = _strip_crisis_exchanges(pre_strip_history)
+
+    if not stripped_history:
+        # Degenerate case (design spec §4.1): the conversation consisted
+        # solely of a crisis exchange — nothing else to summarize. Skip
+        # Gemini entirely; classify language from the PRE-strip history
+        # (classification only, never reproduction — reading crisis-turn
+        # text to decide "was this Tagalog" doesn't touch the
+        # no-paraphrase guarantee, since nothing from that text is
+        # echoed or exposed).
+        user_text = " ".join(
+            turn.get("content", "")
+            for turn in pre_strip_history
+            if isinstance(turn, dict) and turn.get("role") == "user"
+        )
+        tagalog = fallbacks.message_signals_tagalog(user_text)
+        _log_visit_summary_request(
+            retry_used=False, blocklist_triggered=False, degenerate=True,
+            conversation_language="tagalog" if tagalog else "english",
+        )
+        payload = fallbacks.visit_summary_no_content_payload(tagalog=tagalog)
+        return {
+            **payload,
+            "metadata": _visit_summary_metadata(),
+        }
+
+    conversation_language = _visit_summary_conversation_language(stripped_history)
+    prompt = visit_summary_prompt.build_system_prompt(
+        conversation_language=conversation_language,
+        final_urgency=final_urgency,
+    )
+
+    try:
+        result = gemini_client.get_visit_summary(prompt, stripped_history)
+    except gemini_client.ModelResponseError as exc:
+        blocklist_triggered = isinstance(exc.__cause__, gemini_client.TierLanguageDetectedError)
+        _log_visit_summary_request(
+            retry_used=True, blocklist_triggered=blocklist_triggered, degenerate=False,
+            conversation_language=conversation_language,
+        )
+        return _visit_summary_error_response()
+    except Exception:
+        logger.exception("Unexpected error calling Gemini for visit summary")
+        _log_visit_summary_request(
+            retry_used=False, blocklist_triggered=False, degenerate=False,
+            conversation_language=conversation_language,
+        )
+        return _visit_summary_error_response()
+
+    retry_used = bool(result.pop("_retry_used", False))
+    _log_visit_summary_request(
+        retry_used=retry_used, blocklist_triggered=False, degenerate=False,
+        conversation_language=conversation_language,
+    )
+    return {
+        "type": "visit_summary",
+        "summary": result["summary"],
+        "questions_for_doctor": result["questions_for_doctor"],
+        "metadata": _visit_summary_metadata(),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Callable Function
 # ---------------------------------------------------------------------------
@@ -424,6 +582,19 @@ def _handle_request(request: https_fn.CallableRequest) -> dict:
             worry_level=data.get("worry_level"),
             regional_context=data.get("regional_context"),
             history=data.get("history"),
+        )
+    except InvalidRequestError as exc:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT, str(exc)
+        ) from exc
+
+
+def _handle_visit_summary_request(request: https_fn.CallableRequest) -> dict:
+    data = request.data or {}
+    try:
+        return run_visit_summary_pipeline(
+            history=data.get("history"),
+            final_urgency=data.get("final_urgency"),
         )
     except InvalidRequestError as exc:
         raise https_fn.HttpsError(
@@ -452,3 +623,11 @@ def _enforce_app_check_setting() -> bool:
 )
 def assess_symptoms(request: https_fn.CallableRequest) -> dict:
     return _handle_request(request)
+
+
+@https_fn.on_call(
+    region="asia-southeast1",
+    enforce_app_check=_enforce_app_check_setting(),
+)
+def generate_visit_summary(request: https_fn.CallableRequest) -> dict:
+    return _handle_visit_summary_request(request)
