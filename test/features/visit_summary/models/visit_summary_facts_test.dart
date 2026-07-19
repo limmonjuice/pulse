@@ -121,6 +121,15 @@ void main() {
         expect(facts.crisisMentionText, crisisMentionEn);
       },
     );
+
+    test('a leading crisis turn with nothing before it does not crash and defaults sensibly', () {
+      final facts = VisitSummaryFacts.fromMessages([
+        _crisis(),
+        Message.user("I'm okay now"),
+      ]);
+      expect(facts.hadCrisisTurn, isTrue);
+      expect(facts.crisisMentionText, isNotNull);
+    });
   });
 
   group('stripCrisisExchanges', () {
@@ -156,6 +165,13 @@ void main() {
         _crisis(),
       ]);
       expect(stripped, isEmpty);
+    });
+
+    test('handles a leading crisis turn with no preceding turn to drop', () {
+      final crisisReply = _crisis();
+      final benignUser = Message.user("I'm okay now");
+      final stripped = stripCrisisExchanges([crisisReply, benignUser]);
+      expect(stripped, [benignUser]);
     });
   });
 }
