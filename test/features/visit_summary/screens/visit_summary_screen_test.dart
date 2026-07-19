@@ -199,6 +199,27 @@ void main() {
     expect(find.text('Try again'), findsOneWidget);
   });
 
+  testWidgets('a server-provided error message surfaces instead of the hardcoded fallback', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      seedMessages: [_assessment(UrgencyLevel.monitorAtHome)],
+      repository: _StubRepository(
+        const VisitSummaryResult(
+          isError: true,
+          summary: '',
+          errorMessage: 'Custom server message.',
+        ),
+      ),
+    );
+    await tester.tap(find.text('Generate summary'));
+    await tester.pump(); // enter loading
+    await tester.pump(); // resolve
+    expect(find.text('Custom server message.'), findsOneWidget);
+    expect(find.text('Try again'), findsOneWidget);
+  });
+
   testWidgets('tapping Try again re-attempts generation', (tester) async {
     await _pump(
       tester,

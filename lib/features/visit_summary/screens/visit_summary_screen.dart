@@ -204,7 +204,7 @@ class _NarrativeBlock extends StatelessWidget {
       return _StaleBanner(onRegenerate: onGenerate);
     }
     if (data.result.isError) {
-      return _NarrativeError(onRetry: onGenerate);
+      return _NarrativeError(onRetry: onGenerate, message: data.result.errorMessage);
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -238,8 +238,9 @@ class _GenerateCta extends StatelessWidget {
 }
 
 class _NarrativeError extends StatelessWidget {
-  const _NarrativeError({required this.onRetry});
+  const _NarrativeError({required this.onRetry, this.message});
   final VoidCallback onRetry;
+  final String? message;
 
   @override
   Widget build(BuildContext context) {
@@ -247,7 +248,7 @@ class _NarrativeError extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "Couldn't put together a visit summary right now.",
+          message ?? "Couldn't put together a visit summary right now.",
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 9),
