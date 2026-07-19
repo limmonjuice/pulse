@@ -2580,6 +2580,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse_app/core/theme/app_theme.dart';
 import 'package:pulse_app/features/chat/models/message.dart';
 import 'package:pulse_app/features/chat/models/urgency_result.dart';
+import 'package:pulse_app/features/visit_summary/models/visit_summary_result.dart';
 import 'package:pulse_app/features/visit_summary/providers/visit_summary_provider.dart';
 import 'package:pulse_app/features/visit_summary/repositories/visit_summary_repository.dart';
 
