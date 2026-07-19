@@ -63,6 +63,38 @@ class VisitSummaryController extends AsyncNotifier<VisitSummaryState?> {
     final strippedMessages = stripCrisisExchanges(messages);
     final generatedAtMessageId = messages.isEmpty ? '' : messages.last.id;
 
+    if (strippedMessages.isEmpty) {
+      // Degenerate case: every assessment-shaped turn was a crisis turn,
+      // so there's nothing left to summarize once crisis content is
+      // stripped. Handled entirely locally rather than sending an empty
+      // history to the backend: the server has its own independent
+      // degenerate-case fallback (main.py's run_visit_summary_pipeline,
+      // for a hypothetical non-compliant client that skips this strip),
+      // but for THIS client the request would always arrive empty, so
+      // the server's own Tagalog-vs-English heuristic for that fallback
+      // line would always see empty text and always pick English —
+      // producing a Tagalog crisis-mention banner directly above an
+      // English "nothing else to report" line. Deciding the language
+      // locally from the same signal VisitSummaryFacts already used for
+      // the crisis-mention banner guarantees the two lines always agree,
+      // and avoids a network round-trip for a conversation with nothing
+      // to summarize.
+      final facts = VisitSummaryFacts.fromMessages(messages);
+      final isTagalog = facts.crisisMentionText == crisisMentionTl;
+      state = AsyncData(
+        VisitSummaryState(
+          result: VisitSummaryResult(
+            isError: false,
+            summary: isTagalog
+                ? visitSummaryNoContentTl
+                : visitSummaryNoContentEn,
+          ),
+          generatedAtMessageId: generatedAtMessageId,
+        ),
+      );
+      return;
+    }
+
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       final result = await ref

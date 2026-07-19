@@ -76,6 +76,16 @@ const String crisisMentionTl =
     'May sandali ng matinding pag-aalala sa kausapang ito — '
     'makabubuting banggitin din ito sa iyong doktor.';
 
+/// AGENT-DRAFTED — PENDING OWNER READ-ALOUD (design spec §6/§9). Not final
+/// copy until the Tagalog line has been read aloud and approved — do not
+/// treat this draft as shippable. Mirrors functions/fallbacks.py's
+/// VISIT_SUMMARY_NO_CONTENT_EN/_TL exactly — keep both copies in sync if
+/// either changes.
+const String visitSummaryNoContentEn =
+    'No other symptoms were discussed in this conversation.';
+const String visitSummaryNoContentTl =
+    'Wala nang ibang sintomas na napag-usapan sa kausapang ito.';
+
 /// Deterministic, client-side facts derived from the current in-memory
 /// conversation — zero network cost, always renders regardless of the
 /// narrative call's availability (design spec §5.1, §7).
