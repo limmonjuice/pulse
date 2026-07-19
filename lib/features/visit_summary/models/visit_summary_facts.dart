@@ -10,13 +10,50 @@ import '../../chat/models/urgency_result.dart';
 /// over recall: default to English unless a clearly Filipino word is
 /// present.
 const Set<String> _tagalogMarkerWords = {
-  'ako', 'ikaw', 'siya', 'kami', 'tayo', 'kayo', 'sila',
-  'ko', 'mo', 'niya', 'namin', 'natin', 'ninyo', 'nila',
-  'ang', 'mga', 'yung', 'yun', 'ito', 'iyon', 'niyan', 'nito',
-  'hindi', 'wala', 'meron', 'mayroon',
-  'ba', 'naman', 'lang', 'din', 'rin', 'po', 'opo',
-  'paano', 'bakit', 'saan', 'kailan', 'sino', 'kasi', 'tapos',
-  'kanina', 'kagabi', 'bukas', 'kahapon',
+  'ako',
+  'ikaw',
+  'siya',
+  'kami',
+  'tayo',
+  'kayo',
+  'sila',
+  'ko',
+  'mo',
+  'niya',
+  'namin',
+  'natin',
+  'ninyo',
+  'nila',
+  'ang',
+  'mga',
+  'yung',
+  'yun',
+  'ito',
+  'iyon',
+  'niyan',
+  'nito',
+  'hindi',
+  'wala',
+  'meron',
+  'mayroon',
+  'ba',
+  'naman',
+  'lang',
+  'din',
+  'rin',
+  'po',
+  'opo',
+  'paano',
+  'bakit',
+  'saan',
+  'kailan',
+  'sino',
+  'kasi',
+  'tapos',
+  'kanina',
+  'kagabi',
+  'bukas',
+  'kahapon',
 };
 
 final RegExp _wordPattern = RegExp(r"[A-Za-z']+");
@@ -115,7 +152,9 @@ class VisitSummaryFacts {
     String? crisisMentionText;
     if (hadCrisisTurn) {
       final source = assessmentLanguageSource ?? crisisOnlyLanguageSource ?? '';
-      crisisMentionText = _looksTagalog(source) ? crisisMentionTl : crisisMentionEn;
+      crisisMentionText = _looksTagalog(source)
+          ? crisisMentionTl
+          : crisisMentionEn;
     }
 
     return VisitSummaryFacts(

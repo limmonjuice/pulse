@@ -23,19 +23,25 @@ void main() {
     expect(result.errorMessage, 'Something went wrong.');
   });
 
-  test('never throws on a malformed shape — missing fields default gracefully', () {
-    final result = VisitSummaryResult.fromJson({'type': 'visit_summary'});
-    expect(result.isError, isFalse);
-    expect(result.summary, '');
-    expect(result.questionsForDoctor, isEmpty);
-  });
+  test(
+    'never throws on a malformed shape — missing fields default gracefully',
+    () {
+      final result = VisitSummaryResult.fromJson({'type': 'visit_summary'});
+      expect(result.isError, isFalse);
+      expect(result.summary, '');
+      expect(result.questionsForDoctor, isEmpty);
+    },
+  );
 
-  test('non-string entries in questions_for_doctor are dropped, not crashed on', () {
-    final result = VisitSummaryResult.fromJson({
-      'type': 'visit_summary',
-      'summary': 'recap',
-      'questions_for_doctor': ['valid', 42, null],
-    });
-    expect(result.questionsForDoctor, ['valid']);
-  });
+  test(
+    'non-string entries in questions_for_doctor are dropped, not crashed on',
+    () {
+      final result = VisitSummaryResult.fromJson({
+        'type': 'visit_summary',
+        'summary': 'recap',
+        'questions_for_doctor': ['valid', 42, null],
+      });
+      expect(result.questionsForDoctor, ['valid']);
+    },
+  );
 }

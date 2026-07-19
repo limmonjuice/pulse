@@ -58,7 +58,10 @@ class VisitSummaryScreen extends ConsumerWidget {
           ],
           if (facts.selfCare.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.sectionGap),
-            Text('Self-care already suggested', style: theme.textTheme.titleSmall),
+            Text(
+              'Self-care already suggested',
+              style: theme.textTheme.titleSmall,
+            ),
             const SizedBox(height: 9),
             // Read-only here — no per-item identity to back a checked
             // state across turns (design spec §5.3).
@@ -144,7 +147,9 @@ class _TierBadge extends StatelessWidget {
               children: [
                 Text(
                   _tierLabel[urgency]!,
-                  style: theme.textTheme.titleLarge?.copyWith(color: palette.text),
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: palette.text,
+                  ),
                 ),
                 if (progressionLabel != null) ...[
                   const SizedBox(height: 4),
@@ -204,7 +209,10 @@ class _NarrativeBlock extends StatelessWidget {
       return _StaleBanner(onRegenerate: onGenerate);
     }
     if (data.result.isError) {
-      return _NarrativeError(onRetry: onGenerate, message: data.result.errorMessage);
+      return _NarrativeError(
+        onRetry: onGenerate,
+        message: data.result.errorMessage,
+      );
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -212,7 +220,10 @@ class _NarrativeBlock extends StatelessWidget {
         Text(data.result.summary, style: theme.textTheme.bodyMedium),
         if (data.result.questionsForDoctor.isNotEmpty) ...[
           const SizedBox(height: 18),
-          Text('Questions to ask your doctor', style: theme.textTheme.titleSmall),
+          Text(
+            'Questions to ask your doctor',
+            style: theme.textTheme.titleSmall,
+          ),
           const SizedBox(height: 9),
           for (final q in data.result.questionsForDoctor) ChecklistRow(text: q),
         ],

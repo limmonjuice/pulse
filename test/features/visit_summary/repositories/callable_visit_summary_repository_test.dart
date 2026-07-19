@@ -6,25 +6,28 @@ import 'package:pulse_app/features/visit_summary/repositories/callable_visit_sum
 
 void main() {
   group('buildRequestData', () {
-    test('serializes history via toHistoryJson and the urgency tier as a wire string', () {
-      final messages = [
-        Message.user('I have a headache'),
-        Message.assistant(
-          const UrgencyResult(
-            type: ChatTurnType.assessment,
-            message: 'Noted.',
-            urgency: UrgencyLevel.monitorAtHome,
-            findings: ['mild headache'],
+    test(
+      'serializes history via toHistoryJson and the urgency tier as a wire string',
+      () {
+        final messages = [
+          Message.user('I have a headache'),
+          Message.assistant(
+            const UrgencyResult(
+              type: ChatTurnType.assessment,
+              message: 'Noted.',
+              urgency: UrgencyLevel.monitorAtHome,
+              findings: ['mild headache'],
+            ),
           ),
-        ),
-      ];
-      final data = CallableVisitSummaryRepository.buildRequestData(
-        messages: messages,
-        finalUrgency: UrgencyLevel.monitorAtHome,
-      );
-      expect(data['history'], hasLength(2));
-      expect(data['final_urgency'], 'monitor_at_home');
-    });
+        ];
+        final data = CallableVisitSummaryRepository.buildRequestData(
+          messages: messages,
+          finalUrgency: UrgencyLevel.monitorAtHome,
+        );
+        expect(data['history'], hasLength(2));
+        expect(data['final_urgency'], 'monitor_at_home');
+      },
+    );
 
     test('a null finalUrgency serializes to a null final_urgency', () {
       final data = CallableVisitSummaryRepository.buildRequestData(

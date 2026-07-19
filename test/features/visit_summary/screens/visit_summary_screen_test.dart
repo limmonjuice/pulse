@@ -73,66 +73,90 @@ Future<void> _pump(
   addTearDown(container.dispose);
   // Seed chatControllerProvider's state directly rather than sending
   // through the UI — this screen only reads it, it never mutates chat.
-  container.read(chatControllerProvider.notifier).state = AsyncData(seedMessages);
+  container.read(chatControllerProvider.notifier).state = AsyncData(
+    seedMessages,
+  );
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
-      child: MaterialApp(theme: AppTheme.light, home: const VisitSummaryScreen()),
+      child: MaterialApp(
+        theme: AppTheme.light,
+        home: const VisitSummaryScreen(),
+      ),
     ),
   );
   await tester.pump();
 }
 
 void main() {
-  testWidgets('tier badge alone: renders when there is an assessment and no crisis turn', (
-    tester,
-  ) async {
-    await _pump(tester, seedMessages: [_assessment(UrgencyLevel.monitorAtHome)]);
-    expect(find.text('Monitor at home'), findsOneWidget);
-    expect(find.textContaining('emotional distress'), findsNothing);
-  });
+  testWidgets(
+    'tier badge alone: renders when there is an assessment and no crisis turn',
+    (tester) async {
+      await _pump(
+        tester,
+        seedMessages: [_assessment(UrgencyLevel.monitorAtHome)],
+      );
+      expect(find.text('Monitor at home'), findsOneWidget);
+      expect(find.textContaining('emotional distress'), findsNothing);
+    },
+  );
 
-  testWidgets('crisis line alone: renders when the conversation is crisis-only', (
+  testWidgets(
+    'crisis line alone: renders when the conversation is crisis-only',
+    (tester) async {
+      await _pump(
+        tester,
+        seedMessages: [
+          Message.user('I want to end my life'),
+          Message.assistant(
+            const UrgencyResult(
+              type: ChatTurnType.crisis,
+              message: "I'm here.",
+            ),
+          ),
+        ],
+      );
+      expect(find.text(crisisMentionEn), findsOneWidget);
+      expect(find.text('Monitor at home'), findsNothing);
+      expect(find.text('See a doctor soon'), findsNothing);
+      expect(find.text('Seek care now'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'both stacked: a real assessment plus a later crisis turn renders both',
+    (tester) async {
+      await _pump(
+        tester,
+        seedMessages: [
+          _assessment(UrgencyLevel.seeDoctorSoon),
+          Message.user('actually I feel like ending it'),
+          Message.assistant(
+            const UrgencyResult(
+              type: ChatTurnType.crisis,
+              message: "I'm here.",
+            ),
+          ),
+        ],
+      );
+      expect(find.text('See a doctor soon'), findsOneWidget);
+      expect(find.text(crisisMentionEn), findsOneWidget);
+    },
+  );
+
+  testWidgets('narrative block starts idle with a Generate summary CTA', (
     tester,
   ) async {
     await _pump(
       tester,
-      seedMessages: [
-        Message.user('I want to end my life'),
-        Message.assistant(
-          const UrgencyResult(type: ChatTurnType.crisis, message: "I'm here."),
-        ),
-      ],
+      seedMessages: [_assessment(UrgencyLevel.monitorAtHome)],
     );
-    expect(find.text(crisisMentionEn), findsOneWidget);
-    expect(find.text('Monitor at home'), findsNothing);
-    expect(find.text('See a doctor soon'), findsNothing);
-    expect(find.text('Seek care now'), findsNothing);
-  });
-
-  testWidgets('both stacked: a real assessment plus a later crisis turn renders both', (
-    tester,
-  ) async {
-    await _pump(
-      tester,
-      seedMessages: [
-        _assessment(UrgencyLevel.seeDoctorSoon),
-        Message.user('actually I feel like ending it'),
-        Message.assistant(
-          const UrgencyResult(type: ChatTurnType.crisis, message: "I'm here."),
-        ),
-      ],
-    );
-    expect(find.text('See a doctor soon'), findsOneWidget);
-    expect(find.text(crisisMentionEn), findsOneWidget);
-  });
-
-  testWidgets('narrative block starts idle with a Generate summary CTA', (tester) async {
-    await _pump(tester, seedMessages: [_assessment(UrgencyLevel.monitorAtHome)]);
     expect(find.text('Generate summary'), findsOneWidget);
   });
 
-  testWidgets('tapping Generate summary shows the loaded recap', (tester) async {
+  testWidgets('tapping Generate summary shows the loaded recap', (
+    tester,
+  ) async {
     await _pump(
       tester,
       seedMessages: [_assessment(UrgencyLevel.monitorAtHome)],
@@ -151,74 +175,83 @@ void main() {
     expect(find.text('A question?'), findsOneWidget);
   });
 
-  testWidgets('watch-for section renders WarningPills from deterministic facts', (
-    tester,
-  ) async {
-    await _pump(
-      tester,
-      seedMessages: [
-        _assessment(UrgencyLevel.seekCareNow, watchFor: ['Trouble breathing']),
-      ],
-    );
-    expect(find.text('Trouble breathing'), findsOneWidget);
-  });
+  testWidgets(
+    'watch-for section renders WarningPills from deterministic facts',
+    (tester) async {
+      await _pump(
+        tester,
+        seedMessages: [
+          _assessment(
+            UrgencyLevel.seekCareNow,
+            watchFor: ['Trouble breathing'],
+          ),
+        ],
+      );
+      expect(find.text('Trouble breathing'), findsOneWidget);
+    },
+  );
 
-  testWidgets('narrative loading state shows a spinner, not the CTA or old content', (
-    tester,
-  ) async {
-    await _pump(
-      tester,
-      seedMessages: [_assessment(UrgencyLevel.monitorAtHome)],
-      repository: _DelayedStubRepository(
-        const VisitSummaryResult(isError: false, summary: 'A plain recap.'),
-      ),
-    );
-    await tester.tap(find.text('Generate summary'));
-    await tester.pump(); // enter loading — the delayed future has not resolved yet
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
-    expect(find.text('Generate summary'), findsNothing);
-    expect(find.text('A plain recap.'), findsNothing);
-    await tester.pumpAndSettle(); // let the delayed future resolve before teardown
-  });
-
-  testWidgets('a repository failure renders the error state with a Try again action', (
-    tester,
-  ) async {
-    await _pump(
-      tester,
-      seedMessages: [_assessment(UrgencyLevel.monitorAtHome)],
-      repository: _ThrowingRepository(),
-    );
-    await tester.tap(find.text('Generate summary'));
-    await tester.pump(); // enter loading
-    await tester.pump(); // AsyncValue.guard resolves to AsyncError
-    expect(
-      find.text("Couldn't put together a visit summary right now."),
-      findsOneWidget,
-    );
-    expect(find.text('Try again'), findsOneWidget);
-  });
-
-  testWidgets('a server-provided error message surfaces instead of the hardcoded fallback', (
-    tester,
-  ) async {
-    await _pump(
-      tester,
-      seedMessages: [_assessment(UrgencyLevel.monitorAtHome)],
-      repository: _StubRepository(
-        const VisitSummaryResult(
-          isError: true,
-          summary: '',
-          errorMessage: 'Custom server message.',
+  testWidgets(
+    'narrative loading state shows a spinner, not the CTA or old content',
+    (tester) async {
+      await _pump(
+        tester,
+        seedMessages: [_assessment(UrgencyLevel.monitorAtHome)],
+        repository: _DelayedStubRepository(
+          const VisitSummaryResult(isError: false, summary: 'A plain recap.'),
         ),
-      ),
-    );
-    await tester.tap(find.text('Generate summary'));
-    await tester.pump(); // enter loading
-    await tester.pump(); // resolve
-    expect(find.text('Custom server message.'), findsOneWidget);
-    expect(find.text('Try again'), findsOneWidget);
-  });
+      );
+      await tester.tap(find.text('Generate summary'));
+      await tester
+          .pump(); // enter loading — the delayed future has not resolved yet
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.text('Generate summary'), findsNothing);
+      expect(find.text('A plain recap.'), findsNothing);
+      await tester
+          .pumpAndSettle(); // let the delayed future resolve before teardown
+    },
+  );
+
+  testWidgets(
+    'a repository failure renders the error state with a Try again action',
+    (tester) async {
+      await _pump(
+        tester,
+        seedMessages: [_assessment(UrgencyLevel.monitorAtHome)],
+        repository: _ThrowingRepository(),
+      );
+      await tester.tap(find.text('Generate summary'));
+      await tester.pump(); // enter loading
+      await tester.pump(); // AsyncValue.guard resolves to AsyncError
+      expect(
+        find.text("Couldn't put together a visit summary right now."),
+        findsOneWidget,
+      );
+      expect(find.text('Try again'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'a server-provided error message surfaces instead of the hardcoded fallback',
+    (tester) async {
+      await _pump(
+        tester,
+        seedMessages: [_assessment(UrgencyLevel.monitorAtHome)],
+        repository: _StubRepository(
+          const VisitSummaryResult(
+            isError: true,
+            summary: '',
+            errorMessage: 'Custom server message.',
+          ),
+        ),
+      );
+      await tester.tap(find.text('Generate summary'));
+      await tester.pump(); // enter loading
+      await tester.pump(); // resolve
+      expect(find.text('Custom server message.'), findsOneWidget);
+      expect(find.text('Try again'), findsOneWidget);
+    },
+  );
 
   testWidgets('tapping Try again re-attempts generation', (tester) async {
     await _pump(
@@ -246,42 +279,51 @@ void main() {
     expect(find.text('Try again'), findsOneWidget);
   });
 
-  testWidgets('a stale narrative (conversation continued) shows a regenerate prompt, not old prose', (
-    tester,
-  ) async {
-    final container = ProviderContainer(
-      overrides: [
-        visitSummaryRepositoryProvider.overrideWithValue(
-          _StubRepository(
-            const VisitSummaryResult(isError: false, summary: 'Original recap.'),
+  testWidgets(
+    'a stale narrative (conversation continued) shows a regenerate prompt, not old prose',
+    (tester) async {
+      final container = ProviderContainer(
+        overrides: [
+          visitSummaryRepositoryProvider.overrideWithValue(
+            _StubRepository(
+              const VisitSummaryResult(
+                isError: false,
+                summary: 'Original recap.',
+              ),
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final firstMessage = _assessment(UrgencyLevel.monitorAtHome);
+      container.read(chatControllerProvider.notifier).state = AsyncData([
+        firstMessage,
+      ]);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: AppTheme.light,
+            home: const VisitSummaryScreen(),
           ),
         ),
-      ],
-    );
-    addTearDown(container.dispose);
-    final firstMessage = _assessment(UrgencyLevel.monitorAtHome);
-    container.read(chatControllerProvider.notifier).state = AsyncData([firstMessage]);
+      );
+      await tester.pump();
+      await tester.tap(find.text('Generate summary'));
+      await tester.pump();
+      await tester.pump();
+      expect(find.text('Original recap.'), findsOneWidget);
 
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(theme: AppTheme.light, home: const VisitSummaryScreen()),
-      ),
-    );
-    await tester.pump();
-    await tester.tap(find.text('Generate summary'));
-    await tester.pump();
-    await tester.pump();
-    expect(find.text('Original recap.'), findsOneWidget);
+      // Conversation continues past the point the narrative was generated.
+      container.read(chatControllerProvider.notifier).state = AsyncData([
+        firstMessage,
+        _assessment(UrgencyLevel.seeDoctorSoon),
+      ]);
+      await tester.pump();
 
-    // Conversation continues past the point the narrative was generated.
-    container.read(chatControllerProvider.notifier).state = AsyncData([
-      firstMessage,
-      _assessment(UrgencyLevel.seeDoctorSoon),
-    ]);
-    await tester.pump();
-
-    expect(find.text('Original recap.'), findsNothing);
-    expect(find.text('Regenerate'), findsOneWidget);
-  });
+      expect(find.text('Original recap.'), findsNothing);
+      expect(find.text('Regenerate'), findsOneWidget);
+    },
+  );
 }

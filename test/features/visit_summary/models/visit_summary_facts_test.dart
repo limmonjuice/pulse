@@ -35,26 +35,32 @@ void main() {
       expect(facts.findings, isEmpty);
     });
 
-    test('single assessment sets final and initial urgency to the same tier', () {
-      final facts = VisitSummaryFacts.fromMessages([
-        Message.user('I have a headache'),
-        _assessment(urgency: UrgencyLevel.monitorAtHome),
-      ]);
-      expect(facts.finalUrgency, UrgencyLevel.monitorAtHome);
-      expect(facts.initialUrgency, UrgencyLevel.monitorAtHome);
-      expect(facts.urgencyChanged, isFalse);
-    });
+    test(
+      'single assessment sets final and initial urgency to the same tier',
+      () {
+        final facts = VisitSummaryFacts.fromMessages([
+          Message.user('I have a headache'),
+          _assessment(urgency: UrgencyLevel.monitorAtHome),
+        ]);
+        expect(facts.finalUrgency, UrgencyLevel.monitorAtHome);
+        expect(facts.initialUrgency, UrgencyLevel.monitorAtHome);
+        expect(facts.urgencyChanged, isFalse);
+      },
+    );
 
-    test('multi-turn progression: urgencyChanged is first-vs-last, not "ever fluctuated"', () {
-      final facts = VisitSummaryFacts.fromMessages([
-        _assessment(urgency: UrgencyLevel.monitorAtHome),
-        _assessment(urgency: UrgencyLevel.seeDoctorSoon),
-        _assessment(urgency: UrgencyLevel.monitorAtHome),
-      ]);
-      expect(facts.initialUrgency, UrgencyLevel.monitorAtHome);
-      expect(facts.finalUrgency, UrgencyLevel.monitorAtHome);
-      expect(facts.urgencyChanged, isFalse);
-    });
+    test(
+      'multi-turn progression: urgencyChanged is first-vs-last, not "ever fluctuated"',
+      () {
+        final facts = VisitSummaryFacts.fromMessages([
+          _assessment(urgency: UrgencyLevel.monitorAtHome),
+          _assessment(urgency: UrgencyLevel.seeDoctorSoon),
+          _assessment(urgency: UrgencyLevel.monitorAtHome),
+        ]);
+        expect(facts.initialUrgency, UrgencyLevel.monitorAtHome);
+        expect(facts.finalUrgency, UrgencyLevel.monitorAtHome);
+        expect(facts.urgencyChanged, isFalse);
+      },
+    );
 
     test('a genuine progression sets urgencyChanged true', () {
       final facts = VisitSummaryFacts.fromMessages([
@@ -74,40 +80,55 @@ void main() {
       expect(facts.crisisMentionText, isNotNull);
     });
 
-    test('mixed crisis+assessment: crisis excluded from aggregates, hadCrisisTurn set', () {
-      final facts = VisitSummaryFacts.fromMessages([
-        _assessment(urgency: UrgencyLevel.monitorAtHome, findings: ['mild headache']),
-        Message.user('actually I feel like ending it'),
-        _crisis(),
-      ]);
-      expect(facts.finalUrgency, UrgencyLevel.monitorAtHome);
-      expect(facts.hadCrisisTurn, isTrue);
-      expect(facts.findings, ['mild headache']);
-    });
+    test(
+      'mixed crisis+assessment: crisis excluded from aggregates, hadCrisisTurn set',
+      () {
+        final facts = VisitSummaryFacts.fromMessages([
+          _assessment(
+            urgency: UrgencyLevel.monitorAtHome,
+            findings: ['mild headache'],
+          ),
+          Message.user('actually I feel like ending it'),
+          _crisis(),
+        ]);
+        expect(facts.finalUrgency, UrgencyLevel.monitorAtHome);
+        expect(facts.hadCrisisTurn, isTrue);
+        expect(facts.findings, ['mild headache']);
+      },
+    );
 
     test('findings/watchFor/selfCare/monitoring are deduped across turns', () {
       final facts = VisitSummaryFacts.fromMessages([
         _assessment(urgency: UrgencyLevel.monitorAtHome, findings: ['fever']),
-        _assessment(urgency: UrgencyLevel.monitorAtHome, findings: ['fever', 'cough']),
+        _assessment(
+          urgency: UrgencyLevel.monitorAtHome,
+          findings: ['fever', 'cough'],
+        ),
       ]);
       expect(facts.findings, unorderedEquals(['fever', 'cough']));
     });
 
-    test('TL-keyword heuristic: a Taglish preceding turn selects the TL crisis line', () {
-      final facts = VisitSummaryFacts.fromMessages([
-        Message.user('Gusto ko nang mamatay'),
-        _crisis(),
-      ]);
-      expect(facts.crisisMentionText, crisisMentionTl);
-    });
+    test(
+      'TL-keyword heuristic: a Taglish preceding turn selects the TL crisis line',
+      () {
+        final facts = VisitSummaryFacts.fromMessages([
+          Message.user('Gusto ko nang mamatay'),
+          _crisis(),
+        ]);
+        expect(facts.crisisMentionText, crisisMentionTl);
+      },
+    );
 
-    test('TL-keyword heuristic: an all-English conversation defaults to EN', () {
-      final facts = VisitSummaryFacts.fromMessages([
-        Message.user('I want to end my life'),
-        _crisis(),
-      ]);
-      expect(facts.crisisMentionText, crisisMentionEn);
-    });
+    test(
+      'TL-keyword heuristic: an all-English conversation defaults to EN',
+      () {
+        final facts = VisitSummaryFacts.fromMessages([
+          Message.user('I want to end my life'),
+          _crisis(),
+        ]);
+        expect(facts.crisisMentionText, crisisMentionEn);
+      },
+    );
 
     test(
       'mixed conversation: the latest non-crisis assessment\'s language wins over a later crisis turn',
@@ -122,14 +143,17 @@ void main() {
       },
     );
 
-    test('a leading crisis turn with nothing before it does not crash and defaults sensibly', () {
-      final facts = VisitSummaryFacts.fromMessages([
-        _crisis(),
-        Message.user("I'm okay now"),
-      ]);
-      expect(facts.hadCrisisTurn, isTrue);
-      expect(facts.crisisMentionText, isNotNull);
-    });
+    test(
+      'a leading crisis turn with nothing before it does not crash and defaults sensibly',
+      () {
+        final facts = VisitSummaryFacts.fromMessages([
+          _crisis(),
+          Message.user("I'm okay now"),
+        ]);
+        expect(facts.hadCrisisTurn, isTrue);
+        expect(facts.crisisMentionText, isNotNull);
+      },
+    );
   });
 
   group('stripCrisisExchanges', () {
@@ -155,17 +179,20 @@ void main() {
       expect(stripCrisisExchanges(messages), messages);
     });
 
-    test('drops all contiguous preceding user turns, not just the nearest one', () {
-      // Mirrors main.py's test_strip_crisis_exchanges_drops_all_contiguous_preceding_user_turns
-      // (Task 6) — a malformed/tampered history with two consecutive
-      // user turns before the crisis reply must not leak the earlier one.
-      final stripped = stripCrisisExchanges([
-        Message.user('I want to kill myself tonight'),
-        Message.user('sorry, ignore that, just kidding'),
-        _crisis(),
-      ]);
-      expect(stripped, isEmpty);
-    });
+    test(
+      'drops all contiguous preceding user turns, not just the nearest one',
+      () {
+        // Mirrors main.py's test_strip_crisis_exchanges_drops_all_contiguous_preceding_user_turns
+        // (Task 6) — a malformed/tampered history with two consecutive
+        // user turns before the crisis reply must not leak the earlier one.
+        final stripped = stripCrisisExchanges([
+          Message.user('I want to kill myself tonight'),
+          Message.user('sorry, ignore that, just kidding'),
+          _crisis(),
+        ]);
+        expect(stripped, isEmpty);
+      },
+    );
 
     test('handles a leading crisis turn with no preceding turn to drop', () {
       final crisisReply = _crisis();
