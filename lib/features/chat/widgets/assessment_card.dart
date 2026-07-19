@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/checklist_row.dart';
+import '../../../shared/widgets/warning_pill.dart';
 import '../models/urgency_result.dart';
 
 /// The flagship assessment card: tier icon chip + label + eyebrow,
@@ -120,7 +122,7 @@ class AssessmentCard extends StatelessWidget {
             Text('Things you can do today', style: theme.textTheme.titleSmall),
             const SizedBox(height: 9),
             for (var i = 0; i < result.selfCare.length; i++)
-              _SelfCareRow(
+              ChecklistRow(
                 text: result.selfCare[i],
                 done: checkedSelfCare.contains(i),
                 onTap: () => onToggleSelfCare(i),
@@ -130,13 +132,13 @@ class AssessmentCard extends StatelessWidget {
             const SizedBox(height: 18),
             Text('Check in on yourself', style: theme.textTheme.titleSmall),
             const SizedBox(height: 9),
-            for (final m in result.monitoring) _MonitoringRow(text: m),
+            for (final m in result.monitoring) ChecklistRow(text: m),
           ],
           if (result.watchFor.isNotEmpty) ...[
             const SizedBox(height: 18),
             Text('Get care if…', style: theme.textTheme.titleSmall),
             const SizedBox(height: 9),
-            for (final w in result.watchFor) _WatchForPill(text: w),
+            for (final w in result.watchFor) WarningPill(text: w),
           ],
           const SizedBox(height: 18),
           SizedBox(
@@ -167,136 +169,6 @@ class AssessmentCard extends StatelessWidget {
             ),
           ],
         ],
-      ),
-    );
-  }
-}
-
-class _SelfCareRow extends StatelessWidget {
-  const _SelfCareRow({
-    required this.text,
-    required this.done,
-    required this.onTap,
-  });
-  final String text;
-  final bool done;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadii.cardRowRadius),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
-          decoration: BoxDecoration(
-            color: AppColors.selfCareRowBg,
-            borderRadius: BorderRadius.circular(AppRadii.cardRowRadius),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(
-                  color: done ? AppColors.selfCareChecked : Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: done
-                      ? null
-                      : Border.all(
-                          color: AppColors.selfCareUncheckedBorder,
-                          width: 2,
-                        ),
-                ),
-                child: done
-                    ? const Icon(Icons.check, size: 15, color: Colors.white)
-                    : null,
-              ),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Text(
-                  text,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: done
-                        ? AppColors.selfCareCheckedText
-                        : AppColors.text,
-                    decoration: done ? TextDecoration.lineThrough : null,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MonitoringRow extends StatelessWidget {
-  const _MonitoringRow({required this.text});
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
-        decoration: BoxDecoration(
-          color: AppColors.tintTeal,
-          borderRadius: BorderRadius.circular(AppRadii.cardRowRadius),
-        ),
-        child: Row(
-          children: [
-            const Icon(
-              Icons.history_rounded,
-              size: 15,
-              color: AppColors.primaryInk,
-            ),
-            const SizedBox(width: 11),
-            Expanded(
-              child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _WatchForPill extends StatelessWidget {
-  const _WatchForPill({required this.text});
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final coral = Theme.of(context).extension<UrgencyColors>()!.seekCareNow;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 7),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-        decoration: BoxDecoration(
-          color: coral.tint,
-          borderRadius: BorderRadius.circular(AppRadii.pillRowRadius),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(Icons.warning_amber_rounded, size: 17, color: coral.text),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                text,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: coral.text),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
