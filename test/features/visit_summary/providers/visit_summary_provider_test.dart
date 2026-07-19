@@ -85,6 +85,38 @@ void main() {
     expect(stub.capturedMessages, isEmpty);
   });
 
+  test('generate() forwards the correctly-stripped subset for a mixed conversation', () async {
+    final stub = _StubRepository(
+      const VisitSummaryResult(isError: false, summary: 'recap'),
+    );
+    final container = ProviderContainer(
+      overrides: [visitSummaryRepositoryProvider.overrideWithValue(stub)],
+    );
+    addTearDown(container.dispose);
+
+    final benignUser = Message.user('I have a mild headache');
+    final benignAssessment = Message.assistant(
+      const UrgencyResult(
+        type: ChatTurnType.assessment,
+        message: 'Noted.',
+        urgency: UrgencyLevel.monitorAtHome,
+      ),
+    );
+    final crisisUser = Message.user('I want to end my life');
+    final crisisReply = Message.assistant(
+      const UrgencyResult(type: ChatTurnType.crisis, message: "I'm here for you."),
+    );
+
+    await container
+        .read(visitSummaryControllerProvider.notifier)
+        .generate(
+          messages: [benignUser, benignAssessment, crisisUser, crisisReply],
+          finalUrgency: UrgencyLevel.monitorAtHome,
+        );
+
+    expect(stub.capturedMessages, [benignUser, benignAssessment]);
+  });
+
   test('a repository failure surfaces as an AsyncError, not a thrown exception', () async {
     final container = ProviderContainer(
       overrides: [
