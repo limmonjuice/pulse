@@ -589,6 +589,19 @@ def _handle_request(request: https_fn.CallableRequest) -> dict:
         ) from exc
 
 
+def _handle_visit_summary_request(request: https_fn.CallableRequest) -> dict:
+    data = request.data or {}
+    try:
+        return run_visit_summary_pipeline(
+            history=data.get("history"),
+            final_urgency=data.get("final_urgency"),
+        )
+    except InvalidRequestError as exc:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT, str(exc)
+        ) from exc
+
+
 def _enforce_app_check_setting() -> bool:
     """App Check enforcement, overridable ONLY for local emulation via
     ENFORCE_APP_CHECK=false in functions/.env.local (emulator-only — the
@@ -610,3 +623,11 @@ def _enforce_app_check_setting() -> bool:
 )
 def assess_symptoms(request: https_fn.CallableRequest) -> dict:
     return _handle_request(request)
+
+
+@https_fn.on_call(
+    region="asia-southeast1",
+    enforce_app_check=_enforce_app_check_setting(),
+)
+def generate_visit_summary(request: https_fn.CallableRequest) -> dict:
+    return _handle_visit_summary_request(request)

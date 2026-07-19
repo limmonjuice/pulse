@@ -1289,3 +1289,46 @@ def test_run_visit_summary_pipeline_logging_reports_retry_used_on_success(monkey
     assert record.retry_used is True
     assert record.blocklist_triggered is False
     assert record.degenerate is False
+
+
+# ---------------------------------------------------------------------------
+# Visit summary: _handle_visit_summary_request
+# ---------------------------------------------------------------------------
+
+from main import _handle_visit_summary_request
+
+
+class _FakeVisitSummaryRequest:
+    def __init__(self, data):
+        self.data = data
+
+
+def test_handle_visit_summary_request_happy_path(monkeypatch):
+    _mock_get_visit_summary(monkeypatch, VALID_VISIT_SUMMARY)
+    request = _FakeVisitSummaryRequest({
+        "history": [
+            {"role": "user", "content": "I have a mild headache since this morning"},
+            {
+                "role": "assistant", "content": "Noted.", "type": "assessment",
+                "urgency": "monitor_at_home", "findings": [], "explanation": None,
+                "next_step": None,
+            },
+        ],
+        "final_urgency": "monitor_at_home",
+    })
+    result = _handle_visit_summary_request(request)
+    assert result["type"] == "visit_summary"
+
+
+def test_handle_visit_summary_request_raises_https_error_on_oversized_history():
+    history = [{"role": "user", "content": "hi"}] * (main.MAX_ACCEPTED_HISTORY_TURNS + 1)
+    request = _FakeVisitSummaryRequest({"history": history, "final_urgency": None})
+    with pytest.raises(https_fn.HttpsError):
+        _handle_visit_summary_request(request)
+
+
+def test_handle_visit_summary_request_defaults_missing_data_to_empty():
+    request = _FakeVisitSummaryRequest({})
+    result = _handle_visit_summary_request(request)
+    # Empty history strips to empty -> degenerate path, no crash.
+    assert result["type"] == "visit_summary"
