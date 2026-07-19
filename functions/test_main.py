@@ -995,3 +995,170 @@ def test_visit_summary_conversation_language_derives_from_history_alone():
 
 def test_visit_summary_conversation_language_none_on_empty_history():
     assert _visit_summary_conversation_language([]) is None
+
+
+# ---------------------------------------------------------------------------
+# Visit summary: run_visit_summary_pipeline
+# ---------------------------------------------------------------------------
+
+import visit_summary_prompt
+from main import run_visit_summary_pipeline
+
+
+def _mock_get_visit_summary(monkeypatch, payload_or_fn):
+    if callable(payload_or_fn) and not isinstance(payload_or_fn, dict):
+        fn = payload_or_fn
+    else:
+        fn = lambda *args, **kwargs: dict(payload_or_fn)
+    monkeypatch.setattr(main.gemini_client, "get_visit_summary", fn)
+
+
+VALID_VISIT_SUMMARY = {
+    "summary": "The conversation covered a mild headache.",
+    "questions_for_doctor": ["Could this be related to sleep?"],
+}
+
+
+def test_run_visit_summary_pipeline_returns_narrative_on_success(monkeypatch):
+    _mock_get_visit_summary(monkeypatch, VALID_VISIT_SUMMARY)
+    history = [
+        {"role": "user", "content": "I have a mild headache since this morning"},
+        {
+            "role": "assistant", "content": "That sounds manageable.",
+            "type": "assessment", "urgency": "monitor_at_home",
+            "findings": ["mild headache"], "explanation": "e", "next_step": "n",
+        },
+    ]
+    result = run_visit_summary_pipeline(history=history, final_urgency="monitor_at_home")
+    assert result["type"] == "visit_summary"
+    assert result["summary"] == VALID_VISIT_SUMMARY["summary"]
+    assert result["questions_for_doctor"] == VALID_VISIT_SUMMARY["questions_for_doctor"]
+    assert result["metadata"]["prompt_version"] == visit_summary_prompt.PROMPT_VERSION
+    assert result["metadata"]["model_name"] == gemini_client.MODEL_NAME
+    assert "generated_at" in result["metadata"]
+
+
+def test_run_visit_summary_pipeline_strips_crisis_exchanges_before_calling_gemini(monkeypatch):
+    captured = {}
+
+    def _capture(prompt, history):
+        captured["history"] = history
+        return dict(VALID_VISIT_SUMMARY)
+
+    _mock_get_visit_summary(monkeypatch, _capture)
+    history = [
+        {"role": "user", "content": "I want to end my life"},
+        {"role": "assistant", "content": "I'm here for you.", "type": "crisis"},
+        {"role": "user", "content": "I have a mild headache since this morning"},
+        {
+            "role": "assistant", "content": "That sounds manageable.",
+            "type": "assessment", "urgency": "monitor_at_home",
+            "findings": [], "explanation": None, "next_step": None,
+        },
+    ]
+    run_visit_summary_pipeline(history=history, final_urgency="monitor_at_home")
+    sent_texts = [turn["content"] for turn in captured["history"]]
+    assert "I want to end my life" not in sent_texts
+    assert "I'm here for you." not in sent_texts
+
+
+def test_run_visit_summary_pipeline_degenerate_case_skips_gemini_entirely(monkeypatch):
+    calls = []
+    _mock_get_visit_summary(monkeypatch, lambda *a, **k: calls.append(1) or dict(VALID_VISIT_SUMMARY))
+    history = [
+        {"role": "user", "content": "I want to end my life"},
+        {"role": "assistant", "content": "I'm here for you.", "type": "crisis"},
+    ]
+    result = run_visit_summary_pipeline(history=history, final_urgency=None)
+    assert calls == []  # gemini_client.get_visit_summary never called
+    assert result["type"] == "visit_summary"
+    assert result["summary"] == fallbacks.VISIT_SUMMARY_NO_CONTENT_EN
+    assert result["questions_for_doctor"] == []
+
+
+def test_run_visit_summary_pipeline_degenerate_case_picks_tagalog_from_pre_strip_history(monkeypatch):
+    _mock_get_visit_summary(monkeypatch, lambda *a, **k: dict(VALID_VISIT_SUMMARY))
+    history = [
+        {"role": "user", "content": "Gusto ko nang mamatay"},
+        {"role": "assistant", "content": "Nandito ako para sa'yo.", "type": "crisis"},
+    ]
+    result = run_visit_summary_pipeline(history=history, final_urgency=None)
+    assert result["summary"] == fallbacks.VISIT_SUMMARY_NO_CONTENT_TL
+
+
+def test_run_visit_summary_pipeline_accepts_null_final_urgency(monkeypatch):
+    _mock_get_visit_summary(monkeypatch, VALID_VISIT_SUMMARY)
+    history = [
+        {"role": "user", "content": "I want to end my life"},
+        {"role": "assistant", "content": "I'm here for you.", "type": "crisis"},
+        {"role": "user", "content": "actually just a mild headache too"},
+        {
+            "role": "assistant", "content": "Noted.", "type": "assessment",
+            "urgency": "monitor_at_home", "findings": [], "explanation": None,
+            "next_step": None,
+        },
+    ]
+    result = run_visit_summary_pipeline(history=history, final_urgency=None)
+    assert result["type"] == "visit_summary"
+
+
+def test_run_visit_summary_pipeline_grounds_the_prompt_with_final_urgency(monkeypatch):
+    # final_urgency is grounding for the model, not just a validated
+    # pass-through (design spec §4.1/§4.5) — assert it actually reaches
+    # build_system_prompt, not just that the call succeeds.
+    captured = {}
+
+    def _capture(prompt, history):
+        captured["prompt"] = prompt
+        return dict(VALID_VISIT_SUMMARY)
+
+    _mock_get_visit_summary(monkeypatch, _capture)
+    history = [
+        {"role": "user", "content": "I have a mild headache since this morning"},
+        {
+            "role": "assistant", "content": "Noted.", "type": "assessment",
+            "urgency": "see_doctor_soon", "findings": [], "explanation": None,
+            "next_step": None,
+        },
+    ]
+    run_visit_summary_pipeline(history=history, final_urgency="see_doctor_soon")
+    assert "see_doctor_soon" in captured["prompt"]
+
+
+def test_run_visit_summary_pipeline_rejects_oversized_history():
+    history = [{"role": "user", "content": "hi"}] * (main.MAX_ACCEPTED_HISTORY_TURNS + 1)
+    with pytest.raises(InvalidRequestError):
+        run_visit_summary_pipeline(history=history, final_urgency=None)
+
+
+def test_run_visit_summary_pipeline_rejects_invalid_final_urgency():
+    with pytest.raises(InvalidRequestError):
+        run_visit_summary_pipeline(history=[], final_urgency="call_911")
+
+
+def test_run_visit_summary_pipeline_returns_error_type_on_model_response_error(monkeypatch):
+    _mock_get_visit_summary(monkeypatch, lambda *a, **k: (_ for _ in ()).throw(gemini_client.ModelResponseError("boom")))
+    history = [
+        {"role": "user", "content": "I have a mild headache since this morning"},
+        {
+            "role": "assistant", "content": "Noted.", "type": "assessment",
+            "urgency": "monitor_at_home", "findings": [], "explanation": None,
+            "next_step": None,
+        },
+    ]
+    result = run_visit_summary_pipeline(history=history, final_urgency="monitor_at_home")
+    assert result["type"] == "error"
+
+
+def test_run_visit_summary_pipeline_returns_error_type_on_unexpected_exception(monkeypatch):
+    _mock_get_visit_summary(monkeypatch, lambda *a, **k: (_ for _ in ()).throw(RuntimeError("503")))
+    history = [
+        {"role": "user", "content": "I have a mild headache since this morning"},
+        {
+            "role": "assistant", "content": "Noted.", "type": "assessment",
+            "urgency": "monitor_at_home", "findings": [], "explanation": None,
+            "next_step": None,
+        },
+    ]
+    result = run_visit_summary_pipeline(history=history, final_urgency="monitor_at_home")
+    assert result["type"] == "error"

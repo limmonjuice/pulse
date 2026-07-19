@@ -43,6 +43,7 @@ from __future__ import annotations
 import logging
 import os
 import time
+from datetime import datetime, timezone
 
 import firebase_admin
 from firebase_functions import https_fn
@@ -54,6 +55,8 @@ import mirror_probes
 import red_flags
 import safety_engine
 import system_prompt
+import visit_summary_prompt
+import wire_contract
 
 # Required once per process: firebase_functions' App Check/auth token
 # verification (used by the enforce_app_check=True below) reads through
@@ -449,6 +452,121 @@ def run_pipeline(
             "red_flag_matched": bool(red_flag_result and red_flag_result.matched) or red_flags_crashed,
             "red_flag_rule_ids": rule_ids_now,
             "model_name": gemini_client.MODEL_NAME,
+        },
+    }
+
+
+def _log_visit_summary_request(
+    *, retry_used: bool, blocklist_triggered: bool, degenerate: bool,
+    conversation_language: str | None,
+) -> None:
+    logger.info(
+        "generate_visit_summary request completed",
+        extra={
+            "prompt_version": visit_summary_prompt.PROMPT_VERSION,
+            "retry_used": retry_used,
+            "blocklist_triggered": blocklist_triggered,
+            "degenerate": degenerate,
+            "conversation_language": conversation_language,
+        },
+    )
+
+
+def _visit_summary_error_response() -> dict:
+    return {
+        "type": "error",
+        "message": "Couldn't put together a visit summary right now — try again in a bit.",
+        "metadata": {
+            "prompt_version": visit_summary_prompt.PROMPT_VERSION,
+            "model_name": gemini_client.MODEL_NAME,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+        },
+    }
+
+
+def run_visit_summary_pipeline(
+    *, history: list[dict] | None, final_urgency: str | None,
+) -> dict:
+    """Pure orchestration for generate_visit_summary — mirrors
+    run_pipeline/_handle_request's split so this is unit-testable
+    without https_fn plumbing. See design spec §4.1.
+
+    The narrative call is scoped narrowly to the recap + doctor
+    questions; urgency, findings, watch-for, and self-care all stay
+    client-side (design spec §4.5) — final_urgency is grounding only.
+    """
+    pre_strip_history = history or []
+    if len(pre_strip_history) > MAX_ACCEPTED_HISTORY_TURNS:
+        raise InvalidRequestError(HISTORY_TOO_LONG_MESSAGE)
+    if final_urgency is not None and final_urgency not in wire_contract.URGENCY_TIERS:
+        raise InvalidRequestError("final_urgency must be a valid urgency tier or null.")
+
+    stripped_history = _strip_crisis_exchanges(pre_strip_history)
+
+    if not stripped_history:
+        # Degenerate case (design spec §4.1): the conversation consisted
+        # solely of a crisis exchange — nothing else to summarize. Skip
+        # Gemini entirely; classify language from the PRE-strip history
+        # (classification only, never reproduction — reading crisis-turn
+        # text to decide "was this Tagalog" doesn't touch the
+        # no-paraphrase guarantee, since nothing from that text is
+        # echoed or exposed).
+        user_text = " ".join(
+            turn.get("content", "")
+            for turn in pre_strip_history
+            if isinstance(turn, dict) and turn.get("role") == "user"
+        )
+        tagalog = fallbacks.message_signals_tagalog(user_text)
+        _log_visit_summary_request(
+            retry_used=False, blocklist_triggered=False, degenerate=True,
+            conversation_language="tagalog" if tagalog else "english",
+        )
+        payload = fallbacks.visit_summary_no_content_payload(tagalog=tagalog)
+        return {
+            **payload,
+            "metadata": {
+                "prompt_version": visit_summary_prompt.PROMPT_VERSION,
+                "model_name": gemini_client.MODEL_NAME,
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+            },
+        }
+
+    conversation_language = _visit_summary_conversation_language(stripped_history)
+    prompt = visit_summary_prompt.build_system_prompt(
+        conversation_language=conversation_language,
+        final_urgency=final_urgency,
+    )
+
+    try:
+        result = gemini_client.get_visit_summary(prompt, stripped_history)
+    except gemini_client.ModelResponseError as exc:
+        blocklist_triggered = isinstance(exc.__cause__, gemini_client.TierLanguageDetectedError)
+        _log_visit_summary_request(
+            retry_used=True, blocklist_triggered=blocklist_triggered, degenerate=False,
+            conversation_language=conversation_language,
+        )
+        return _visit_summary_error_response()
+    except Exception:
+        logger.exception("Unexpected error calling Gemini for visit summary")
+        _log_visit_summary_request(
+            retry_used=False, blocklist_triggered=False, degenerate=False,
+            conversation_language=conversation_language,
+        )
+        return _visit_summary_error_response()
+
+    retry_used = bool(result.pop("_retry_used", False))
+    _log_visit_summary_request(
+        retry_used=retry_used, blocklist_triggered=False, degenerate=False,
+        conversation_language=conversation_language,
+    )
+    return {
+        "type": "visit_summary",
+        "summary": result["summary"],
+        "questions_for_doctor": result["questions_for_doctor"],
+        "metadata": {
+            "prompt_version": visit_summary_prompt.PROMPT_VERSION,
+            "model_name": gemini_client.MODEL_NAME,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
         },
     }
 
