@@ -10,7 +10,15 @@ import '../../core/theme/app_theme.dart';
 /// AssessmentCard's monitoring list and VisitSummaryScreen's read-only
 /// recap sections; see the visit-summary design spec §5.3).
 class ChecklistRow extends StatelessWidget {
-  const ChecklistRow({super.key, required this.text, this.done = false, this.onTap});
+  const ChecklistRow({
+    super.key,
+    required this.text,
+    this.done = false,
+    this.onTap,
+  }) : assert(
+         onTap != null || !done,
+         'done has no effect without onTap — read-only rows have no per-item state to check off',
+       );
 
   final String text;
   final bool done;
@@ -37,14 +45,21 @@ class ChecklistRow extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
                 border: done
                     ? null
-                    : Border.all(color: AppColors.selfCareUncheckedBorder, width: 2),
+                    : Border.all(
+                        color: AppColors.selfCareUncheckedBorder,
+                        width: 2,
+                      ),
               ),
               child: done
                   ? const Icon(Icons.check, size: 15, color: Colors.white)
                   : null,
             )
           else
-            const Icon(Icons.history_rounded, size: 15, color: AppColors.primaryInk),
+            const Icon(
+              Icons.history_rounded,
+              size: 15,
+              color: AppColors.primaryInk,
+            ),
           const SizedBox(width: 11),
           Expanded(
             child: Text(

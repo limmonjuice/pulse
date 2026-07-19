@@ -28,7 +28,9 @@ class WarningPill extends StatelessWidget {
             Expanded(
               child: Text(
                 text,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: coral.text),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: coral.text),
               ),
             ),
           ],
