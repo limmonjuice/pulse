@@ -23,13 +23,42 @@ the developer, in order of severity.
       deterministically from the user's own turns (chip taps are
       below the word threshold and can never flip it) and section 9
       states it as an explicit CONVERSATION LANGUAGE directive.
-      Live-verified 2026-07-13 on the exact regressed sequence via
-      run_pipeline: both turns English, PASS. STILL OPEN: the full
-      `python evals/run_evals.py --category language_mirroring`
-      sweep (now 6 cases incl. the terse-chip pin) has not run on
-      v1.5.5 — quota; run it on fresh quota or the prod key, plus a
+      CORRECTION 2026-07-26: the earlier "Live-verified 2026-07-13
+      via run_pipeline: both turns English, PASS" claim was INVALID
+      — it passed only because those specific probe strings happened
+      to contain detect_language marker words. THIRD WAVE found
+      2026-07-26 in-app: an all-English dog-bite conversation ("hi" /
+      "im having hydrophobia" / "i got bit by a dog") flipped to
+      Tagalog because every terse turn returned "unknown" from
+      detect_language (a function-word counter blind to terse,
+      marker-free symptom vocabulary — symmetrically blind to terse
+      Tagalog too), so _conversation_language yielded None and the
+      directive was silently dropped. Fixed 2026-07-26: expanded the
+      detect_language marker sets with terse symptom/reply vocabulary
+      (both languages) and added conversation-level inheritance to
+      _conversation_language (a terse turn inherits the established
+      language, never re-decides). UNIT-VERIFIED ONLY (474 pytest
+      green incl. new terse-vocabulary + inheritance + dog-bite
+      regression tests); NOT verified on the real model. fasttext/
+      langdetect was rejected for this path — its weakest regime is
+      short + code-switched text, exactly this workload, and no
+      unverifiable probabilistic component ships here while the live
+      sweep is quota-blocked (backlogged in POLISH_BACKLOG.md with a
+      revisit trigger). STILL OPEN: the full `python
+      evals/run_evals.py --category language_mirroring` sweep (now 8
+      cases incl. the two terse pins) has not run on the deployed
+      model — quota; run it on fresh quota or the prod key, plus a
       Taglish-dengue register spot-check now that its example is
-      English-only). A Tagalog-only Pulse silently excludes
+      English-only. Re-verify mirroring on the real model before
+      calling this closed — do NOT treat the 2026-07-26 fix as
+      verified on the strength of unit tests alone. QUOTA PRIORITY
+      (owner, 2026-07-26): this `--category language_mirroring` sweep
+      is the FIRST spend of any newly available quota — ahead of the
+      visit-summary manual transcripts and ahead of the rest of the
+      eval backlog. Three waves of this regression have each cost more
+      time than the sweep ever would; it has earned priority. Running
+      it green on every turn is the ONLY thing that closes this
+      blocker.) A Tagalog-only Pulse silently excludes
       English-preferring users and vice versa. Verification =
       the language_mirroring category green on every turn, on the
       model that is actually deployed; the model-swap guard

@@ -480,14 +480,18 @@ def test_conversation_language_full_tagalog_sentence_switches():
     assert main._conversation_language(msg, history) == "tagalog"
 
 
-def test_conversation_language_terse_only_conversation_uses_newest_confident():
+def test_conversation_language_terse_only_conversation_inherits_baseline():
     # No turn reaches the switch threshold, but a terse Tagalog opener
-    # still deserves a Tagalog conversation.
+    # still deserves a Tagalog conversation — the first confident turn
+    # establishes the baseline the rest inherit.
     assert main._conversation_language("May lagnat ako", []) == "tagalog"
 
 
 def test_conversation_language_none_when_nothing_classifies():
-    assert main._conversation_language("Stomach pain or nausea", []) is None
+    # A chip with no marker word in either language stays genuinely
+    # unclassifiable, so no directive is emitted. ("Stomach pain or
+    # nausea" no longer qualifies — "pain" is now an English marker.)
+    assert main._conversation_language("Not sure", []) is None
 
 
 def test_conversation_language_skips_malformed_history_turns():
@@ -496,6 +500,35 @@ def test_conversation_language_skips_malformed_history_turns():
         main._conversation_language("I have had a fever since yesterday morning", history)
         == "english"
     )
+
+
+def test_conversation_language_terse_english_dog_bite_regression():
+    # The 2026-07-26 in-app screenshots, verbatim: an all-English
+    # conversation whose every turn is too terse for the OLD marker sets
+    # to classify (each returned "unknown"), so the directive was omitted
+    # and the model flipped to Tagalog. Every turn here is English; the
+    # derived language must be English so the directive pins it.
+    history = [
+        {"role": "user", "content": "hi"},
+        {"role": "assistant", "content": "Hi there, what's going on?", "type": "question"},
+        {"role": "user", "content": "im having hydrophobia"},
+        {"role": "assistant", "content": "Tell me more.", "type": "question"},
+    ]
+    assert main._conversation_language("i got bit by a dog", history) == "english"
+
+
+def test_conversation_language_terse_reply_inherits_established_language():
+    # Inheritance: once a turn establishes the conversation's language, a
+    # later terse turn (below the switch threshold) inherits it rather
+    # than re-deciding. A terse Tagalog opener sets Tagalog; a one-word
+    # English reply chip ("yes") must NOT flip the whole conversation to
+    # English — only a full-message switch may. (Under the pre-fix
+    # newest-confident fallback this returned "english".)
+    history = [
+        {"role": "user", "content": "nilalagnat ako"},
+        {"role": "assistant", "content": "Gaano na katagal?", "type": "question"},
+    ]
+    assert main._conversation_language("yes", history) == "tagalog"
 
 
 def test_pipeline_passes_conversation_language_directive_to_prompt(monkeypatch):
@@ -521,7 +554,7 @@ def test_pipeline_omits_conversation_language_directive_when_undetectable(monkey
         return dict(VALID_QUESTION)
 
     _mock_get_assessment(monkeypatch, fake)
-    run_pipeline(message="Stomach pain or nausea")
+    run_pipeline(message="Not sure")
     assert "CONVERSATION LANGUAGE:" not in seen["prompt"]
 
 

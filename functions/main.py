@@ -110,13 +110,20 @@ def _conversation_language(message: str, history: list[dict]) -> str | None:
     as code-switched Taglish register to 3.1-flash-lite and flips an
     all-English conversation to Tagalog, and no prompt-side counterweight
     (rule or few-shot example) beat that prior — only a server-stated
-    directive did. So the server decides, deterministically: newest user
-    turn first, the first turn that is both confidently classified by
-    mirror_probes.detect_language AND long enough to be a real switch
-    (>= _LANGUAGE_SWITCH_MIN_WORDS words) wins. If no turn passes that
-    bar, the newest confidently classified turn of any length wins (a
-    terse first message still deserves its own language). None when
-    nothing classifies — the prompt's own rules then stand alone.
+    directive did. So the server decides, deterministically, walking the
+    turns oldest -> newest:
+
+    - Only a turn long enough to be a real switch
+      (>= _LANGUAGE_SWITCH_MIN_WORDS words) may SET or CHANGE the
+      language; the most recent such turn wins. A full message is how a
+      person genuinely switches.
+    - Terse turns INHERIT — they never re-decide. The first confidently
+      classified turn establishes a baseline; a later terse turn in the
+      other language (a tapped chip, a one-word "yes"/"oo") cannot
+      override it. Without this, a terse reply would flip the whole
+      conversation via the newest-confident signal.
+    - None only when nothing classifies at all — the prompt's own rules
+      then stand alone.
     """
     texts = [
         turn.get("content")
@@ -124,18 +131,19 @@ def _conversation_language(message: str, history: list[dict]) -> str | None:
         if isinstance(turn, dict) and turn.get("role") == "user"
     ]
     texts.append(message)
-    newest_confident: str | None = None
-    for text in reversed(texts):
+    established: str | None = None  # first confident turn — the baseline
+    switched: str | None = None     # most recent switch-length confident turn
+    for text in texts:
         if not isinstance(text, str):
             continue
         detected = mirror_probes.detect_language(text)
         if detected == "unknown":
             continue
-        if newest_confident is None:
-            newest_confident = detected
+        if established is None:
+            established = detected
         if len(text.split()) >= _LANGUAGE_SWITCH_MIN_WORDS:
-            return detected
-    return newest_confident
+            switched = detected
+    return switched if switched is not None else established
 
 
 def _strip_crisis_exchanges(history: list[dict]) -> list[dict]:

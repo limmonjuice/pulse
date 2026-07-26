@@ -49,13 +49,17 @@ class EvalCase:
 CASES: list[EvalCase] = [
 
     # -------------------------------------------------------------------
-    # 1. language_mirroring (6) — migrated verbatim from mirror_probes.py,
+    # 1. language_mirroring (8) — migrated verbatim from mirror_probes.py,
     # now run through the real in-process pipeline instead of HTTP against
     # a running emulator. ALL checks in this category are every_turn: a
     # wrong-language question turn is a per-turn failure (see module
     # docstring). The dog-bite case pins the 2026-07-13 3.1-flash-lite
     # regression's exact shape; the terse-chip case pins its second wave
-    # (the chip-tap flip 1.5.4 didn't cover, fixed by 1.5.5's directive).
+    # (the chip-tap flip 1.5.4 didn't cover, fixed by 1.5.5's directive);
+    # the two terse cases pin the 2026-07-26 detect_language coverage gap
+    # (terse English AND Tagalog turns the old marker sets read as
+    # "unknown", dropping the directive) — structurally unexpressible
+    # before the marker expansion.
     # -------------------------------------------------------------------
     EvalCase(
         id="language_mirroring_english_with_regional_context",
@@ -141,6 +145,45 @@ CASES: list[EvalCase] = [
             "server-derived CONVERSATION LANGUAGE directive (1.5.5, "
             "main._conversation_language) held. Every scripted reply here "
             "stays chip-terse so every turn is a low-language-signal turn."
+        ),
+    ),
+
+    EvalCase(
+        id="language_mirroring_english_terse_dog_bite_every_turn",
+        category="language_mirroring",
+        message="i got bit by a dog",
+        scripted_replies=["im dizzy", "No fever", "This morning"],
+        checks=[("check_language", "english", "every_turn")],
+        notes=(
+            "Pins the 2026-07-26 in-app regression: an all-English "
+            "conversation where every turn is too terse for the pre-fix "
+            "detect_language marker sets to classify — each returned "
+            "'unknown', so main._conversation_language yielded None, the "
+            "CONVERSATION LANGUAGE directive was dropped, and the model "
+            "flipped to Tagalog. The earlier dog-bite case "
+            "(language_mirroring_english_dog_bite_every_turn) uses "
+            "full-sentence turns that always carried marker words and so "
+            "could never catch this class; every message and scripted "
+            "reply here is deliberately marker-sparse and chip-terse. "
+            "STRUCTURALLY UNCATCHABLE before the marker expansion — this "
+            "and the terse Tagalog twin below are the cases the old probes "
+            "could not express."
+        ),
+    ),
+    EvalCase(
+        id="language_mirroring_tagalog_terse_stays_tagalog_every_turn",
+        category="language_mirroring",
+        message="nilalagnat ako",
+        scripted_replies=["inuubo ako", "oo", "kanina pa"],
+        checks=[("check_language", ("tagalog", "mixed"), "every_turn")],
+        notes=(
+            "Terse Tagalog twin of the dog-bite terse case — the symmetric "
+            "failure mode. detect_language was equally blind to short "
+            "Tagalog ('nilalagnat ako', 'inuubo ako' both returned "
+            "'unknown' pre-fix), so a Tagalog-preferring user's terse "
+            "conversation would lose its directive just the same. Guards "
+            "against a future English-defaulting 'fix' that would silently "
+            "flip these users to English."
         ),
     ),
 
