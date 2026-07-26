@@ -93,7 +93,8 @@ class ChatController extends AsyncNotifier<List<Message>> {
       // await — found during Task 9 code review by reproducing the
       // exact sequence (toggle mid-flight, then let the send resolve).
       state = AsyncData([...(state.value ?? withUser), reply]);
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('[chat_provider] send() failed: $e\n$st');
       state = AsyncData([...(state.value ?? withUser), _errorMessage()]);
     } finally {
       ref.read(chatIsSendingProvider.notifier).state = false;
