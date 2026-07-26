@@ -66,6 +66,33 @@ marked "not evaluable" rather than blamed on the budget. Each case's
 report entry lists per-turn results (`turns`), not one collapsed
 verdict.
 
+## Three outcomes: passed / failed / non-evaluable
+
+Every check result carries `evaluable`. A check that could not
+legitimately be scored is **neither a pass nor a fail** — counting it
+either way lies about the run:
+
+- **Degraded turns.** If a turn is Pulse-constructed rather than model
+  output (`type="error"`, or any hardcoded string from `fallbacks.py`),
+  every check on that turn is non-evaluable. Added 2026-07-26 after the
+  `language_mirroring` sweep scored `check_language` against
+  `FRIENDLY_DEGRADED_ERROR_MESSAGE_EN` — Pulse's own English string —
+  and reported it as an English mirroring PASS. The check could not have
+  failed, because no model was involved. This is a CLASS defect (every
+  checker has the same hole — see the audit in
+  `checkers.degraded_turn_reason`), so the gate lives in
+  `_run_checks` and applies uniformly rather than inside each checker.
+- **Budget-exceeded final checks.** Previously described as "not
+  evaluable" but still scored as failures, inflating the failure count
+  with turns nobody measured. Now genuinely non-evaluable.
+- **Crashes stay failures.** A pipeline crash is a real defect and
+  counts against the run.
+
+Pass rates are computed over **evaluable checks only**, and the summary
+prints `passed / failed / non-evaluable` separately. Any run with a
+non-evaluable check prints a warning and must not be read as a clean
+verification — that is the guard against another vacuous 100%.
+
 ## Model-swap guard
 
 Every results file is stamped with BOTH the prompt version and the

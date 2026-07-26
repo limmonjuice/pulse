@@ -12,7 +12,9 @@ Run from functions/:
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
+import logging
 import os
 import sys
 import time
@@ -77,9 +79,80 @@ def _split_checks(case: EvalCase) -> tuple[list[tuple], list[tuple]]:
     return final_checks, every_turn_checks
 
 
+class _PipelineLogCapture(logging.Handler):
+    """Collects WARNING+ records from the `pulse.*` loggers emitted during
+    ONE run_pipeline call.
+
+    The pipeline absorbs every model failure into a degraded payload by
+    design — a quota 429, a network drop and a twice-rejected schema all
+    come back as the same friendly "Something's not working right on my
+    end". That is right for users and useless for debugging: before this,
+    a quota-exhausted sweep looked identical to a healthy one that just
+    happened to degrade. The reason only ever exists in a log record, so
+    the harness captures those records and files them against the turn
+    that produced them.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(level=logging.WARNING)
+        self.records: list[dict] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.records.append(
+            {
+                "level": record.levelname,
+                "logger": record.name,
+                "message": record.getMessage(),
+                # Structured fields the pipeline attaches via `extra=`.
+                "rejection_reason": getattr(record, "rejection_reason", None),
+                "rejection_reason_first": getattr(record, "rejection_reason_first", None),
+                "rejection_reason_second": getattr(record, "rejection_reason_second", None),
+                "degraded_cause": getattr(record, "degraded_cause", None),
+                "degraded_detail": getattr(record, "degraded_detail", None),
+                "gemini_error_type": getattr(record, "gemini_error_type", None),
+                "gemini_error_detail": getattr(record, "gemini_error_detail", None),
+            }
+        )
+
+
+@contextlib.contextmanager
+def _capture_pipeline_logs():
+    """Attaches to the shared `pulse` parent so both pulse.gemini_client
+    (first-attempt rejections, API errors) and pulse.assess_symptoms
+    (degrade decisions) are caught."""
+    handler = _PipelineLogCapture()
+    pulse_logger = logging.getLogger("pulse")
+    pulse_logger.addHandler(handler)
+    try:
+        yield handler
+    finally:
+        pulse_logger.removeHandler(handler)
+
+
+def _non_evaluable(checker_name: str, reason: str) -> dict:
+    """A check that could not legitimately be scored. Reported as its own
+    third outcome — never as a pass (which manufactures green) and never
+    as a fail (which blames the model for something it didn't do)."""
+    return {
+        "checker": checker_name,
+        "passed": None,
+        "evaluable": False,
+        "detail": f"not evaluable: {reason}",
+    }
+
+
 def _run_checks(checks: list[tuple], response: dict) -> list[dict]:
+    # Class-wide gate: if the turn is Pulse-constructed rather than model
+    # output, NO checker can say anything about the model (see
+    # checkers.degraded_turn_reason for the per-checker audit). Gating
+    # here rather than inside each checker means a future checker cannot
+    # reintroduce the defect by forgetting to handle degraded turns.
+    degraded_reason = checkers.degraded_turn_reason(response)
     results = []
     for checker_name, expected in checks:
+        if degraded_reason is not None:
+            results.append(_non_evaluable(checker_name, degraded_reason))
+            continue
         checker_fn = checkers.CHECKERS[checker_name]
         outcome = checker_fn(response, expected)
         if isinstance(outcome, tuple):
@@ -88,8 +161,16 @@ def _run_checks(checks: list[tuple], response: dict) -> list[dict]:
             # check_possibilities_mentioned returns a bare bool when used
             # as an assertion (see its docstring) — compare against expected.
             passed, detail = (outcome == expected), f"value={outcome!r} (expected {expected!r})"
-        results.append({"checker": checker_name, "passed": passed, "detail": detail})
+        results.append(
+            {"checker": checker_name, "passed": passed, "evaluable": True, "detail": detail}
+        )
     return results
+
+
+def _verdict(check_result: dict) -> str:
+    if not check_result.get("evaluable", True):
+        return "N/A "
+    return "PASS" if check_result["passed"] else "FAIL"
 
 
 def _truncate(text: str, n: int = 200) -> str:
@@ -120,6 +201,7 @@ def run_case(case: EvalCase, delay: float) -> dict:
     question_turns = 0
     turns: list[dict] = []
     budget_exceeded = False
+    degraded_turns: list[int] = []
 
     while True:
         request = {
@@ -130,11 +212,21 @@ def run_case(case: EvalCase, delay: float) -> dict:
             "history": history,
         }
         try:
-            response = main.run_pipeline(**request)
+            with _capture_pipeline_logs() as log_capture:
+                response = main.run_pipeline(**request)
+            turn_logs = log_capture.records
         except Exception as exc:  # a case crashing must not kill the whole run
             print(f"  CRASHED: {exc!r}")
+            # A crash IS a real failure — it stays evaluable and counts
+            # against the run, unlike a degraded model turn.
             crash_checks = [
-                {"checker": name, "passed": False, "detail": f"pipeline crashed: {exc!r}", "scope": "final"}
+                {
+                    "checker": name,
+                    "passed": False,
+                    "evaluable": True,
+                    "detail": f"pipeline crashed: {exc!r}",
+                    "scope": "final",
+                }
                 for name, _ in final_checks + every_turn_checks
             ]
             return {
@@ -145,6 +237,7 @@ def run_case(case: EvalCase, delay: float) -> dict:
                 "turns": turns,
                 "crashed": True,
                 "budget_exceeded": False,
+                "degraded_turns": [],
                 "error": repr(exc),
                 # Turns that DID happen keep their real per-turn results.
                 "checks": [c for t in turns for c in t["checks"]] + crash_checks,
@@ -163,15 +256,23 @@ def run_case(case: EvalCase, delay: float) -> dict:
                 "user_message": message,
                 "response": response,
                 "checks": turn_check_results,
+                # WHY a turn degraded, not just THAT it did.
+                "pipeline_logs": turn_logs,
             }
         )
+        # Not printed here: main_cli's logging.basicConfig already streams
+        # these live, immediately before this turn's output. Re-printing
+        # them would double every line.
+        degraded_reason = checkers.degraded_turn_reason(response)
+        if degraded_reason:
+            degraded_turns.append(turn_no)
+            print(f"  DEGRADED TURN {turn_no} (not model output): {degraded_reason}")
         is_question = response.get("type") == "question"
         if is_question:
             question_turns += 1
             print(f"  question turn {question_turns}: {_truncate(response.get('message', ''))}")
         for cr in turn_check_results:
-            verdict = "PASS" if cr["passed"] else "FAIL"
-            print(f"    turn {turn_no} {verdict}  {cr['checker']}: {cr['detail']}")
+            print(f"    turn {turn_no} {_verdict(cr)}  {cr['checker']}: {cr['detail']}")
 
         if not is_question:
             break
@@ -196,11 +297,16 @@ def run_case(case: EvalCase, delay: float) -> dict:
         time.sleep(delay)
 
     if budget_exceeded:
+        # These were already DESCRIBED as "not evaluable" but were still
+        # scored as failures, which inflated the failure count with turns
+        # nobody actually measured. They are now genuinely non-evaluable
+        # (2026-07-26) — the same third-outcome treatment degraded turns get.
         final_check_results = [
             {
-                "checker": name,
-                "passed": False,
-                "detail": "not evaluable: question budget exceeded scripted replies before a final response",
+                **_non_evaluable(
+                    name,
+                    "question budget exceeded scripted replies before a final response",
+                ),
                 "scope": "final",
             }
             for name, _ in final_checks
@@ -213,8 +319,7 @@ def run_case(case: EvalCase, delay: float) -> dict:
             {**cr, "scope": "final"} for cr in _run_checks(final_checks, check_response)
         ]
     for cr in final_check_results:
-        verdict = "PASS" if cr["passed"] else "FAIL"
-        print(f"  {verdict}  {cr['checker']}: {cr['detail']}")
+        print(f"  {_verdict(cr)}  {cr['checker']}: {cr['detail']}")
 
     print(
         f"  type={response.get('type')!r}  urgency={response.get('urgency')!r}  "
@@ -230,9 +335,15 @@ def run_case(case: EvalCase, delay: float) -> dict:
         "turns": turns,
         "crashed": False,
         "budget_exceeded": budget_exceeded,
+        "degraded_turns": degraded_turns,
         "checks": all_checks,
         "possibilities_mentioned": (
-            None if budget_exceeded else checkers.check_possibilities_mentioned(response)
+            # A fallback payload hardcodes possibilities_mentioned=False;
+            # tallying that would blame the model for silence it had no
+            # part in. Excluded from the ratio entirely.
+            None
+            if budget_exceeded or checkers.degraded_turn_reason(response)
+            else checkers.check_possibilities_mentioned(response)
         ),
         "question_turns": question_turns,
     }
@@ -276,6 +387,7 @@ def _print_summary(results: list[dict]) -> None:
 
     overall_total = 0
     overall_passed = 0
+    overall_non_evaluable = 0
     possibilities_ratio = None
 
     for category in sorted(by_category):
@@ -288,12 +400,34 @@ def _print_summary(results: list[dict]) -> None:
             print(f"  {category}: {sum(1 for v in tallied if v)}/{len(tallied)} mentioned possibilities ({ratio:.0%}){flag}")
             continue
         checks_flat = [c for e in entries for c in e["checks"]]
-        passed = sum(1 for c in checks_flat if c["passed"])
-        total = len(checks_flat)
-        overall_total += total
+        # Three outcomes, never two: a non-evaluable check is neither a
+        # pass nor a fail, and the pass rate is over EVALUABLE checks only.
+        evaluable = [c for c in checks_flat if c.get("evaluable", True)]
+        non_evaluable = [c for c in checks_flat if not c.get("evaluable", True)]
+        passed = sum(1 for c in evaluable if c["passed"])
+        failed = len(evaluable) - passed
+        overall_total += len(evaluable)
         overall_passed += passed
-        rate = (passed / total * 100) if total else 0.0
-        print(f"  {category}: {passed}/{total} checks passed ({rate:.0f}%)")
+        overall_non_evaluable += len(non_evaluable)
+        # "0%" would read as a total failure when the truth is that nothing
+        # was measurable at all — the exact confusion this whole change exists
+        # to prevent.
+        rate_text = f"{passed / len(evaluable) * 100:.0f}% of {len(evaluable)} evaluable" if evaluable else "NOTHING EVALUABLE"
+        print(
+            f"  {category}: {passed} passed / {failed} failed / "
+            f"{len(non_evaluable)} non-evaluable  ({rate_text})"
+        )
+        if non_evaluable:
+            print(
+                f"    <-- {len(non_evaluable)} check(s) could NOT be scored — this category "
+                f"is NOT fully verified regardless of the rate above"
+            )
+        degraded = {e["case_id"]: e.get("degraded_turns") for e in entries if e.get("degraded_turns")}
+        if degraded:
+            print(
+                f"    {len(degraded)} case(s) produced Pulse-constructed (non-model) turns; "
+                f"checks on those turns are non-evaluable: {degraded}"
+            )
         budget_exceeded = [e["case_id"] for e in entries if e.get("budget_exceeded")]
         if budget_exceeded:
             print(
@@ -306,13 +440,48 @@ def _print_summary(results: list[dict]) -> None:
             print(f"    avg question-turns-before-assessment: {avg_question_turns:.2f}")
 
     if overall_total:
-        print(f"\n  OVERALL: {overall_passed}/{overall_total} checks passed ({overall_passed / overall_total:.0%})")
+        print(
+            f"\n  OVERALL: {overall_passed}/{overall_total} evaluable checks passed "
+            f"({overall_passed / overall_total:.0%})"
+        )
+    if overall_non_evaluable:
+        print(
+            f"  {overall_non_evaluable} check(s) NON-EVALUABLE — a run with any "
+            f"non-evaluable check is not a clean verification, whatever the rate says."
+        )
     if possibilities_ratio is not None:
         print(f"  possibilities_frequency ratio: {possibilities_ratio:.0%}")
 
     crashed = [r for r in results if r["crashed"]]
     if crashed:
         print(f"\n  {len(crashed)} case(s) CRASHED: {[r['case_id'] for r in crashed]}")
+
+    # Pipeline health, independent of check results. An API-error tally is
+    # the difference between "the prompt regressed" and "the run was
+    # quota-blocked and measured nothing" — the two look identical in the
+    # check columns because both arrive as degraded turns.
+    api_errors: dict[str, int] = {}
+    schema_rejections: list[str] = []
+    for r in results:
+        for t in r.get("turns", []):
+            for entry in t.get("pipeline_logs", []):
+                err_type = entry.get("gemini_error_type")
+                if err_type:
+                    api_errors[err_type] = api_errors.get(err_type, 0) + 1
+                reason = entry.get("rejection_reason") or entry.get("rejection_reason_first")
+                if reason:
+                    schema_rejections.append(f"{r['case_id']} t{t['turn']}: {reason}")
+
+    if api_errors:
+        print(f"\n  GEMINI API ERRORS: {api_errors}")
+        print(
+            "    Turns that hit the API itself measured NOTHING about the prompt. "
+            "If these are quota/rate-limit errors, treat this run as invalid."
+        )
+    if schema_rejections:
+        print(f"\n  FIRST-ATTEMPT SCHEMA REJECTIONS ({len(schema_rejections)}):")
+        for line in schema_rejections:
+            print(f"    {line}")
 
     print(f"\n  PROMPT_VERSION: {system_prompt.PROMPT_VERSION}")
 
@@ -328,6 +497,7 @@ def _write_report(results: list[dict], category_filter: str | None) -> Path:
         "prompt_version": system_prompt.PROMPT_VERSION,
         "model_name": gemini_client.MODEL_NAME,
         "category_filter": category_filter,
+        "case_ids": [r["case_id"] for r in results],
         "timestamp": timestamp,
         "results": results,
     }
@@ -340,15 +510,37 @@ def main_cli() -> None:
     parser = argparse.ArgumentParser(description="Pulse prompt-calibration eval harness")
     parser.add_argument("--category", default=None, help="Run only this category")
     parser.add_argument(
+        "--case", default=None,
+        help=(
+            "Comma-separated case ids to run (substring match). For spending a "
+            "known-small remaining quota on the cases that actually matter "
+            "instead of re-measuring ones already covered."
+        ),
+    )
+    parser.add_argument(
         "--delay", type=float, default=20.0,
         help="Seconds between real API calls (default 20 — faster spacing hits rate limits)",
     )
     args = parser.parse_args()
 
+    # Without this the pipeline's WARNING/ERROR records go nowhere and a
+    # quota-exhausted run is indistinguishable from a healthy one.
+    logging.basicConfig(
+        level=logging.WARNING,
+        format="  [%(levelname)s] %(name)s: %(message)s",
+        stream=sys.stdout,
+    )
+
     cases = [c for c in CASES if args.category is None or c.category == args.category]
+    if args.case:
+        wanted = [s.strip() for s in args.case.split(",") if s.strip()]
+        cases = [c for c in cases if any(w in c.id for w in wanted)]
     if not cases:
         available = sorted({c.category for c in CASES})
-        print(f"No cases match category {args.category!r}. Available categories: {available}")
+        print(
+            f"No cases match category={args.category!r} case={args.case!r}. "
+            f"Available categories: {available}"
+        )
         sys.exit(1)
 
     _check_model_continuity()

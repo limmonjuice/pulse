@@ -24,8 +24,74 @@ _FUNCTIONS_DIR = Path(__file__).resolve().parent.parent
 if str(_FUNCTIONS_DIR) not in sys.path:
     sys.path.insert(0, str(_FUNCTIONS_DIR))
 
+import fallbacks  # noqa: E402
 import gemini_client  # noqa: E402
 import mirror_probes  # noqa: E402
+
+# Every string in this set is copy Pulse itself constructs when the model
+# is unavailable or unusable — it never came from Gemini. Scoring ANY
+# checker against such a turn measures Pulse's own hardcoded output, not
+# the model's behavior.
+_PULSE_CONSTRUCTED_MESSAGES = frozenset({
+    fallbacks.STATIC_SEEK_CARE_FALLBACK_EN,
+    fallbacks.STATIC_SEEK_CARE_FALLBACK_TL,
+    fallbacks.FRIENDLY_DEGRADED_ERROR_MESSAGE_EN,
+    fallbacks.FRIENDLY_DEGRADED_ERROR_MESSAGE_TL,
+    fallbacks.CRISIS_DEGRADED_FALLBACK_EN,
+    fallbacks.CRISIS_DEGRADED_FALLBACK_TL,
+})
+
+
+def degraded_turn_reason(response: dict) -> str | None:
+    """Returns why a turn is Pulse-constructed rather than model output,
+    or None if it is a genuine model response.
+
+    Found 2026-07-26: the language_mirroring sweep scored `check_language`
+    against a `type="error"` turn — i.e. against
+    FRIENDLY_DEGRADED_ERROR_MESSAGE_EN, Pulse's own hardcoded English
+    string — and counted it as an English mirroring PASS. That is a
+    manufactured green: the check could not have failed, because no model
+    was involved.
+
+    This is a CLASS defect, not a check_language one, which is why the
+    gate lives here and is applied to every checker uniformly in
+    run_evals._run_checks rather than inside individual checkers:
+
+      - check_language     — scores Pulse's own EN/TL fallback copy.
+      - check_tier         — static_fallback_assessment is hardcoded
+                             seek_care_now; a case expecting that tier
+                             passes on the deterministic floor, not on
+                             model calibration.
+      - check_type         — passes on the fallback's hardcoded type.
+      - check_schema_shape — validates the shape of a payload Pulse built
+                             itself; it can only fail if fallbacks.py is
+                             broken, never if the model is.
+      - check_no_banned_words / check_no_diagnosis_assertion — scanning
+                             owner-approved fallback copy for banned
+                             words is guaranteed to pass.
+      - check_crisis_persists — crisis_fallback_payload is hardcoded
+                             type="crisis" with null urgency, so it
+                             passes without the model holding crisis mode.
+      - check_possibilities_mentioned — fallbacks hardcode False, which
+                             silently drags the possibilities_frequency
+                             ratio down and blames the model for it.
+      - check_min_question_turns — a degraded turn ends the loop early,
+                             so the count describes the failure, not the
+                             conversation the case meant to measure.
+      - check_card_action / check_state_urgency / check_assessment_cleared
+                           — these read the server envelope, which is real,
+                             but it was computed FROM a fallback payload
+                             rather than from a model proposal, so the
+                             result doesn't answer the case's question.
+    """
+    if not isinstance(response, dict):
+        return None
+    if response.get("type") == "error":
+        return "type='error' — main.py's degraded-mode payload, never model output"
+    message = response.get("message")
+    if isinstance(message, str) and message.strip() in _PULSE_CONSTRUCTED_MESSAGES:
+        return "static fallback copy from fallbacks.py — Pulse-constructed, not model output"
+    return None
 
 # Formal Tagalog register words the system prompt (IDENTITY section)
 # explicitly names as forbidden in favor of everyday equivalents —
