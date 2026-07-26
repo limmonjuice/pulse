@@ -282,6 +282,7 @@ def _log_request(
     requires_clinical_reassessment: bool | None, card_action: str, demoted: bool,
     reset_accepted: bool, deescalation_accepted: bool,
     proposed_vs_final_urgency: str,
+    degraded: bool = False, degraded_reason: str | None = None,
 ) -> None:
     # Structured fields only — never the message text, profile, or key.
     logger.info(
@@ -292,6 +293,11 @@ def _log_request(
             "final_urgency": final_urgency,
             "model_latency_ms": round(latency_ms, 1),
             "retry_used": retry_used,
+            # `retry_used` alone is ambiguous — it is True both when a retry
+            # RESCUED the turn and when both attempts failed. These two make
+            # every degraded turn greppable and say which kind it was.
+            "degraded": degraded,
+            "degraded_reason": degraded_reason,
             "intents": intents,
             "change_type": change_type,
             "requires_clinical_reassessment": requires_clinical_reassessment,
@@ -368,12 +374,14 @@ def run_pipeline(
     rule_ids_now = list(red_flag_result.rule_ids) if red_flag_result else []
 
     start = time.perf_counter()
+    degraded_reason: str | None = None
     if red_flags_crashed:
         model_result = _select_degraded_payload(
             message=message, force_crisis=force_crisis, floor_active=True
         )
         retry_used = False
         degraded = True
+        degraded_reason = "red_flags.check_red_flags raised"
     else:
         # Prompt Builder: static persona/rules + the dynamic tail
         # (language directive + episode snapshot).
@@ -391,18 +399,45 @@ def run_pipeline(
             model_result = gemini_client.get_assessment(prompt, model_history, message)
             retry_used = bool(model_result.pop("_retry_used", False))
             degraded = False
-        except gemini_client.ModelResponseError:
+        except gemini_client.ModelResponseError as exc:
+            # Until 2026-07-26 this was the ONLY error path in this file that
+            # logged nothing at all — the user got a friendly fallback and the
+            # developer got silence. The reason lives on __cause__ (the
+            # ValueError from _validate_payload) and in the exception message,
+            # which now carries BOTH attempts' reasons.
+            degraded_reason = str(exc)
+            logger.warning(
+                "Gemini response failed schema validation twice — degrading: %s",
+                degraded_reason,
+                extra={
+                    "degraded_cause": "schema_validation",
+                    "rejection_reason": str(exc.__cause__) if exc.__cause__ else None,
+                    "degraded_detail": degraded_reason,
+                },
+            )
             model_result = _select_degraded_payload(
                 message=message, force_crisis=force_crisis, floor_active=floor_active
             )
             retry_used = True  # ModelResponseError only raises after the one retry
             degraded = True
-        except Exception:
+        except Exception as exc:
             # Anything else from the Gemini call itself — rate limit, network,
             # auth/quota failure — must degrade the same way a schema-validation
             # failure does, never bubble up as a raw framework 500. No retry was
             # attempted/completed here, unlike the ModelResponseError path.
-            logger.exception("Unexpected error calling Gemini")
+            # The exception TEXT matters operationally (429 RESOURCE_EXHAUSTED
+            # vs 503 UNAVAILABLE vs an auth failure are three different days),
+            # so it goes in the message and in a filterable structured field —
+            # "Unexpected error calling Gemini" alone told nobody anything.
+            degraded_reason = f"{type(exc).__name__}: {exc}"
+            logger.exception(
+                "Gemini call failed, degrading: %s", degraded_reason,
+                extra={
+                    "degraded_cause": "api_error",
+                    "gemini_error_type": type(exc).__name__,
+                    "degraded_detail": degraded_reason,
+                },
+            )
             model_result = _select_degraded_payload(
                 message=message, force_crisis=force_crisis, floor_active=floor_active
             )
@@ -447,6 +482,8 @@ def run_pipeline(
         reset_accepted=reset_accepted,
         deescalation_accepted=deescalation_accepted,
         proposed_vs_final_urgency=f"{proposed_urgency}->{final_payload.get('urgency')}",
+        degraded=degraded,
+        degraded_reason=degraded_reason,
     )
 
     # Response Builder: turn payload + card directive + state snapshot.

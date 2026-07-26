@@ -19,6 +19,7 @@ main.py is the only intended caller.
 from __future__ import annotations
 
 import json
+import logging
 import re
 from typing import Callable
 
@@ -26,6 +27,14 @@ from google import genai
 from google.genai import types
 
 from wire_contract import VALID_CARD_ACTIONS, VALID_CHANGE_TYPES, VALID_INTENTS
+
+# Structured fields only — never the message text, the payload, or the key.
+# This module is the ONLY place that can see why an attempt was rejected:
+# the raw reply and its ValueError never leave _call_gemini_with_retry, and
+# a retry that SUCCEEDS never reaches main.py's exception handlers at all.
+# Before 2026-07-26 that made the single most common failure mode — a
+# first-attempt schema rejection — completely invisible in production.
+logger = logging.getLogger("pulse.gemini_client")
 
 # gemini-flash-lite is the free-tier model as of this writing. This is a
 # cost/quota decision, not a capability one — revisit if free-tier terms
@@ -67,7 +76,12 @@ MODEL_CHANGELOG = [
             "one English dengue-advisory shape still mirrored wrong); "
             "prompt 1.5.4 (Taglish dengue example removed, owner decision) "
             "NOT yet live-verified — quota exhausted; full category run + "
-            "re-baseline needed on next quota"
+            "re-baseline needed on next quota. UPDATE 2026-07-26: the "
+            "language_mirroring category DID run on fresh quota against "
+            "prompt 2.1.0 and reported 9/9, but that green was not a "
+            "verification — a retry-induced turn-type change collapsed the "
+            "multi-turn cases and one check scored a Pulse-constructed "
+            "fallback. Still NOT live-verified; see LAUNCH_BLOCKERS.md"
         ),
     },
 ]
@@ -106,10 +120,62 @@ VALID_TYPES = frozenset({"question", "assessment", "crisis", "conversation"})
 # that type must never come from the model itself.
 VALID_URGENCIES = frozenset({"monitor_at_home", "see_doctor_soon", "seek_care_now"})
 
-_CORRECTIVE_SUFFIX = (
-    "Your previous reply was not valid JSON matching the schema. "
-    "Return ONLY the JSON object."
+# Schema repair rides in the SYSTEM-INSTRUCTION position, never in the
+# conversation. The previous design appended the malformed reply plus a
+# corrective USER turn to `contents`, so the model read it as the user
+# complaining about a broken response and apologised in user-facing copy
+# ("I apologize for that error...", "Pasensya na kung nagkaroon ng error
+# sa format" — both observed live 2026-07-26 in the language_mirroring
+# sweep). The conversation the model sees on retry is now byte-identical
+# to the first attempt: as far as the dialogue is concerned, nothing ever
+# went wrong. Costs one prompt-cache miss on the retry only (the system
+# instruction changes), which is the right trade for never leaking
+# repair internals into the product voice.
+_CORRECTIVE_SYSTEM_DIRECTIVE = (
+    "\n\n---\n"
+    "INTERNAL RETRY DIRECTIVE — SYSTEM USE ONLY.\n"
+    "Your previous reply was rejected before it reached the user because "
+    "it did not match the required JSON schema.\n"
+    "Rejection reason: {reason}\n"
+    "Answer the SAME last user message again, returning ONLY the JSON "
+    "object.\n"
+    "The user never saw the rejected reply and does not know anything went "
+    "wrong. Do NOT apologise. Do NOT mention an error, a mistake, a format "
+    "or formatting problem, JSON, or the schema anywhere in `message` or "
+    "any other user-visible field. Write `message` exactly as if you were "
+    "answering for the first time."
 )
+
+# Belt-and-suspenders behind the directive above: enforcement, not
+# advice. Same pattern as _TIER_LANGUAGE_BLOCKLIST — a match is a
+# ValueError subclass, so _call_gemini_with_retry treats it exactly like
+# a schema failure and retries once. This also covers a case the
+# directive cannot: a conversation whose HISTORY already contains a
+# degraded-mode turn ("Something's not working right on my end"), which
+# can prompt an unsolicited apology on a perfectly ordinary first
+# attempt.
+#
+# Deliberately NOT matching bare "sorry"/"pasensya": "I'm sorry to hear
+# that happened" is real shipped Pulse voice (it opened the dog-bite
+# assessment in the same sweep). Every pattern here requires a
+# malfunction referent, not just contrition.
+_ERROR_LANGUAGE_PATTERNS = (
+    # Catches the EN leak and both TL forms ("may error", "error sa
+    # format", "nagkaroon ng error") in one rule.
+    r"\berrors?\b",
+    r"\bjson\b",
+    r"\bschema\b",
+    r"\bmalformed\b",
+    r"\bformatting\b",
+    r"\btamang format\b",
+    r"\bi apologi[sz]e for\b",
+    r"\bprevious (?:reply|response|message)\b",
+    r"\bmy last (?:reply|response|message)\b",
+    r"\bsomething went wrong\b",
+    r"\bnagkaroon ng problema\b",
+)
+
+_ERROR_LANGUAGE_RE = tuple(re.compile(p, re.IGNORECASE) for p in _ERROR_LANGUAGE_PATTERNS)
 
 _FENCE_RE = re.compile(r"^```(?:json)?\s*(.*?)\s*```$", re.DOTALL)
 
@@ -124,6 +190,15 @@ class ModelResponseError(Exception):
     this is the signal to fall back to degraded mode instead."""
 
 
+class ErrorLanguageDetectedError(ValueError):
+    """Raised when a user-visible field references an error, a formatting
+    problem, or apologises for a malfunction — schema-repair internals
+    leaking into the product voice. A ValueError subclass so
+    _call_gemini_with_retry retries it like any other validation failure;
+    if the retry leaks too, the caller's degraded-mode fallback (reviewed
+    copy) is strictly better than shipping the apology."""
+
+
 class TierLanguageDetectedError(ValueError):
     """Raised by _validate_visit_summary_payload when the model's own
     text states or implies an urgency tier — a ValueError subclass so
@@ -132,6 +207,21 @@ class TierLanguageDetectedError(ValueError):
     distinguish the cause after a ModelResponseError via
     exc.__cause__ (see run_visit_summary_pipeline's structured logging
     in main.py)."""
+
+
+def _reject_error_language(*fields: object) -> None:
+    """Guard every user-visible text field against schema-repair leakage.
+    Shared by _validate_payload and _validate_visit_summary_payload —
+    both go through _call_gemini_with_retry, so both had the same leak."""
+    for field in fields:
+        if not isinstance(field, str):
+            continue
+        for pattern in _ERROR_LANGUAGE_RE:
+            match = pattern.search(field)
+            if match:
+                raise ErrorLanguageDetectedError(
+                    f"error/repair language in user-visible copy: {match.group()!r}"
+                )
 
 
 def _strip_markdown_fences(text: str) -> str:
@@ -219,6 +309,8 @@ def _validate_payload(payload: object) -> dict:
     if response_type != "assessment" and findings:
         raise ValueError(f"{response_type} responses require empty findings")
 
+    _reject_error_language(payload["message"])
+
     return payload
 
 
@@ -258,35 +350,90 @@ def _call_gemini_with_retry(
     test_main.py pins this), so it is not dropped in this extraction.
     """
     client = genai.Client()
-    config = types.GenerateContentConfig(
-        system_instruction=system_prompt,
-        temperature=GENERATION_TEMPERATURE,
-        response_mime_type="application/json",
-    )
 
-    response = client.models.generate_content(model=MODEL_NAME, contents=contents, config=config)
+    def _config(system_instruction: str) -> types.GenerateContentConfig:
+        return types.GenerateContentConfig(
+            system_instruction=system_instruction,
+            temperature=GENERATION_TEMPERATURE,
+            response_mime_type="application/json",
+        )
+
+    def _generate(config: types.GenerateContentConfig, *, attempt: int):
+        """Log-and-re-raise wrapper. Transport failures (429
+        RESOURCE_EXHAUSTED / quota, 503 UNAVAILABLE, auth) are NOT
+        ValueErrors, so they fly straight past the validation handling
+        below and out to main.py's degraded-mode fallback. Logging them
+        HERE is what keeps "you have hit your quota" readable in the logs
+        instead of only surfacing as a friendly fallback message the user
+        sees and the developer can't explain."""
+        try:
+            return client.models.generate_content(
+                model=MODEL_NAME, contents=contents, config=config
+            )
+        except Exception as exc:
+            logger.error(
+                "Gemini API call failed on attempt %d: %s: %s",
+                attempt, type(exc).__name__, exc,
+                extra={
+                    "gemini_error_type": type(exc).__name__,
+                    "gemini_error_detail": str(exc),
+                    "attempt": attempt,
+                    "model_name": MODEL_NAME,
+                },
+            )
+            raise
+
+    response = _generate(_config(system_prompt), attempt=1)
 
     try:
         result = validator(_parse_json(response.text))
         result["_retry_used"] = False
         return result
-    except ValueError:
-        pass  # fall through to the one allowed retry
+    except ValueError as exc:
+        # The specific rejection reason is far more actionable than the
+        # old "not valid JSON" blanket, and unlike the raw rejected reply
+        # it cannot re-prime the model with the bad copy it just wrote.
+        reason = str(exc)
+        # A retry that SUCCEEDS is invisible to every caller — main.py only
+        # ever learns `retry_used=True`, never why. This is the only place
+        # the reason exists, so it is the only place that can report it.
+        logger.warning(
+            "Gemini response rejected on attempt 1, retrying: %s",
+            reason,
+            extra={
+                "rejection_reason": reason,
+                "rejection_type": type(exc).__name__,
+                "attempt": 1,
+                "model_name": MODEL_NAME,
+            },
+        )
 
-    retry_contents = contents + [
-        types.Content(role="model", parts=[types.Part(text=response.text)]),
-        types.Content(role="user", parts=[types.Part(text=_CORRECTIVE_SUFFIX)]),
-    ]
-    retry_response = client.models.generate_content(
-        model=MODEL_NAME, contents=retry_contents, config=config
+    # Same `contents` — the conversation is re-sent untouched, and only
+    # the system instruction knows a retry is happening.
+    retry_response = _generate(
+        _config(system_prompt + _CORRECTIVE_SYSTEM_DIRECTIVE.format(reason=reason)),
+        attempt=2,
     )
     try:
         result = validator(_parse_json(retry_response.text))
         result["_retry_used"] = True
         return result
     except ValueError as exc:
+        logger.error(
+            "Gemini response rejected twice, degrading. first=%s second=%s",
+            reason, exc,
+            extra={
+                "rejection_reason_first": reason,
+                "rejection_reason_second": str(exc),
+                "rejection_type": type(exc).__name__,
+                "model_name": MODEL_NAME,
+            },
+        )
+        # Both reasons travel in the message so main.py's handler — which
+        # only sees the exception — can report the whole story in one line.
         raise ModelResponseError(
-            "model response failed schema validation twice"
+            f"model response failed schema validation twice "
+            f"(attempt 1: {reason}; attempt 2: {exc})"
         ) from exc
 
 
@@ -352,6 +499,8 @@ def _validate_visit_summary_payload(payload: object) -> dict:
     questions = payload["questions_for_doctor"]
     if not isinstance(questions, list) or not all(isinstance(q, str) for q in questions):
         raise ValueError("questions_for_doctor must be an array of strings")
+
+    _reject_error_language(summary, *questions)
 
     haystack = " ".join([summary, *questions]).lower()
     for pattern in _TIER_LANGUAGE_BLOCKLIST_PATTERNS:

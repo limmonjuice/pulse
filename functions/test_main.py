@@ -281,6 +281,64 @@ def test_degraded_mode_without_red_flag_match_returns_friendly_error(monkeypatch
     assert result["message"] == main.FRIENDLY_DEGRADED_ERROR_MESSAGE_EN
 
 
+# ---------------------------------------------------------------------------
+# Degraded turns must never be silent. Until 2026-07-26 the
+# ModelResponseError handler was the ONLY error path in main.py with no log
+# call: the user got a friendly fallback and the developer got nothing.
+# ---------------------------------------------------------------------------
+
+def test_schema_failure_degradation_is_logged_with_its_reason(monkeypatch, caplog):
+    def _raise_with_cause(*args, **kwargs):
+        try:
+            raise ValueError("missing required fields: ['findings']")
+        except ValueError as exc:
+            raise gemini_client.ModelResponseError(
+                "model response failed schema validation twice "
+                "(attempt 1: missing required fields: ['findings']; attempt 2: bad urgency)"
+            ) from exc
+
+    _mock_get_assessment(monkeypatch, _raise_with_cause)
+    with caplog.at_level(logging.WARNING, logger="pulse.assess_symptoms"):
+        run_pipeline(message=BENIGN_MESSAGE)
+    assert caplog.records, "a degraded turn must not be silent"
+    logged = " ".join(r.getMessage() for r in caplog.records)
+    assert "findings" in logged
+    assert any(getattr(r, "degraded_cause", None) == "schema_validation" for r in caplog.records)
+
+
+def test_api_error_degradation_logs_the_underlying_error_text(monkeypatch, caplog):
+    _mock_get_assessment(monkeypatch, _raise_generic_gemini_error)
+    with caplog.at_level(logging.WARNING, logger="pulse.assess_symptoms"):
+        run_pipeline(message=BENIGN_MESSAGE)
+    logged = " ".join(r.getMessage() for r in caplog.records)
+    assert "503 rate limited" in logged, (
+        "the actual API error text is the difference between 'quota exhausted' "
+        "and 'the prompt regressed' — it must survive into the logs"
+    )
+    assert any(getattr(r, "degraded_cause", None) == "api_error" for r in caplog.records)
+
+
+def test_request_log_carries_degraded_and_its_reason(monkeypatch, caplog):
+    _mock_get_assessment(monkeypatch, _raise_generic_gemini_error)
+    with caplog.at_level(logging.INFO, logger="pulse.assess_symptoms"):
+        run_pipeline(message=BENIGN_MESSAGE)
+    completed = [r for r in caplog.records if "request completed" in r.getMessage()]
+    assert completed, "the per-request structured log should still be emitted"
+    # retry_used alone is ambiguous (True both when a retry rescued the turn
+    # and when both attempts failed), so `degraded` must be its own field.
+    assert getattr(completed[-1], "degraded", None) is True
+    assert getattr(completed[-1], "degraded_reason", None)
+
+
+def test_healthy_turn_is_not_marked_degraded(monkeypatch, caplog):
+    _mock_get_assessment(monkeypatch, dict(VALID_ASSESSMENT))
+    with caplog.at_level(logging.INFO, logger="pulse.assess_symptoms"):
+        run_pipeline(message=BENIGN_MESSAGE)
+    completed = [r for r in caplog.records if "request completed" in r.getMessage()]
+    assert getattr(completed[-1], "degraded", None) is False
+    assert getattr(completed[-1], "degraded_reason", None) is None
+
+
 def test_degraded_mode_during_crisis_lock_gives_the_crisis_fallback(monkeypatch):
     # Design choice (flagged): the spec's degraded-mode condition is written
     # as "if red_flags.matched", but during crisis_lock the red-flag check is

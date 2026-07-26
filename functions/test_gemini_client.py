@@ -8,6 +8,7 @@ required. Run from functions/:
 """
 
 import json
+import logging
 
 import pytest
 
@@ -117,11 +118,17 @@ class _FakeModelsApi:
     def __init__(self, texts):
         self._texts = list(texts)
         self.calls = []  # list of `contents` passed to each call
+        # Per-call configs: the retry carries a DIFFERENT system_instruction
+        # from the first attempt (the schema-repair directive rides there
+        # rather than in the conversation), so a single overwritten
+        # `config` can't express what the retry actually sent.
+        self.configs = []
         self.model_name = None
         self.config = None
 
     def generate_content(self, *, model, contents, config):
         self.calls.append(contents)
+        self.configs.append(config)
         self.model_name = model
         self.config = config
         if not self._texts:
@@ -418,14 +425,166 @@ def test_retries_exactly_once_then_raises_on_second_failure(monkeypatch):
     assert len(fake_models.calls) == 2
 
 
-def test_retry_request_includes_corrective_suffix(monkeypatch):
+def test_retry_repair_directive_travels_in_the_system_instruction(monkeypatch):
+    """Replaces the old test_retry_request_includes_corrective_suffix,
+    which asserted the repair text landed in `contents`. That is exactly
+    the defect (see the apology-leak tests below) — the directive must
+    ride in the system-instruction position instead."""
     fake_models = _install_fake_genai(
         monkeypatch, ["garbage", json.dumps(VALID_ASSESSMENT)]
     )
     get_assessment("system prompt", [], "some message")
-    retry_contents = fake_models.calls[1]
-    retry_text = str(retry_contents)
-    assert "not valid JSON" in retry_text or "valid JSON" in retry_text
+    retry_instruction = fake_models.configs[1].system_instruction
+    assert "JSON" in retry_instruction
+    assert "system prompt" in retry_instruction, "original system prompt must survive"
+
+
+def test_first_attempt_system_instruction_has_no_repair_directive(monkeypatch):
+    fake_models = _install_fake_genai(
+        monkeypatch, ["garbage", json.dumps(VALID_ASSESSMENT)]
+    )
+    get_assessment("system prompt", [], "some message")
+    assert fake_models.configs[0].system_instruction == "system prompt"
+
+
+# ---------------------------------------------------------------------------
+# The apology leak (found 2026-07-26 in the language_mirroring sweep):
+# schema-repair internals must never reach the product voice. The retry
+# used to append the malformed reply + a corrective USER turn, so the
+# model read it as the user complaining and apologised in user-facing
+# copy ("I apologize for that error...", "Pasensya na kung nagkaroon ng
+# error sa format"). This whole class was structurally invisible to the
+# mocked suite, which never made a first attempt fail.
+# ---------------------------------------------------------------------------
+
+def test_retry_does_not_add_any_turn_to_the_conversation(monkeypatch):
+    fake_models = _install_fake_genai(
+        monkeypatch, ["garbage", json.dumps(VALID_ASSESSMENT)]
+    )
+    get_assessment("system prompt", [], "some message")
+    first_contents, retry_contents = fake_models.calls
+    assert len(retry_contents) == len(first_contents), (
+        "retry must re-send the SAME conversation — an extra turn means the "
+        "conversational surface learned that something went wrong"
+    )
+    assert str(retry_contents) == str(first_contents)
+
+
+def test_retry_conversation_never_mentions_the_failure(monkeypatch):
+    fake_models = _install_fake_genai(
+        monkeypatch, ["garbage", json.dumps(VALID_ASSESSMENT)]
+    )
+    get_assessment("system prompt", [], "some message")
+    retry_text = str(fake_models.calls[1]).lower()
+    for leak in ("json", "schema", "not valid", "garbage"):
+        assert leak not in retry_text, f"repair internals leaked into the conversation: {leak!r}"
+
+
+APOLOGY_MESSAGES = [
+    # Both observed verbatim in evals/results/
+    # 2.1.0_gemini-3.1-flash-lite_20260726T060440Z.json.
+    "I apologize for that error. I am ready to continue helping you with your health questions.",
+    "Pasensya na kung nagkaroon ng error sa format. Narito ang tanong ko para matulungan kita.",
+    "Sorry for the formatting issue — here is my reply again.",
+    "My previous response was not in the right format.",
+]
+
+
+@pytest.mark.parametrize("apology", APOLOGY_MESSAGES)
+def test_rejects_apology_language_in_message_then_retries(monkeypatch, apology):
+    leaked = {**VALID_ASSESSMENT, "message": apology}
+    fake_models = _install_fake_genai(
+        monkeypatch, [json.dumps(leaked), json.dumps(VALID_ASSESSMENT)]
+    )
+    result = get_assessment("system prompt", [], "some message")
+    assert len(fake_models.calls) == 2, "apology copy must be treated as a validation failure"
+    assert result["message"] == VALID_ASSESSMENT["message"]
+
+
+def test_raises_when_apology_language_survives_the_retry(monkeypatch):
+    leaked = {**VALID_ASSESSMENT, "message": APOLOGY_MESSAGES[0]}
+    _install_fake_genai(monkeypatch, [json.dumps(leaked), json.dumps(leaked)])
+    with pytest.raises(ModelResponseError):
+        get_assessment("system prompt", [], "some message")
+
+
+def test_ordinary_sympathy_is_not_mistaken_for_an_apology_leak(monkeypatch):
+    """'I'm sorry to hear that happened' is real, shipped Pulse voice (it
+    opened the dog-bite assessment in the same sweep). The blocklist must
+    catch malfunction-apologies without touching ordinary empathy."""
+    kind = {**VALID_ASSESSMENT, "message": "I'm sorry to hear that happened. Let's get this checked today."}
+    fake_models = _install_fake_genai(monkeypatch, [json.dumps(kind)])
+    result = get_assessment("system prompt", [], "some message")
+    assert len(fake_models.calls) == 1
+    assert result["message"] == kind["message"]
+
+
+# ---------------------------------------------------------------------------
+# Observability. The pipeline absorbs every model failure into a friendly
+# degraded payload, so the ONLY way anyone learns what went wrong is a log
+# record. A retry that succeeds never reaches main.py's handlers at all, so
+# this module is the only place that can report a first-attempt rejection.
+# ---------------------------------------------------------------------------
+
+class _ExplodingModelsApi:
+    """Stands in for a transport failure (429 quota, 503, auth)."""
+
+    def __init__(self, exc):
+        self._exc = exc
+        self.calls = []
+
+    def generate_content(self, *, model, contents, config):
+        self.calls.append(contents)
+        raise self._exc
+
+
+def _install_exploding_genai(monkeypatch, exc):
+    models = _ExplodingModelsApi(exc)
+    client = type("_C", (), {"models": models})()
+    monkeypatch.setattr(gemini_client.genai, "Client", lambda *a, **k: client)
+    return models
+
+
+def test_first_attempt_rejection_is_logged_with_its_reason(monkeypatch, caplog):
+    bad = {k: v for k, v in VALID_ASSESSMENT.items() if k != "findings"}
+    _install_fake_genai(monkeypatch, [json.dumps(bad), json.dumps(VALID_ASSESSMENT)])
+    with caplog.at_level(logging.WARNING, logger="pulse.gemini_client"):
+        get_assessment("system prompt", [], "some message")
+    assert any("findings" in r.getMessage() for r in caplog.records), (
+        "a rescued retry must still say WHY attempt 1 was rejected — otherwise "
+        "the most common failure mode stays invisible in production"
+    )
+    assert any(getattr(r, "rejection_reason", None) for r in caplog.records)
+
+
+def test_api_errors_are_logged_with_their_text(monkeypatch, caplog):
+    """A 429 RESOURCE_EXHAUSTED must stay readable in the logs — it is not a
+    ValueError, so it flies past validation handling into main.py's degraded
+    fallback, where the user sees only a friendly message."""
+    quota_error = RuntimeError("429 RESOURCE_EXHAUSTED: quota exceeded for generate_content")
+    _install_exploding_genai(monkeypatch, quota_error)
+    with caplog.at_level(logging.WARNING, logger="pulse.gemini_client"):
+        with pytest.raises(RuntimeError):
+            get_assessment("system prompt", [], "some message")
+    logged = " ".join(r.getMessage() for r in caplog.records)
+    assert "RESOURCE_EXHAUSTED" in logged
+    assert "quota exceeded" in logged
+    assert any(getattr(r, "gemini_error_type", None) == "RuntimeError" for r in caplog.records)
+
+
+def test_double_rejection_logs_and_reports_both_reasons(monkeypatch, caplog):
+    missing_findings = {k: v for k, v in VALID_ASSESSMENT.items() if k != "findings"}
+    bad_urgency = {**VALID_ASSESSMENT, "urgency": "extremely_urgent"}
+    _install_fake_genai(
+        monkeypatch, [json.dumps(missing_findings), json.dumps(bad_urgency)]
+    )
+    with caplog.at_level(logging.WARNING, logger="pulse.gemini_client"):
+        with pytest.raises(ModelResponseError) as exc_info:
+            get_assessment("system prompt", [], "some message")
+    # Both reasons travel on the exception so main.py can log the whole story.
+    message = str(exc_info.value)
+    assert "findings" in message
+    assert "extremely_urgent" in message
 
 
 def test_does_not_retry_when_first_response_is_valid(monkeypatch):
@@ -658,6 +817,18 @@ def test_get_visit_summary_does_not_false_positive_on_word_containing_a_short_ph
     result = get_visit_summary("system prompt", [])
     assert result["summary"] == payload["summary"]
     assert len(fake_models.calls) == 1  # no retry triggered
+
+
+def test_get_visit_summary_rejects_apology_language_then_retries(monkeypatch):
+    """The visit summary shares _call_gemini_with_retry, so it shared the
+    apology leak — the same guard covers both surfaces."""
+    bad = {**VALID_VISIT_SUMMARY, "summary": "I apologize for that error. Here is the recap."}
+    fake_models = _install_fake_genai(
+        monkeypatch, [json.dumps(bad), json.dumps(VALID_VISIT_SUMMARY)]
+    )
+    result = get_visit_summary("system prompt", [])
+    assert len(fake_models.calls) == 2
+    assert result["summary"] == VALID_VISIT_SUMMARY["summary"]
 
 
 @pytest.mark.parametrize("summary", [
