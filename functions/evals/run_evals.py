@@ -93,11 +93,23 @@ class _PipelineLogCapture(logging.Handler):
     that produced them.
     """
 
+    # INFO-level records carrying one of these are diagnostic and worth
+    # keeping; everything else below WARNING is routine per-request noise
+    # (_log_request fires on every single turn) and would bloat the report.
+    _DIAGNOSTIC_ATTRS = (
+        "rejection_reason", "rejection_reason_first", "degraded_cause",
+        "gemini_error_type", "coerced_field",
+    )
+
     def __init__(self) -> None:
-        super().__init__(level=logging.WARNING)
+        super().__init__(level=logging.INFO)
         self.records: list[dict] = []
 
     def emit(self, record: logging.LogRecord) -> None:
+        if record.levelno < logging.WARNING and not any(
+            hasattr(record, attr) for attr in self._DIAGNOSTIC_ATTRS
+        ):
+            return
         self.records.append(
             {
                 "level": record.levelname,
@@ -111,6 +123,8 @@ class _PipelineLogCapture(logging.Handler):
                 "degraded_detail": getattr(record, "degraded_detail", None),
                 "gemini_error_type": getattr(record, "gemini_error_type", None),
                 "gemini_error_detail": getattr(record, "gemini_error_detail", None),
+                "coerced_field": getattr(record, "coerced_field", None),
+                "coerced_count": getattr(record, "coerced_count", None),
             }
         )
 
@@ -122,11 +136,18 @@ def _capture_pipeline_logs():
     (degrade decisions) are caught."""
     handler = _PipelineLogCapture()
     pulse_logger = logging.getLogger("pulse")
+    previous_level = pulse_logger.level
+    # An INFO record is never CREATED if the logger's effective level is
+    # WARNING (basicConfig sets root to WARNING) — the handler's own level
+    # is irrelevant at that point. Without this, field coercions would be
+    # silently missing from every report.
+    pulse_logger.setLevel(logging.INFO)
     pulse_logger.addHandler(handler)
     try:
         yield handler
     finally:
         pulse_logger.removeHandler(handler)
+        pulse_logger.setLevel(previous_level)
 
 
 def _non_evaluable(checker_name: str, reason: str) -> dict:
@@ -482,6 +503,19 @@ def _print_summary(results: list[dict]) -> None:
         print(f"\n  FIRST-ATTEMPT SCHEMA REJECTIONS ({len(schema_rejections)}):")
         for line in schema_rejections:
             print(f"    {line}")
+
+    # Coercions are retries that DIDN'T happen. Tracking the rate is how the
+    # findings fix stays honest: if it drops to zero the rule stopped firing,
+    # and if it climbs somewhere unexpected that is worth knowing too.
+    coercions: dict[str, int] = {}
+    for r in results:
+        for t in r.get("turns", []):
+            for entry in t.get("pipeline_logs", []):
+                field = entry.get("coerced_field")
+                if field:
+                    coercions[field] = coercions.get(field, 0) + 1
+    if coercions:
+        print(f"\n  FIELDS COERCED (retries avoided): {coercions}")
 
     print(f"\n  PROMPT_VERSION: {system_prompt.PROMPT_VERSION}")
 
