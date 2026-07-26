@@ -97,20 +97,42 @@ the developer, in order of severity.
       question/assessment turn with no apology copy and no derailed
       `type="conversation"` turn — the exact failure that collapsed the
       multi-turn loop hours earlier.
-      STILL NOT CLOSED, and deliberately not marked [x]: only 2 of 8
-      cases have run on current code. Remaining before this closes —
-      (a) `english_terse_chip_taps_every_turn` (wave 2), not run in the
-      second sweep; (b) the four single-turn cases, clean in the
-      morning run but that was PRE-fix code (the prompt is unchanged
-      and none of them retried, so carrying them forward is reasonable,
-      but it is not the same as a green pass on current code); (c) the
-      Taglish-dengue register spot-check. The stated criterion is the
-      full category green on every turn in ONE pass — that has not
-      happened yet, and two strong cases are not it.
-      QUOTA NOTE: the second run cost 8 calls and did NOT hit 429, so
-      more quota remained than the ~7 estimate. The 20/day figure was
-      measured on 2.5-flash-lite; 3.1-flash-lite's real RPD is still
-      unmeasured and should not be assumed.) A Tagalog-only Pulse silently excludes
+      *** THIRD RUN 2026-07-27: FULL CATEGORY PASS IN ONE SWEEP ***
+      Report: evals/results/2.1.0_gemini-3.1-flash-lite_20260726T170608Z.json.
+      All 8 cases, one pass, on current code (apology-leak fix + findings
+      coercion): 13 passed / 0 failed / 0 NON-EVALUABLE / 0 crashes /
+      0 API errors / 0 first-attempt schema rejections. Every turn of
+      every case green, including all three multi-turn terse cases,
+      which this time genuinely ran multi-turn:
+        - english_terse_chip_taps (WAVE 2, uncovered until now): 3 turns
+          — opener, chip tap "Stomach pain or nausea", "Just started
+          today" — all English, ending in an English assessment. This is
+          the exact input that flipped to Tagalog in the 2026-07-13
+          in-app screenshots.
+        - english_terse_dog_bite (WAVE 3): 2 turns, terse "im dizzy"
+          stayed English.
+        - tagalog_terse: 3 turns, a bare "oo" stayed Tagalog.
+      Zero non-evaluable means no turn was Pulse-constructed — every
+      check scored real model output, so the 100% is not the vacuous
+      kind the first sweep produced.
+      THE AUTOMATED VERIFICATION CRITERION STATED BELOW IS NOW MET.
+      Box left unticked pending ONE remaining human item: the
+      Taglish-dengue register spot-check (does the Taglish read as
+      everyday register, not formal Tagalog?) — an owner read-aloud,
+      not something the harness or an agent can sign off. The
+      taglish_stays_taglish case passed and its reply is in the report
+      for that read. Tick this box after it.
+      NOTE for whoever reads this next: one case
+      (english_no_regional_context) ended on question-budget exhaustion
+      — the model asked a clarifying question and that case carries no
+      scripted_replies. Its turn-1 mirroring check passed; the budget
+      fact is reported separately and is NOT a mirroring failure. Worth
+      adding scripted replies to that case so it exercises more than one
+      turn (POLISH_BACKLOG, not a blocker).
+      QUOTA NOTE: the 2026-07-26 second run cost 8 calls and did NOT hit
+      429, so more quota remained than the ~7 estimate. The 20/day
+      figure was measured on 2.5-flash-lite; 3.1-flash-lite's real RPD
+      is still unmeasured and should not be assumed.) A Tagalog-only Pulse silently excludes
       English-preferring users and vice versa. Verification =
       the language_mirroring category green on every turn, on the
       model that is actually deployed; the model-swap guard
@@ -145,8 +167,18 @@ the developer, in order of severity.
       TURNS section, plus 2.1.0's hard rule 9 and two new few-shot
       examples — software-debugging redirect, health-education diabetes
       answer) is AGENT-DRAFTED, PENDING OWNER READ-ALOUD.
-- [ ] 2.1.0 first-attempt schema-validation failure rate (~44% observed
-      2026-07-26) — characterised, fix pending. At least 4 of 9 live
+- [x] 2.1.0 first-attempt schema-validation failure rate (~44% observed
+      2026-07-26) — characterised, fixed and re-measured 2026-07-27.
+      RESOLVED: the coercion fix took the rate from ~44% to ZERO. The
+      2026-07-27 full sweep logged 0 first-attempt schema rejections
+      across 13 turns, with `FIELDS COERCED (retries avoided):
+      {'findings': 5}` — i.e. 5 turns that would each have burned a
+      second API call now cost one, and no turn reached the user as a
+      degraded fallback. Quota cost of the category dropped from a
+      projected ~18 calls to 13. The rate stays measurable via the
+      coerced_field structured log, so a future regression is visible
+      rather than silent. Original characterisation kept below.
+      At least 4 of 9 live
       turns in the language_mirroring sweep failed `_validate_payload`
       on the first attempt and needed the corrective retry; one
       (`english_terse_chip_taps` turn 2, the chip tap "Stomach pain or

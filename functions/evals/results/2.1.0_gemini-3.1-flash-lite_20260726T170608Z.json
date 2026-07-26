@@ -1,0 +1,1611 @@
+{
+  "prompt_version": "2.1.0",
+  "model_name": "gemini-3.1-flash-lite",
+  "category_filter": "language_mirroring",
+  "case_ids": [
+    "language_mirroring_english_with_regional_context",
+    "language_mirroring_english_no_regional_context",
+    "language_mirroring_taglish_stays_taglish",
+    "language_mirroring_midconversation_switch_to_tagalog",
+    "language_mirroring_english_dog_bite_every_turn",
+    "language_mirroring_english_terse_chip_taps_every_turn",
+    "language_mirroring_english_terse_dog_bite_every_turn",
+    "language_mirroring_tagalog_terse_stays_tagalog_every_turn"
+  ],
+  "timestamp": "20260726T170608Z",
+  "results": [
+    {
+      "case_id": "language_mirroring_english_with_regional_context",
+      "category": "language_mirroring",
+      "request": {
+        "message": "I've had a fever for 3 days with a bad headache, and I got bitten by mosquitoes last week",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": "Dengue advisory active in region",
+        "history": []
+      },
+      "response": {
+        "type": "assessment",
+        "message": "Thanks for sharing those details. A fever that has lasted 3 days, along with a bad headache, is worth taking seriously — especially with the mosquito bites and the current dengue advisory in your area. While this could be a common viral illness, it could also be dengue, and we can't tell the difference through chat alone. The best move is to have a doctor check you within the next 24 to 48 hours; a simple blood test can give you a clear answer.\n\nOne important thing: with dengue, the most dangerous signs sometimes appear after the fever starts to go down. Even if you feel better in a day or two, keep watching for the signs I've listed below.",
+        "quick_replies": [],
+        "urgency": "see_doctor_soon",
+        "explanation": "A 3-day fever with a bad headache, in the context of recent mosquito exposure and an active dengue advisory, requires a medical evaluation within 24-48 hours.",
+        "watch_for": [
+          "Severe stomach pain",
+          "Repeated vomiting",
+          "Bleeding gums or nosebleeds",
+          "Extreme sleepiness or difficulty waking up",
+          "Any of these signs mean you should go to the emergency room immediately"
+        ],
+        "next_step": "See a doctor within the next 24-48 hours for a check-up and blood test.",
+        "possibilities_mentioned": true,
+        "self_care": [
+          "Rest",
+          "Drink plenty of water",
+          "Paracetamol for the fever if needed, following the package directions"
+        ],
+        "monitoring": [
+          "Check your temperature every 4-6 hours",
+          "Keep track of how you feel for the next 48 hours, even if the fever improves"
+        ],
+        "encouragement": "I'm here if anything changes or if you have more questions — just let me know.",
+        "intents": [
+          "reporting_new_symptom",
+          "exposure_history"
+        ],
+        "requires_clinical_reassessment": true,
+        "change_type": "new_symptom",
+        "reassessment_reason": null,
+        "proposed_card_action": "new",
+        "findings": [
+          "fever 3 days",
+          "bad headache",
+          "mosquito bites"
+        ],
+        "assessment_cleared": false,
+        "card": {
+          "action": "new",
+          "reason": "first_assessment"
+        },
+        "conversation_state": {
+          "urgency": "see_doctor_soon",
+          "assessment_active": true,
+          "phase": "guidance"
+        },
+        "metadata": {
+          "prompt_version": "2.1.0",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-3.1-flash-lite"
+        }
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "user_message": "I've had a fever for 3 days with a bad headache, and I got bitten by mosquitoes last week",
+          "response": {
+            "type": "assessment",
+            "message": "Thanks for sharing those details. A fever that has lasted 3 days, along with a bad headache, is worth taking seriously — especially with the mosquito bites and the current dengue advisory in your area. While this could be a common viral illness, it could also be dengue, and we can't tell the difference through chat alone. The best move is to have a doctor check you within the next 24 to 48 hours; a simple blood test can give you a clear answer.\n\nOne important thing: with dengue, the most dangerous signs sometimes appear after the fever starts to go down. Even if you feel better in a day or two, keep watching for the signs I've listed below.",
+            "quick_replies": [],
+            "urgency": "see_doctor_soon",
+            "explanation": "A 3-day fever with a bad headache, in the context of recent mosquito exposure and an active dengue advisory, requires a medical evaluation within 24-48 hours.",
+            "watch_for": [
+              "Severe stomach pain",
+              "Repeated vomiting",
+              "Bleeding gums or nosebleeds",
+              "Extreme sleepiness or difficulty waking up",
+              "Any of these signs mean you should go to the emergency room immediately"
+            ],
+            "next_step": "See a doctor within the next 24-48 hours for a check-up and blood test.",
+            "possibilities_mentioned": true,
+            "self_care": [
+              "Rest",
+              "Drink plenty of water",
+              "Paracetamol for the fever if needed, following the package directions"
+            ],
+            "monitoring": [
+              "Check your temperature every 4-6 hours",
+              "Keep track of how you feel for the next 48 hours, even if the fever improves"
+            ],
+            "encouragement": "I'm here if anything changes or if you have more questions — just let me know.",
+            "intents": [
+              "reporting_new_symptom",
+              "exposure_history"
+            ],
+            "requires_clinical_reassessment": true,
+            "change_type": "new_symptom",
+            "reassessment_reason": null,
+            "proposed_card_action": "new",
+            "findings": [
+              "fever 3 days",
+              "bad headache",
+              "mosquito bites"
+            ],
+            "assessment_cleared": false,
+            "card": {
+              "action": "new",
+              "reason": "first_assessment"
+            },
+            "conversation_state": {
+              "urgency": "see_doctor_soon",
+              "assessment_active": true,
+              "phase": "guidance"
+            },
+            "metadata": {
+              "prompt_version": "2.1.0",
+              "red_flag_matched": false,
+              "red_flag_rule_ids": [],
+              "model_name": "gemini-3.1-flash-lite"
+            }
+          },
+          "checks": [
+            {
+              "checker": "check_language",
+              "passed": true,
+              "evaluable": true,
+              "detail": "detected='english' (expected one of ('english',))",
+              "scope": "every_turn",
+              "turn": 1
+            }
+          ],
+          "pipeline_logs": []
+        }
+      ],
+      "crashed": false,
+      "budget_exceeded": false,
+      "degraded_turns": [],
+      "checks": [
+        {
+          "checker": "check_language",
+          "passed": true,
+          "evaluable": true,
+          "detail": "detected='english' (expected one of ('english',))",
+          "scope": "every_turn",
+          "turn": 1
+        }
+      ],
+      "possibilities_mentioned": true,
+      "question_turns": 0
+    },
+    {
+      "case_id": "language_mirroring_english_no_regional_context",
+      "category": "language_mirroring",
+      "request": {
+        "message": "I've had a sore throat since yesterday and a mild fever",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": null,
+        "history": []
+      },
+      "response": {
+        "type": "question",
+        "message": "Thanks for the details — nothing alarming so far. One quick thing: is the sore throat making it hard for you to swallow, or is it mostly just painful?",
+        "quick_replies": [
+          "Just painful",
+          "Hard to swallow",
+          "Both"
+        ],
+        "urgency": null,
+        "explanation": null,
+        "watch_for": [],
+        "next_step": null,
+        "possibilities_mentioned": false,
+        "self_care": [],
+        "monitoring": [],
+        "encouragement": null,
+        "intents": [
+          "reporting_new_symptom"
+        ],
+        "requires_clinical_reassessment": true,
+        "change_type": "new_symptom",
+        "reassessment_reason": null,
+        "proposed_card_action": "keep",
+        "findings": [],
+        "assessment_cleared": false,
+        "card": {
+          "action": "keep",
+          "reason": "none"
+        },
+        "conversation_state": {
+          "urgency": null,
+          "assessment_active": false,
+          "phase": "assessing"
+        },
+        "metadata": {
+          "prompt_version": "2.1.0",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-3.1-flash-lite"
+        }
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "user_message": "I've had a sore throat since yesterday and a mild fever",
+          "response": {
+            "type": "question",
+            "message": "Thanks for the details — nothing alarming so far. One quick thing: is the sore throat making it hard for you to swallow, or is it mostly just painful?",
+            "quick_replies": [
+              "Just painful",
+              "Hard to swallow",
+              "Both"
+            ],
+            "urgency": null,
+            "explanation": null,
+            "watch_for": [],
+            "next_step": null,
+            "possibilities_mentioned": false,
+            "self_care": [],
+            "monitoring": [],
+            "encouragement": null,
+            "intents": [
+              "reporting_new_symptom"
+            ],
+            "requires_clinical_reassessment": true,
+            "change_type": "new_symptom",
+            "reassessment_reason": null,
+            "proposed_card_action": "keep",
+            "findings": [],
+            "assessment_cleared": false,
+            "card": {
+              "action": "keep",
+              "reason": "none"
+            },
+            "conversation_state": {
+              "urgency": null,
+              "assessment_active": false,
+              "phase": "assessing"
+            },
+            "metadata": {
+              "prompt_version": "2.1.0",
+              "red_flag_matched": false,
+              "red_flag_rule_ids": [],
+              "model_name": "gemini-3.1-flash-lite"
+            }
+          },
+          "checks": [
+            {
+              "checker": "check_language",
+              "passed": true,
+              "evaluable": true,
+              "detail": "detected='english' (expected one of ('english',))",
+              "scope": "every_turn",
+              "turn": 1
+            }
+          ],
+          "pipeline_logs": [
+            {
+              "level": "INFO",
+              "logger": "pulse.gemini_client",
+              "message": "coercing non-empty findings to [] on a question turn",
+              "rejection_reason": null,
+              "rejection_reason_first": null,
+              "rejection_reason_second": null,
+              "degraded_cause": null,
+              "degraded_detail": null,
+              "gemini_error_type": null,
+              "gemini_error_detail": null,
+              "coerced_field": "findings",
+              "coerced_count": 2
+            }
+          ]
+        }
+      ],
+      "crashed": false,
+      "budget_exceeded": true,
+      "degraded_turns": [],
+      "checks": [
+        {
+          "checker": "check_language",
+          "passed": true,
+          "evaluable": true,
+          "detail": "detected='english' (expected one of ('english',))",
+          "scope": "every_turn",
+          "turn": 1
+        }
+      ],
+      "possibilities_mentioned": null,
+      "question_turns": 1
+    },
+    {
+      "case_id": "language_mirroring_taglish_stays_taglish",
+      "category": "language_mirroring",
+      "request": {
+        "message": "May lagnat ako 3 days na tapos sobrang sakit ng ulo ko, nakagat ako ng lamok last week",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": "Dengue advisory active in region",
+        "history": []
+      },
+      "response": {
+        "type": "assessment",
+        "message": "Salamat sa pagdetalye. Ang lagnat na tatlong araw na, kasabay ng matinding sakit ng ulo at pagkagat ng lamok, ay dapat seryosohin. Maaaring trangkaso lang ito, pero dahil sa dami ng kaso ng dengue sa ating lugar ngayon, kailangan nating masigurado na hindi iyon ang dahilan. Hindi natin ito masisiguro sa chat lang, kaya ang pinakaligtas na gawin ay magpa-check sa doktor sa loob ng 1-2 araw para sa isang simpleng blood test.\n\nKahit na sa tingin mo ay bumubuti ka na, bantayan mo pa rin ang mga senyales sa ibaba sa susunod na 1-2 araw, dahil minsan ay pagkatapos ng lagnat lumalabas ang mga delikadong sintomas ng dengue.",
+        "quick_replies": [],
+        "urgency": "see_doctor_soon",
+        "explanation": "Ang lagnat na tumagal na ng tatlong araw na may kasamang matinding sakit ng ulo, sa gitna ng dengue advisory, ay nangangailangan ng pagsusuri ng doktor sa loob ng 1-2 araw.",
+        "watch_for": [
+          "Matinding sakit ng tiyan o paulit-ulit na pagsusuka",
+          "Pagdurugo ng gilagid o ilong",
+          "Sobrang tamlay o hirap gisingin",
+          "Pantal sa balat"
+        ],
+        "next_step": "Magpa-check sa doktor sa loob ng 1-2 araw para sa blood test.",
+        "possibilities_mentioned": true,
+        "self_care": [
+          "Uminom ng maraming tubig",
+          "Magpahinga nang maigi",
+          "Paracetamol para sa lagnat kung kailangan, ayon sa nakasulat sa box"
+        ],
+        "monitoring": [
+          "I-check ang temperatura tuwing 4-6 na oras",
+          "Bantayan ang pakiramdam kahit bumaba na ang lagnat"
+        ],
+        "encouragement": "Nandito lang ako — sabihin mo kung may magbago o may bago kang maramdaman, ha.",
+        "intents": [
+          "reporting_new_symptom",
+          "exposure_history"
+        ],
+        "requires_clinical_reassessment": true,
+        "change_type": "new_symptom",
+        "reassessment_reason": null,
+        "proposed_card_action": "new",
+        "findings": [
+          "fever 3 days",
+          "severe headache",
+          "mosquito bite exposure"
+        ],
+        "assessment_cleared": false,
+        "card": {
+          "action": "new",
+          "reason": "first_assessment"
+        },
+        "conversation_state": {
+          "urgency": "see_doctor_soon",
+          "assessment_active": true,
+          "phase": "guidance"
+        },
+        "metadata": {
+          "prompt_version": "2.1.0",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-3.1-flash-lite"
+        }
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "user_message": "May lagnat ako 3 days na tapos sobrang sakit ng ulo ko, nakagat ako ng lamok last week",
+          "response": {
+            "type": "assessment",
+            "message": "Salamat sa pagdetalye. Ang lagnat na tatlong araw na, kasabay ng matinding sakit ng ulo at pagkagat ng lamok, ay dapat seryosohin. Maaaring trangkaso lang ito, pero dahil sa dami ng kaso ng dengue sa ating lugar ngayon, kailangan nating masigurado na hindi iyon ang dahilan. Hindi natin ito masisiguro sa chat lang, kaya ang pinakaligtas na gawin ay magpa-check sa doktor sa loob ng 1-2 araw para sa isang simpleng blood test.\n\nKahit na sa tingin mo ay bumubuti ka na, bantayan mo pa rin ang mga senyales sa ibaba sa susunod na 1-2 araw, dahil minsan ay pagkatapos ng lagnat lumalabas ang mga delikadong sintomas ng dengue.",
+            "quick_replies": [],
+            "urgency": "see_doctor_soon",
+            "explanation": "Ang lagnat na tumagal na ng tatlong araw na may kasamang matinding sakit ng ulo, sa gitna ng dengue advisory, ay nangangailangan ng pagsusuri ng doktor sa loob ng 1-2 araw.",
+            "watch_for": [
+              "Matinding sakit ng tiyan o paulit-ulit na pagsusuka",
+              "Pagdurugo ng gilagid o ilong",
+              "Sobrang tamlay o hirap gisingin",
+              "Pantal sa balat"
+            ],
+            "next_step": "Magpa-check sa doktor sa loob ng 1-2 araw para sa blood test.",
+            "possibilities_mentioned": true,
+            "self_care": [
+              "Uminom ng maraming tubig",
+              "Magpahinga nang maigi",
+              "Paracetamol para sa lagnat kung kailangan, ayon sa nakasulat sa box"
+            ],
+            "monitoring": [
+              "I-check ang temperatura tuwing 4-6 na oras",
+              "Bantayan ang pakiramdam kahit bumaba na ang lagnat"
+            ],
+            "encouragement": "Nandito lang ako — sabihin mo kung may magbago o may bago kang maramdaman, ha.",
+            "intents": [
+              "reporting_new_symptom",
+              "exposure_history"
+            ],
+            "requires_clinical_reassessment": true,
+            "change_type": "new_symptom",
+            "reassessment_reason": null,
+            "proposed_card_action": "new",
+            "findings": [
+              "fever 3 days",
+              "severe headache",
+              "mosquito bite exposure"
+            ],
+            "assessment_cleared": false,
+            "card": {
+              "action": "new",
+              "reason": "first_assessment"
+            },
+            "conversation_state": {
+              "urgency": "see_doctor_soon",
+              "assessment_active": true,
+              "phase": "guidance"
+            },
+            "metadata": {
+              "prompt_version": "2.1.0",
+              "red_flag_matched": false,
+              "red_flag_rule_ids": [],
+              "model_name": "gemini-3.1-flash-lite"
+            }
+          },
+          "checks": [
+            {
+              "checker": "check_language",
+              "passed": true,
+              "evaluable": true,
+              "detail": "detected='tagalog' (expected one of ('tagalog', 'mixed'))",
+              "scope": "every_turn",
+              "turn": 1
+            }
+          ],
+          "pipeline_logs": []
+        }
+      ],
+      "crashed": false,
+      "budget_exceeded": false,
+      "degraded_turns": [],
+      "checks": [
+        {
+          "checker": "check_language",
+          "passed": true,
+          "evaluable": true,
+          "detail": "detected='tagalog' (expected one of ('tagalog', 'mixed'))",
+          "scope": "every_turn",
+          "turn": 1
+        }
+      ],
+      "possibilities_mentioned": true,
+      "question_turns": 0
+    },
+    {
+      "case_id": "language_mirroring_midconversation_switch_to_tagalog",
+      "category": "language_mirroring",
+      "request": {
+        "message": "Yung sakit ng ulo ko lumalala na po",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": null,
+        "history": [
+          {
+            "role": "user",
+            "content": "I've had a headache since this morning"
+          },
+          {
+            "role": "assistant",
+            "content": "Thanks for telling me. One question so I can help better: how bad is the headache right now — mild, moderate, or severe?",
+            "type": "question"
+          }
+        ]
+      },
+      "response": {
+        "type": "assessment",
+        "message": "Salamat sa pagsabi. Dahil lumalala yung sakit ng ulo mo, kailangan nating maging maingat. Kadalasan, ang sakit ng ulo ay puyat, stress, o migraine lang, pero may mga pagkakataon na ang lumalalang sakit ay senyales ng mas seryosong kondisyon na hindi natin masisiguro sa chat lang — walang nakatingin sa'yo at walang pagsusuri na nagawa.\n\nAng payo ko: magpa-check ka na sa doktor ngayong araw mismo, sa ospital o clinic. Hindi ito para takutin ka, pero mas maigi nang masuri agad habang madali pang maagapan ang anumang dahilan nito. Kung simple lang pala ang sanhi, mas mapapanatag ka rin.",
+        "quick_replies": [],
+        "urgency": "seek_care_now",
+        "explanation": "Ang sakit ng ulo na lumalala ay nangangailangan ng pagsusuri ng doktor ngayong araw upang ma-rule out ang mga seryosong sanhi na hindi kayang matukoy sa chat.",
+        "watch_for": [
+          "Biglang paglala ng sakit ng ulo na parang pinakamalalang sakit na naramdaman mo",
+          "Panlalabo ng paningin, panghihina ng katawan, o hirap sa pagsasalita",
+          "Lagnat na may kasamang matigas na leeg",
+          "Pagkalito o pagkawala ng malay"
+        ],
+        "next_step": "Pumunta sa pinakamalapit na ospital o clinic ngayong araw para magpa-check.",
+        "possibilities_mentioned": true,
+        "self_care": [],
+        "monitoring": [],
+        "encouragement": "Tama ang desisyon mong magpa-check ngayon — sabihan mo ako kung kumusta ka pagkatapos.",
+        "intents": [
+          "reporting_worsening"
+        ],
+        "requires_clinical_reassessment": true,
+        "change_type": "worsening",
+        "reassessment_reason": "Ang paglala ng sakit ng ulo ay nangangailangan ng mas mabilis na atensyong medikal kaysa sa naunang pagtatasa.",
+        "proposed_card_action": "new",
+        "findings": [
+          "headache",
+          "worsening pain"
+        ],
+        "assessment_cleared": false,
+        "card": {
+          "action": "new",
+          "reason": "first_assessment"
+        },
+        "conversation_state": {
+          "urgency": "seek_care_now",
+          "assessment_active": true,
+          "phase": "guidance"
+        },
+        "metadata": {
+          "prompt_version": "2.1.0",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-3.1-flash-lite"
+        }
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "user_message": "Yung sakit ng ulo ko lumalala na po",
+          "response": {
+            "type": "assessment",
+            "message": "Salamat sa pagsabi. Dahil lumalala yung sakit ng ulo mo, kailangan nating maging maingat. Kadalasan, ang sakit ng ulo ay puyat, stress, o migraine lang, pero may mga pagkakataon na ang lumalalang sakit ay senyales ng mas seryosong kondisyon na hindi natin masisiguro sa chat lang — walang nakatingin sa'yo at walang pagsusuri na nagawa.\n\nAng payo ko: magpa-check ka na sa doktor ngayong araw mismo, sa ospital o clinic. Hindi ito para takutin ka, pero mas maigi nang masuri agad habang madali pang maagapan ang anumang dahilan nito. Kung simple lang pala ang sanhi, mas mapapanatag ka rin.",
+            "quick_replies": [],
+            "urgency": "seek_care_now",
+            "explanation": "Ang sakit ng ulo na lumalala ay nangangailangan ng pagsusuri ng doktor ngayong araw upang ma-rule out ang mga seryosong sanhi na hindi kayang matukoy sa chat.",
+            "watch_for": [
+              "Biglang paglala ng sakit ng ulo na parang pinakamalalang sakit na naramdaman mo",
+              "Panlalabo ng paningin, panghihina ng katawan, o hirap sa pagsasalita",
+              "Lagnat na may kasamang matigas na leeg",
+              "Pagkalito o pagkawala ng malay"
+            ],
+            "next_step": "Pumunta sa pinakamalapit na ospital o clinic ngayong araw para magpa-check.",
+            "possibilities_mentioned": true,
+            "self_care": [],
+            "monitoring": [],
+            "encouragement": "Tama ang desisyon mong magpa-check ngayon — sabihan mo ako kung kumusta ka pagkatapos.",
+            "intents": [
+              "reporting_worsening"
+            ],
+            "requires_clinical_reassessment": true,
+            "change_type": "worsening",
+            "reassessment_reason": "Ang paglala ng sakit ng ulo ay nangangailangan ng mas mabilis na atensyong medikal kaysa sa naunang pagtatasa.",
+            "proposed_card_action": "new",
+            "findings": [
+              "headache",
+              "worsening pain"
+            ],
+            "assessment_cleared": false,
+            "card": {
+              "action": "new",
+              "reason": "first_assessment"
+            },
+            "conversation_state": {
+              "urgency": "seek_care_now",
+              "assessment_active": true,
+              "phase": "guidance"
+            },
+            "metadata": {
+              "prompt_version": "2.1.0",
+              "red_flag_matched": false,
+              "red_flag_rule_ids": [],
+              "model_name": "gemini-3.1-flash-lite"
+            }
+          },
+          "checks": [
+            {
+              "checker": "check_language",
+              "passed": true,
+              "evaluable": true,
+              "detail": "detected='tagalog' (expected one of ('tagalog', 'mixed'))",
+              "scope": "every_turn",
+              "turn": 1
+            }
+          ],
+          "pipeline_logs": []
+        }
+      ],
+      "crashed": false,
+      "budget_exceeded": false,
+      "degraded_turns": [],
+      "checks": [
+        {
+          "checker": "check_language",
+          "passed": true,
+          "evaluable": true,
+          "detail": "detected='tagalog' (expected one of ('tagalog', 'mixed'))",
+          "scope": "every_turn",
+          "turn": 1
+        }
+      ],
+      "possibilities_mentioned": true,
+      "question_turns": 0
+    },
+    {
+      "case_id": "language_mirroring_english_dog_bite_every_turn",
+      "category": "language_mirroring",
+      "request": {
+        "message": "My dog bit me this morning and now I'm feeling feverish and weak",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": null,
+        "history": []
+      },
+      "response": {
+        "type": "assessment",
+        "message": "I'm sorry to hear about the dog bite. A bite that breaks the skin, followed by feeling feverish and weak, is something that needs a doctor's attention today. Even if the wound looks small, dog bites can introduce bacteria that lead to infections, and there is also the risk of rabies depending on the dog's vaccination status. Because we can't examine the wound or the dog's history here, it's safer to have a professional check this right away.\n\nPlease go to the nearest emergency room or a clinic that handles animal bites today. When you arrive, tell the staff: \"I was bitten by a dog this morning and I am now feeling feverish and weak.\"",
+        "quick_replies": [],
+        "urgency": "seek_care_now",
+        "explanation": "A dog bite followed by systemic symptoms like fever and weakness requires immediate medical evaluation to assess for infection and rabies risk.",
+        "watch_for": [
+          "Increased redness, swelling, or warmth around the bite",
+          "Pus or drainage from the wound",
+          "Fever that gets higher or shaking chills",
+          "Feeling faint, dizzy, or confused"
+        ],
+        "next_step": "Go to the nearest emergency room or clinic today — do not wait.",
+        "possibilities_mentioned": true,
+        "self_care": [
+          "Wash the bite area gently with soap and running water for several minutes",
+          "Cover the wound with a clean, dry bandage",
+          "Keep the area elevated if possible"
+        ],
+        "monitoring": [],
+        "encouragement": "You are doing the right thing by getting this checked immediately — I'm here if you have any other questions.",
+        "intents": [
+          "reporting_new_symptom",
+          "exposure_history"
+        ],
+        "requires_clinical_reassessment": true,
+        "change_type": "new_symptom",
+        "reassessment_reason": null,
+        "proposed_card_action": "new",
+        "findings": [
+          "dog bite",
+          "feverish",
+          "weakness"
+        ],
+        "assessment_cleared": false,
+        "card": {
+          "action": "new",
+          "reason": "first_assessment"
+        },
+        "conversation_state": {
+          "urgency": "seek_care_now",
+          "assessment_active": true,
+          "phase": "guidance"
+        },
+        "metadata": {
+          "prompt_version": "2.1.0",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-3.1-flash-lite"
+        }
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "user_message": "My dog bit me this morning and now I'm feeling feverish and weak",
+          "response": {
+            "type": "assessment",
+            "message": "I'm sorry to hear about the dog bite. A bite that breaks the skin, followed by feeling feverish and weak, is something that needs a doctor's attention today. Even if the wound looks small, dog bites can introduce bacteria that lead to infections, and there is also the risk of rabies depending on the dog's vaccination status. Because we can't examine the wound or the dog's history here, it's safer to have a professional check this right away.\n\nPlease go to the nearest emergency room or a clinic that handles animal bites today. When you arrive, tell the staff: \"I was bitten by a dog this morning and I am now feeling feverish and weak.\"",
+            "quick_replies": [],
+            "urgency": "seek_care_now",
+            "explanation": "A dog bite followed by systemic symptoms like fever and weakness requires immediate medical evaluation to assess for infection and rabies risk.",
+            "watch_for": [
+              "Increased redness, swelling, or warmth around the bite",
+              "Pus or drainage from the wound",
+              "Fever that gets higher or shaking chills",
+              "Feeling faint, dizzy, or confused"
+            ],
+            "next_step": "Go to the nearest emergency room or clinic today — do not wait.",
+            "possibilities_mentioned": true,
+            "self_care": [
+              "Wash the bite area gently with soap and running water for several minutes",
+              "Cover the wound with a clean, dry bandage",
+              "Keep the area elevated if possible"
+            ],
+            "monitoring": [],
+            "encouragement": "You are doing the right thing by getting this checked immediately — I'm here if you have any other questions.",
+            "intents": [
+              "reporting_new_symptom",
+              "exposure_history"
+            ],
+            "requires_clinical_reassessment": true,
+            "change_type": "new_symptom",
+            "reassessment_reason": null,
+            "proposed_card_action": "new",
+            "findings": [
+              "dog bite",
+              "feverish",
+              "weakness"
+            ],
+            "assessment_cleared": false,
+            "card": {
+              "action": "new",
+              "reason": "first_assessment"
+            },
+            "conversation_state": {
+              "urgency": "seek_care_now",
+              "assessment_active": true,
+              "phase": "guidance"
+            },
+            "metadata": {
+              "prompt_version": "2.1.0",
+              "red_flag_matched": false,
+              "red_flag_rule_ids": [],
+              "model_name": "gemini-3.1-flash-lite"
+            }
+          },
+          "checks": [
+            {
+              "checker": "check_language",
+              "passed": true,
+              "evaluable": true,
+              "detail": "detected='english' (expected one of ('english',))",
+              "scope": "every_turn",
+              "turn": 1
+            }
+          ],
+          "pipeline_logs": []
+        }
+      ],
+      "crashed": false,
+      "budget_exceeded": false,
+      "degraded_turns": [],
+      "checks": [
+        {
+          "checker": "check_language",
+          "passed": true,
+          "evaluable": true,
+          "detail": "detected='english' (expected one of ('english',))",
+          "scope": "every_turn",
+          "turn": 1
+        }
+      ],
+      "possibilities_mentioned": true,
+      "question_turns": 0
+    },
+    {
+      "case_id": "language_mirroring_english_terse_chip_taps_every_turn",
+      "category": "language_mirroring",
+      "request": {
+        "message": "Just started today",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": null,
+        "history": [
+          {
+            "role": "user",
+            "content": "Ive been feeling sick lately. whats happening to me?"
+          },
+          {
+            "role": "assistant",
+            "content": "I'm sorry to hear you've been feeling unwell. To help me understand what's going on and give you the best guidance, could you tell me a bit more about what you're feeling? For example, do you have a fever, pain, or any other specific symptoms?",
+            "type": "question"
+          },
+          {
+            "role": "user",
+            "content": "Stomach pain or nausea"
+          },
+          {
+            "role": "assistant",
+            "content": "Thanks for sharing that. To help me get a clearer picture, how long have you been feeling this stomach pain or nausea, and is it constant or does it come and go?",
+            "type": "question"
+          }
+        ]
+      },
+      "response": {
+        "type": "assessment",
+        "message": "Thanks for the update. Since this just started today, it's hard to say exactly what's causing it — it could be something as simple as something you ate, a stomach virus, or another common issue. Because it's new and we don't have other details, the best approach is to monitor it at home for now while keeping an eye on how you feel.\n\nI've listed some things that can help you feel better below. If the pain becomes severe, you start vomiting repeatedly, or you notice any of the signs I've listed, you should see a doctor.",
+        "quick_replies": [],
+        "urgency": "monitor_at_home",
+        "explanation": "New, mild stomach pain or nausea without other severe symptoms is often something that can be managed at home while observing for changes.",
+        "watch_for": [
+          "Severe or worsening stomach pain",
+          "Repeated vomiting or inability to keep fluids down",
+          "Blood in your stool or vomit",
+          "High fever",
+          "Feeling faint, dizzy, or having a racing heartbeat"
+        ],
+        "next_step": "Monitor your symptoms at home today; see a doctor if the pain becomes severe or if you develop any of the watch-for signs.",
+        "possibilities_mentioned": true,
+        "self_care": [
+          "Rest your stomach by avoiding heavy or spicy foods",
+          "Take small, frequent sips of water or clear fluids to stay hydrated",
+          "Eat bland foods like crackers or rice if you feel up to it"
+        ],
+        "monitoring": [
+          "Keep track of whether the pain gets better or worse over the next 24 hours",
+          "Note if you develop a fever or other new symptoms"
+        ],
+        "encouragement": "I'm here if anything changes — just let me know and we can take another look.",
+        "intents": [
+          "reporting_new_symptom",
+          "answering_question"
+        ],
+        "requires_clinical_reassessment": true,
+        "change_type": "new_symptom",
+        "reassessment_reason": null,
+        "proposed_card_action": "new",
+        "findings": [
+          "stomach pain",
+          "nausea"
+        ],
+        "assessment_cleared": false,
+        "card": {
+          "action": "new",
+          "reason": "first_assessment"
+        },
+        "conversation_state": {
+          "urgency": "monitor_at_home",
+          "assessment_active": true,
+          "phase": "guidance"
+        },
+        "metadata": {
+          "prompt_version": "2.1.0",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-3.1-flash-lite"
+        }
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "user_message": "Ive been feeling sick lately. whats happening to me?",
+          "response": {
+            "type": "question",
+            "message": "I'm sorry to hear you've been feeling unwell. To help me understand what's going on and give you the best guidance, could you tell me a bit more about what you're feeling? For example, do you have a fever, pain, or any other specific symptoms?",
+            "quick_replies": [
+              "Fever",
+              "Body aches or fatigue",
+              "Stomach pain or nausea",
+              "Headache"
+            ],
+            "urgency": null,
+            "explanation": null,
+            "watch_for": [],
+            "next_step": null,
+            "possibilities_mentioned": false,
+            "self_care": [],
+            "monitoring": [],
+            "encouragement": null,
+            "intents": [
+              "reporting_new_symptom",
+              "asking_about_causes"
+            ],
+            "requires_clinical_reassessment": true,
+            "change_type": "new_symptom",
+            "reassessment_reason": null,
+            "proposed_card_action": "keep",
+            "findings": [],
+            "assessment_cleared": false,
+            "card": {
+              "action": "keep",
+              "reason": "none"
+            },
+            "conversation_state": {
+              "urgency": null,
+              "assessment_active": false,
+              "phase": "assessing"
+            },
+            "metadata": {
+              "prompt_version": "2.1.0",
+              "red_flag_matched": false,
+              "red_flag_rule_ids": [],
+              "model_name": "gemini-3.1-flash-lite"
+            }
+          },
+          "checks": [
+            {
+              "checker": "check_language",
+              "passed": true,
+              "evaluable": true,
+              "detail": "detected='english' (expected one of ('english',))",
+              "scope": "every_turn",
+              "turn": 1
+            }
+          ],
+          "pipeline_logs": []
+        },
+        {
+          "turn": 2,
+          "user_message": "Stomach pain or nausea",
+          "response": {
+            "type": "question",
+            "message": "Thanks for sharing that. To help me get a clearer picture, how long have you been feeling this stomach pain or nausea, and is it constant or does it come and go?",
+            "quick_replies": [
+              "Started today",
+              "A few days now",
+              "Comes and goes",
+              "Constant"
+            ],
+            "urgency": null,
+            "explanation": null,
+            "watch_for": [],
+            "next_step": null,
+            "possibilities_mentioned": false,
+            "self_care": [],
+            "monitoring": [],
+            "encouragement": null,
+            "intents": [
+              "reporting_new_symptom",
+              "asking_about_causes"
+            ],
+            "requires_clinical_reassessment": true,
+            "change_type": "new_symptom",
+            "reassessment_reason": null,
+            "proposed_card_action": "keep",
+            "findings": [],
+            "assessment_cleared": false,
+            "card": {
+              "action": "keep",
+              "reason": "none"
+            },
+            "conversation_state": {
+              "urgency": null,
+              "assessment_active": false,
+              "phase": "assessing"
+            },
+            "metadata": {
+              "prompt_version": "2.1.0",
+              "red_flag_matched": false,
+              "red_flag_rule_ids": [],
+              "model_name": "gemini-3.1-flash-lite"
+            }
+          },
+          "checks": [
+            {
+              "checker": "check_language",
+              "passed": true,
+              "evaluable": true,
+              "detail": "detected='english' (expected one of ('english',))",
+              "scope": "every_turn",
+              "turn": 2
+            }
+          ],
+          "pipeline_logs": [
+            {
+              "level": "INFO",
+              "logger": "pulse.gemini_client",
+              "message": "coercing non-empty findings to [] on a question turn",
+              "rejection_reason": null,
+              "rejection_reason_first": null,
+              "rejection_reason_second": null,
+              "degraded_cause": null,
+              "degraded_detail": null,
+              "gemini_error_type": null,
+              "gemini_error_detail": null,
+              "coerced_field": "findings",
+              "coerced_count": 2
+            }
+          ]
+        },
+        {
+          "turn": 3,
+          "user_message": "Just started today",
+          "response": {
+            "type": "assessment",
+            "message": "Thanks for the update. Since this just started today, it's hard to say exactly what's causing it — it could be something as simple as something you ate, a stomach virus, or another common issue. Because it's new and we don't have other details, the best approach is to monitor it at home for now while keeping an eye on how you feel.\n\nI've listed some things that can help you feel better below. If the pain becomes severe, you start vomiting repeatedly, or you notice any of the signs I've listed, you should see a doctor.",
+            "quick_replies": [],
+            "urgency": "monitor_at_home",
+            "explanation": "New, mild stomach pain or nausea without other severe symptoms is often something that can be managed at home while observing for changes.",
+            "watch_for": [
+              "Severe or worsening stomach pain",
+              "Repeated vomiting or inability to keep fluids down",
+              "Blood in your stool or vomit",
+              "High fever",
+              "Feeling faint, dizzy, or having a racing heartbeat"
+            ],
+            "next_step": "Monitor your symptoms at home today; see a doctor if the pain becomes severe or if you develop any of the watch-for signs.",
+            "possibilities_mentioned": true,
+            "self_care": [
+              "Rest your stomach by avoiding heavy or spicy foods",
+              "Take small, frequent sips of water or clear fluids to stay hydrated",
+              "Eat bland foods like crackers or rice if you feel up to it"
+            ],
+            "monitoring": [
+              "Keep track of whether the pain gets better or worse over the next 24 hours",
+              "Note if you develop a fever or other new symptoms"
+            ],
+            "encouragement": "I'm here if anything changes — just let me know and we can take another look.",
+            "intents": [
+              "reporting_new_symptom",
+              "answering_question"
+            ],
+            "requires_clinical_reassessment": true,
+            "change_type": "new_symptom",
+            "reassessment_reason": null,
+            "proposed_card_action": "new",
+            "findings": [
+              "stomach pain",
+              "nausea"
+            ],
+            "assessment_cleared": false,
+            "card": {
+              "action": "new",
+              "reason": "first_assessment"
+            },
+            "conversation_state": {
+              "urgency": "monitor_at_home",
+              "assessment_active": true,
+              "phase": "guidance"
+            },
+            "metadata": {
+              "prompt_version": "2.1.0",
+              "red_flag_matched": false,
+              "red_flag_rule_ids": [],
+              "model_name": "gemini-3.1-flash-lite"
+            }
+          },
+          "checks": [
+            {
+              "checker": "check_language",
+              "passed": true,
+              "evaluable": true,
+              "detail": "detected='english' (expected one of ('english',))",
+              "scope": "every_turn",
+              "turn": 3
+            }
+          ],
+          "pipeline_logs": []
+        }
+      ],
+      "crashed": false,
+      "budget_exceeded": false,
+      "degraded_turns": [],
+      "checks": [
+        {
+          "checker": "check_language",
+          "passed": true,
+          "evaluable": true,
+          "detail": "detected='english' (expected one of ('english',))",
+          "scope": "every_turn",
+          "turn": 1
+        },
+        {
+          "checker": "check_language",
+          "passed": true,
+          "evaluable": true,
+          "detail": "detected='english' (expected one of ('english',))",
+          "scope": "every_turn",
+          "turn": 2
+        },
+        {
+          "checker": "check_language",
+          "passed": true,
+          "evaluable": true,
+          "detail": "detected='english' (expected one of ('english',))",
+          "scope": "every_turn",
+          "turn": 3
+        }
+      ],
+      "possibilities_mentioned": true,
+      "question_turns": 2
+    },
+    {
+      "case_id": "language_mirroring_english_terse_dog_bite_every_turn",
+      "category": "language_mirroring",
+      "request": {
+        "message": "im dizzy",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": null,
+        "history": [
+          {
+            "role": "user",
+            "content": "i got bit by a dog"
+          },
+          {
+            "role": "assistant",
+            "content": "I am sorry to hear that. A dog bite is something we should take seriously to prevent infection. To help me give you the right advice, was the bite deep, and is the dog your own pet or a stray?",
+            "type": "question"
+          }
+        ]
+      },
+      "response": {
+        "type": "assessment",
+        "message": "I am sorry you are feeling dizzy after being bitten. Because you have a dog bite and are now feeling dizzy, this needs to be looked at by a doctor today. Dizziness can sometimes be a sign of a more serious reaction or shock, and we cannot determine the cause through chat alone.\n\nPlease go to an emergency room or the nearest clinic that can see you immediately. If you feel very weak, faint, or have trouble breathing, have someone else take you — do not drive yourself.",
+        "quick_replies": [],
+        "urgency": "seek_care_now",
+        "explanation": "A dog bite combined with new symptoms like dizziness requires immediate medical evaluation to rule out serious complications or shock.",
+        "watch_for": [
+          "Feeling faint, cold sweats, or a racing heartbeat",
+          "Difficulty breathing or swallowing",
+          "Swelling of the face, lips, or tongue",
+          "Worsening pain, redness, or pus at the bite site"
+        ],
+        "next_step": "Go to the nearest emergency room or clinic today — tell the staff you were bitten by a dog and are now feeling dizzy.",
+        "possibilities_mentioned": false,
+        "self_care": [],
+        "monitoring": [],
+        "encouragement": "You are doing the right thing by getting this checked now — I am here with you until you are seen.",
+        "intents": [
+          "reporting_worsening",
+          "reporting_new_symptom"
+        ],
+        "requires_clinical_reassessment": true,
+        "change_type": "worsening",
+        "reassessment_reason": "The development of dizziness after a dog bite is a significant change that requires immediate medical attention.",
+        "proposed_card_action": "new",
+        "findings": [
+          "dog bite",
+          "dizziness"
+        ],
+        "assessment_cleared": false,
+        "card": {
+          "action": "new",
+          "reason": "first_assessment"
+        },
+        "conversation_state": {
+          "urgency": "seek_care_now",
+          "assessment_active": true,
+          "phase": "guidance"
+        },
+        "metadata": {
+          "prompt_version": "2.1.0",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-3.1-flash-lite"
+        }
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "user_message": "i got bit by a dog",
+          "response": {
+            "type": "question",
+            "message": "I am sorry to hear that. A dog bite is something we should take seriously to prevent infection. To help me give you the right advice, was the bite deep, and is the dog your own pet or a stray?",
+            "quick_replies": [
+              "My pet, vaccinated",
+              "My pet, not vaccinated",
+              "Stray or unknown dog",
+              "Deep bite"
+            ],
+            "urgency": null,
+            "explanation": null,
+            "watch_for": [],
+            "next_step": null,
+            "possibilities_mentioned": false,
+            "self_care": [],
+            "monitoring": [],
+            "encouragement": null,
+            "intents": [
+              "reporting_new_symptom",
+              "exposure_history"
+            ],
+            "requires_clinical_reassessment": true,
+            "change_type": "new_symptom",
+            "reassessment_reason": null,
+            "proposed_card_action": "new",
+            "findings": [],
+            "assessment_cleared": false,
+            "card": {
+              "action": "keep",
+              "reason": "none"
+            },
+            "conversation_state": {
+              "urgency": null,
+              "assessment_active": false,
+              "phase": "assessing"
+            },
+            "metadata": {
+              "prompt_version": "2.1.0",
+              "red_flag_matched": false,
+              "red_flag_rule_ids": [],
+              "model_name": "gemini-3.1-flash-lite"
+            }
+          },
+          "checks": [
+            {
+              "checker": "check_language",
+              "passed": true,
+              "evaluable": true,
+              "detail": "detected='english' (expected one of ('english',))",
+              "scope": "every_turn",
+              "turn": 1
+            }
+          ],
+          "pipeline_logs": [
+            {
+              "level": "INFO",
+              "logger": "pulse.gemini_client",
+              "message": "coercing non-empty findings to [] on a question turn",
+              "rejection_reason": null,
+              "rejection_reason_first": null,
+              "rejection_reason_second": null,
+              "degraded_cause": null,
+              "degraded_detail": null,
+              "gemini_error_type": null,
+              "gemini_error_detail": null,
+              "coerced_field": "findings",
+              "coerced_count": 1
+            }
+          ]
+        },
+        {
+          "turn": 2,
+          "user_message": "im dizzy",
+          "response": {
+            "type": "assessment",
+            "message": "I am sorry you are feeling dizzy after being bitten. Because you have a dog bite and are now feeling dizzy, this needs to be looked at by a doctor today. Dizziness can sometimes be a sign of a more serious reaction or shock, and we cannot determine the cause through chat alone.\n\nPlease go to an emergency room or the nearest clinic that can see you immediately. If you feel very weak, faint, or have trouble breathing, have someone else take you — do not drive yourself.",
+            "quick_replies": [],
+            "urgency": "seek_care_now",
+            "explanation": "A dog bite combined with new symptoms like dizziness requires immediate medical evaluation to rule out serious complications or shock.",
+            "watch_for": [
+              "Feeling faint, cold sweats, or a racing heartbeat",
+              "Difficulty breathing or swallowing",
+              "Swelling of the face, lips, or tongue",
+              "Worsening pain, redness, or pus at the bite site"
+            ],
+            "next_step": "Go to the nearest emergency room or clinic today — tell the staff you were bitten by a dog and are now feeling dizzy.",
+            "possibilities_mentioned": false,
+            "self_care": [],
+            "monitoring": [],
+            "encouragement": "You are doing the right thing by getting this checked now — I am here with you until you are seen.",
+            "intents": [
+              "reporting_worsening",
+              "reporting_new_symptom"
+            ],
+            "requires_clinical_reassessment": true,
+            "change_type": "worsening",
+            "reassessment_reason": "The development of dizziness after a dog bite is a significant change that requires immediate medical attention.",
+            "proposed_card_action": "new",
+            "findings": [
+              "dog bite",
+              "dizziness"
+            ],
+            "assessment_cleared": false,
+            "card": {
+              "action": "new",
+              "reason": "first_assessment"
+            },
+            "conversation_state": {
+              "urgency": "seek_care_now",
+              "assessment_active": true,
+              "phase": "guidance"
+            },
+            "metadata": {
+              "prompt_version": "2.1.0",
+              "red_flag_matched": false,
+              "red_flag_rule_ids": [],
+              "model_name": "gemini-3.1-flash-lite"
+            }
+          },
+          "checks": [
+            {
+              "checker": "check_language",
+              "passed": true,
+              "evaluable": true,
+              "detail": "detected='english' (expected one of ('english',))",
+              "scope": "every_turn",
+              "turn": 2
+            }
+          ],
+          "pipeline_logs": []
+        }
+      ],
+      "crashed": false,
+      "budget_exceeded": false,
+      "degraded_turns": [],
+      "checks": [
+        {
+          "checker": "check_language",
+          "passed": true,
+          "evaluable": true,
+          "detail": "detected='english' (expected one of ('english',))",
+          "scope": "every_turn",
+          "turn": 1
+        },
+        {
+          "checker": "check_language",
+          "passed": true,
+          "evaluable": true,
+          "detail": "detected='english' (expected one of ('english',))",
+          "scope": "every_turn",
+          "turn": 2
+        }
+      ],
+      "possibilities_mentioned": false,
+      "question_turns": 1
+    },
+    {
+      "case_id": "language_mirroring_tagalog_terse_stays_tagalog_every_turn",
+      "category": "language_mirroring",
+      "request": {
+        "message": "oo",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": null,
+        "history": [
+          {
+            "role": "user",
+            "content": "nilalagnat ako"
+          },
+          {
+            "role": "assistant",
+            "content": "Salamat sa pagsabi. Para matulungan kita nang tama, ilang araw mo na nararamdaman ang lagnat at may iba ka pa bang nararamdaman gaya ng ubo, sipon, o sakit ng katawan?",
+            "type": "question"
+          },
+          {
+            "role": "user",
+            "content": "inuubo ako"
+          },
+          {
+            "role": "assistant",
+            "content": "Salamat sa detalye. Para mas malinaw ang picture, gaano na katagal ang lagnat at ubo mo, at may nararamdaman ka bang hirap sa paghinga o pananakit ng dibdib?",
+            "type": "question"
+          }
+        ]
+      },
+      "response": {
+        "type": "assessment",
+        "message": "Salamat sa pagsabi. Dahil may lagnat ka, inuubo, at nararamdaman mo na may hirap sa paghinga o pananakit ng dibdib, kailangan mong magpa-check sa doktor ngayong araw mismo. Ang mga sintomas na ito ay pwedeng senyales ng iba't ibang kondisyon, gaya ng impeksyon sa baga o iba pang seryosong problema, at hindi natin masisiguro sa chat lang kung ano ang sanhi nito.\n\nHuwag mo nang hintayin na lumipas ang araw o lumala pa ang pakiramdam mo. Pumunta ka na sa pinakamalapit na ER o clinic na tumatanggap ng pasyente ngayon.",
+        "quick_replies": [],
+        "urgency": "seek_care_now",
+        "explanation": "Ang kumbinasyon ng lagnat, ubo, at hirap sa paghinga o pananakit ng dibdib ay nangangailangan ng agarang pagsusuri ng doktor upang malaman ang sanhi at mabigyan ng tamang gamutan.",
+        "watch_for": [
+          "Biglang pagbilis o paglala ng hirap sa paghinga",
+          "Pagkakaroon ng asul na kulay sa labi o kuko",
+          "Matinding pananakit ng dibdib na hindi nawawala",
+          "Pagkalito o sobrang panghihina"
+        ],
+        "next_step": "Pumunta sa pinakamalapit na ER o clinic ngayon din — sabihin sa staff: 'Nilalagnat ako, inuubo, at nahihirapan akong huminga o sumasakit ang dibdib ko.'",
+        "possibilities_mentioned": true,
+        "self_care": [],
+        "monitoring": [],
+        "encouragement": "Tama ang desisyon mong magpa-check ngayon — sabihin mo sa akin kung kumusta ka pagkatapos.",
+        "intents": [
+          "reporting_new_symptom",
+          "answering_question"
+        ],
+        "requires_clinical_reassessment": true,
+        "change_type": "worsening",
+        "reassessment_reason": "Ang pag-amin sa hirap sa paghinga o pananakit ng dibdib ay nagpapataas ng urgency sa seek_care_now.",
+        "proposed_card_action": "new",
+        "findings": [
+          "fever",
+          "cough",
+          "difficulty breathing",
+          "chest pain"
+        ],
+        "assessment_cleared": false,
+        "card": {
+          "action": "new",
+          "reason": "first_assessment"
+        },
+        "conversation_state": {
+          "urgency": "seek_care_now",
+          "assessment_active": true,
+          "phase": "guidance"
+        },
+        "metadata": {
+          "prompt_version": "2.1.0",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-3.1-flash-lite"
+        }
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "user_message": "nilalagnat ako",
+          "response": {
+            "type": "question",
+            "message": "Salamat sa pagsabi. Para matulungan kita nang tama, ilang araw mo na nararamdaman ang lagnat at may iba ka pa bang nararamdaman gaya ng ubo, sipon, o sakit ng katawan?",
+            "quick_replies": [
+              "1-2 araw na",
+              "3 araw o higit pa",
+              "May ubo at sipon",
+              "Sakit ng katawan"
+            ],
+            "urgency": null,
+            "explanation": null,
+            "watch_for": [],
+            "next_step": null,
+            "possibilities_mentioned": false,
+            "self_care": [],
+            "monitoring": [],
+            "encouragement": null,
+            "intents": [
+              "reporting_new_symptom"
+            ],
+            "requires_clinical_reassessment": true,
+            "change_type": "new_symptom",
+            "reassessment_reason": null,
+            "proposed_card_action": "keep",
+            "findings": [],
+            "assessment_cleared": false,
+            "card": {
+              "action": "keep",
+              "reason": "none"
+            },
+            "conversation_state": {
+              "urgency": null,
+              "assessment_active": false,
+              "phase": "assessing"
+            },
+            "metadata": {
+              "prompt_version": "2.1.0",
+              "red_flag_matched": false,
+              "red_flag_rule_ids": [],
+              "model_name": "gemini-3.1-flash-lite"
+            }
+          },
+          "checks": [
+            {
+              "checker": "check_language",
+              "passed": true,
+              "evaluable": true,
+              "detail": "detected='tagalog' (expected one of ('tagalog', 'mixed'))",
+              "scope": "every_turn",
+              "turn": 1
+            }
+          ],
+          "pipeline_logs": [
+            {
+              "level": "INFO",
+              "logger": "pulse.gemini_client",
+              "message": "coercing non-empty findings to [] on a question turn",
+              "rejection_reason": null,
+              "rejection_reason_first": null,
+              "rejection_reason_second": null,
+              "degraded_cause": null,
+              "degraded_detail": null,
+              "gemini_error_type": null,
+              "gemini_error_detail": null,
+              "coerced_field": "findings",
+              "coerced_count": 1
+            }
+          ]
+        },
+        {
+          "turn": 2,
+          "user_message": "inuubo ako",
+          "response": {
+            "type": "question",
+            "message": "Salamat sa detalye. Para mas malinaw ang picture, gaano na katagal ang lagnat at ubo mo, at may nararamdaman ka bang hirap sa paghinga o pananakit ng dibdib?",
+            "quick_replies": [
+              "1-2 araw pa lang",
+              "3 araw na o higit pa",
+              "May hirap sa paghinga",
+              "Wala namang hirap huminga"
+            ],
+            "urgency": null,
+            "explanation": null,
+            "watch_for": [],
+            "next_step": null,
+            "possibilities_mentioned": false,
+            "self_care": [],
+            "monitoring": [],
+            "encouragement": null,
+            "intents": [
+              "reporting_new_symptom"
+            ],
+            "requires_clinical_reassessment": true,
+            "change_type": "new_symptom",
+            "reassessment_reason": null,
+            "proposed_card_action": "keep",
+            "findings": [],
+            "assessment_cleared": false,
+            "card": {
+              "action": "keep",
+              "reason": "none"
+            },
+            "conversation_state": {
+              "urgency": null,
+              "assessment_active": false,
+              "phase": "assessing"
+            },
+            "metadata": {
+              "prompt_version": "2.1.0",
+              "red_flag_matched": false,
+              "red_flag_rule_ids": [],
+              "model_name": "gemini-3.1-flash-lite"
+            }
+          },
+          "checks": [
+            {
+              "checker": "check_language",
+              "passed": true,
+              "evaluable": true,
+              "detail": "detected='tagalog' (expected one of ('tagalog', 'mixed'))",
+              "scope": "every_turn",
+              "turn": 2
+            }
+          ],
+          "pipeline_logs": [
+            {
+              "level": "INFO",
+              "logger": "pulse.gemini_client",
+              "message": "coercing non-empty findings to [] on a question turn",
+              "rejection_reason": null,
+              "rejection_reason_first": null,
+              "rejection_reason_second": null,
+              "degraded_cause": null,
+              "degraded_detail": null,
+              "gemini_error_type": null,
+              "gemini_error_detail": null,
+              "coerced_field": "findings",
+              "coerced_count": 2
+            }
+          ]
+        },
+        {
+          "turn": 3,
+          "user_message": "oo",
+          "response": {
+            "type": "assessment",
+            "message": "Salamat sa pagsabi. Dahil may lagnat ka, inuubo, at nararamdaman mo na may hirap sa paghinga o pananakit ng dibdib, kailangan mong magpa-check sa doktor ngayong araw mismo. Ang mga sintomas na ito ay pwedeng senyales ng iba't ibang kondisyon, gaya ng impeksyon sa baga o iba pang seryosong problema, at hindi natin masisiguro sa chat lang kung ano ang sanhi nito.\n\nHuwag mo nang hintayin na lumipas ang araw o lumala pa ang pakiramdam mo. Pumunta ka na sa pinakamalapit na ER o clinic na tumatanggap ng pasyente ngayon.",
+            "quick_replies": [],
+            "urgency": "seek_care_now",
+            "explanation": "Ang kumbinasyon ng lagnat, ubo, at hirap sa paghinga o pananakit ng dibdib ay nangangailangan ng agarang pagsusuri ng doktor upang malaman ang sanhi at mabigyan ng tamang gamutan.",
+            "watch_for": [
+              "Biglang pagbilis o paglala ng hirap sa paghinga",
+              "Pagkakaroon ng asul na kulay sa labi o kuko",
+              "Matinding pananakit ng dibdib na hindi nawawala",
+              "Pagkalito o sobrang panghihina"
+            ],
+            "next_step": "Pumunta sa pinakamalapit na ER o clinic ngayon din — sabihin sa staff: 'Nilalagnat ako, inuubo, at nahihirapan akong huminga o sumasakit ang dibdib ko.'",
+            "possibilities_mentioned": true,
+            "self_care": [],
+            "monitoring": [],
+            "encouragement": "Tama ang desisyon mong magpa-check ngayon — sabihin mo sa akin kung kumusta ka pagkatapos.",
+            "intents": [
+              "reporting_new_symptom",
+              "answering_question"
+            ],
+            "requires_clinical_reassessment": true,
+            "change_type": "worsening",
+            "reassessment_reason": "Ang pag-amin sa hirap sa paghinga o pananakit ng dibdib ay nagpapataas ng urgency sa seek_care_now.",
+            "proposed_card_action": "new",
+            "findings": [
+              "fever",
+              "cough",
+              "difficulty breathing",
+              "chest pain"
+            ],
+            "assessment_cleared": false,
+            "card": {
+              "action": "new",
+              "reason": "first_assessment"
+            },
+            "conversation_state": {
+              "urgency": "seek_care_now",
+              "assessment_active": true,
+              "phase": "guidance"
+            },
+            "metadata": {
+              "prompt_version": "2.1.0",
+              "red_flag_matched": false,
+              "red_flag_rule_ids": [],
+              "model_name": "gemini-3.1-flash-lite"
+            }
+          },
+          "checks": [
+            {
+              "checker": "check_language",
+              "passed": true,
+              "evaluable": true,
+              "detail": "detected='tagalog' (expected one of ('tagalog', 'mixed'))",
+              "scope": "every_turn",
+              "turn": 3
+            }
+          ],
+          "pipeline_logs": []
+        }
+      ],
+      "crashed": false,
+      "budget_exceeded": false,
+      "degraded_turns": [],
+      "checks": [
+        {
+          "checker": "check_language",
+          "passed": true,
+          "evaluable": true,
+          "detail": "detected='tagalog' (expected one of ('tagalog', 'mixed'))",
+          "scope": "every_turn",
+          "turn": 1
+        },
+        {
+          "checker": "check_language",
+          "passed": true,
+          "evaluable": true,
+          "detail": "detected='tagalog' (expected one of ('tagalog', 'mixed'))",
+          "scope": "every_turn",
+          "turn": 2
+        },
+        {
+          "checker": "check_language",
+          "passed": true,
+          "evaluable": true,
+          "detail": "detected='tagalog' (expected one of ('tagalog', 'mixed'))",
+          "scope": "every_turn",
+          "turn": 3
+        }
+      ],
+      "possibilities_mentioned": true,
+      "question_turns": 2
+    }
+  ]
+}
