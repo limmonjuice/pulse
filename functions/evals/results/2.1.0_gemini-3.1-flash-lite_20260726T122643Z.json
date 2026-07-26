@@ -1,0 +1,545 @@
+{
+  "prompt_version": "2.1.0",
+  "model_name": "gemini-3.1-flash-lite",
+  "category_filter": "language_mirroring",
+  "case_ids": [
+    "language_mirroring_english_terse_dog_bite_every_turn",
+    "language_mirroring_tagalog_terse_stays_tagalog_every_turn"
+  ],
+  "timestamp": "20260726T122643Z",
+  "results": [
+    {
+      "case_id": "language_mirroring_english_terse_dog_bite_every_turn",
+      "category": "language_mirroring",
+      "request": {
+        "message": "im dizzy",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": null,
+        "history": [
+          {
+            "role": "user",
+            "content": "i got bit by a dog"
+          },
+          {
+            "role": "assistant",
+            "content": "I'm sorry to hear that. A dog bite is something we need to take seriously because of the risk of infection and other concerns like rabies. To help me understand the situation better, was this a stray dog or a pet, and are you able to confirm if the animal has been vaccinated against rabies?",
+            "type": "question"
+          }
+        ]
+      },
+      "response": {
+        "type": "assessment",
+        "message": "I'm sorry you're feeling dizzy — that's a sign that we need to take this very seriously. A dog bite that causes dizziness, especially when we don't know the animal's vaccination status, needs to be evaluated by a doctor immediately. Please go to the nearest emergency room or a clinic that handles animal bites today.\n\nWhen you get there, tell the staff: I was bitten by a dog and I am now feeling dizzy. If you are feeling weak or unsteady, please have someone else take you to the hospital — do not drive yourself.",
+        "quick_replies": [],
+        "urgency": "seek_care_now",
+        "explanation": "Dizziness following an animal bite is a concerning symptom that requires immediate medical evaluation to rule out serious complications, including potential infection or other systemic reactions.",
+        "watch_for": [
+          "Fainting or loss of consciousness",
+          "Difficulty breathing or chest pain",
+          "Severe bleeding that won't stop",
+          "Confusion or trouble speaking"
+        ],
+        "next_step": "Go to the nearest emergency room or animal bite center immediately.",
+        "possibilities_mentioned": true,
+        "self_care": [],
+        "monitoring": [],
+        "encouragement": "Please get to the hospital now — I'm here if you need anything else once you've been seen.",
+        "intents": [
+          "reporting_worsening"
+        ],
+        "requires_clinical_reassessment": true,
+        "change_type": "worsening",
+        "reassessment_reason": "The development of dizziness after a dog bite is a significant symptom that escalates the urgency to seek immediate care.",
+        "proposed_card_action": "new",
+        "findings": [
+          "dog bite",
+          "dizziness"
+        ],
+        "assessment_cleared": false,
+        "card": {
+          "action": "new",
+          "reason": "first_assessment"
+        },
+        "conversation_state": {
+          "urgency": "seek_care_now",
+          "assessment_active": true,
+          "phase": "guidance"
+        },
+        "metadata": {
+          "prompt_version": "2.1.0",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-3.1-flash-lite"
+        }
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "user_message": "i got bit by a dog",
+          "response": {
+            "type": "question",
+            "message": "I'm sorry to hear that. A dog bite is something we need to take seriously because of the risk of infection and other concerns like rabies. To help me understand the situation better, was this a stray dog or a pet, and are you able to confirm if the animal has been vaccinated against rabies?",
+            "quick_replies": [
+              "It's my pet, vaccinated",
+              "It's my pet, not vaccinated",
+              "Stray dog",
+              "Not sure"
+            ],
+            "urgency": null,
+            "explanation": null,
+            "watch_for": [],
+            "next_step": null,
+            "possibilities_mentioned": false,
+            "self_care": [],
+            "monitoring": [],
+            "encouragement": null,
+            "intents": [
+              "reporting_new_symptom",
+              "exposure_history"
+            ],
+            "requires_clinical_reassessment": true,
+            "change_type": "new_symptom",
+            "reassessment_reason": null,
+            "proposed_card_action": "new",
+            "findings": [],
+            "assessment_cleared": false,
+            "card": {
+              "action": "keep",
+              "reason": "none"
+            },
+            "conversation_state": {
+              "urgency": null,
+              "assessment_active": false,
+              "phase": "assessing"
+            },
+            "metadata": {
+              "prompt_version": "2.1.0",
+              "red_flag_matched": false,
+              "red_flag_rule_ids": [],
+              "model_name": "gemini-3.1-flash-lite"
+            }
+          },
+          "checks": [
+            {
+              "checker": "check_language",
+              "passed": true,
+              "evaluable": true,
+              "detail": "detected='english' (expected one of ('english',))",
+              "scope": "every_turn",
+              "turn": 1
+            }
+          ],
+          "pipeline_logs": [
+            {
+              "level": "WARNING",
+              "logger": "pulse.gemini_client",
+              "message": "Gemini response rejected on attempt 1, retrying: question responses require empty findings",
+              "rejection_reason": "question responses require empty findings",
+              "rejection_reason_first": null,
+              "rejection_reason_second": null,
+              "degraded_cause": null,
+              "degraded_detail": null,
+              "gemini_error_type": null,
+              "gemini_error_detail": null
+            }
+          ]
+        },
+        {
+          "turn": 2,
+          "user_message": "im dizzy",
+          "response": {
+            "type": "assessment",
+            "message": "I'm sorry you're feeling dizzy — that's a sign that we need to take this very seriously. A dog bite that causes dizziness, especially when we don't know the animal's vaccination status, needs to be evaluated by a doctor immediately. Please go to the nearest emergency room or a clinic that handles animal bites today.\n\nWhen you get there, tell the staff: I was bitten by a dog and I am now feeling dizzy. If you are feeling weak or unsteady, please have someone else take you to the hospital — do not drive yourself.",
+            "quick_replies": [],
+            "urgency": "seek_care_now",
+            "explanation": "Dizziness following an animal bite is a concerning symptom that requires immediate medical evaluation to rule out serious complications, including potential infection or other systemic reactions.",
+            "watch_for": [
+              "Fainting or loss of consciousness",
+              "Difficulty breathing or chest pain",
+              "Severe bleeding that won't stop",
+              "Confusion or trouble speaking"
+            ],
+            "next_step": "Go to the nearest emergency room or animal bite center immediately.",
+            "possibilities_mentioned": true,
+            "self_care": [],
+            "monitoring": [],
+            "encouragement": "Please get to the hospital now — I'm here if you need anything else once you've been seen.",
+            "intents": [
+              "reporting_worsening"
+            ],
+            "requires_clinical_reassessment": true,
+            "change_type": "worsening",
+            "reassessment_reason": "The development of dizziness after a dog bite is a significant symptom that escalates the urgency to seek immediate care.",
+            "proposed_card_action": "new",
+            "findings": [
+              "dog bite",
+              "dizziness"
+            ],
+            "assessment_cleared": false,
+            "card": {
+              "action": "new",
+              "reason": "first_assessment"
+            },
+            "conversation_state": {
+              "urgency": "seek_care_now",
+              "assessment_active": true,
+              "phase": "guidance"
+            },
+            "metadata": {
+              "prompt_version": "2.1.0",
+              "red_flag_matched": false,
+              "red_flag_rule_ids": [],
+              "model_name": "gemini-3.1-flash-lite"
+            }
+          },
+          "checks": [
+            {
+              "checker": "check_language",
+              "passed": true,
+              "evaluable": true,
+              "detail": "detected='english' (expected one of ('english',))",
+              "scope": "every_turn",
+              "turn": 2
+            }
+          ],
+          "pipeline_logs": []
+        }
+      ],
+      "crashed": false,
+      "budget_exceeded": false,
+      "degraded_turns": [],
+      "checks": [
+        {
+          "checker": "check_language",
+          "passed": true,
+          "evaluable": true,
+          "detail": "detected='english' (expected one of ('english',))",
+          "scope": "every_turn",
+          "turn": 1
+        },
+        {
+          "checker": "check_language",
+          "passed": true,
+          "evaluable": true,
+          "detail": "detected='english' (expected one of ('english',))",
+          "scope": "every_turn",
+          "turn": 2
+        }
+      ],
+      "possibilities_mentioned": true,
+      "question_turns": 1
+    },
+    {
+      "case_id": "language_mirroring_tagalog_terse_stays_tagalog_every_turn",
+      "category": "language_mirroring",
+      "request": {
+        "message": "oo",
+        "profile": null,
+        "worry_level": null,
+        "regional_context": null,
+        "history": [
+          {
+            "role": "user",
+            "content": "nilalagnat ako"
+          },
+          {
+            "role": "assistant",
+            "content": "Salamat sa pagsabi. Para matulungan kitang ma-assess nang tama, gaano na katagal ang lagnat mo at may iba ka pa bang nararamdaman tulad ng ubo, sipon, o sakit ng katawan?",
+            "type": "question"
+          },
+          {
+            "role": "user",
+            "content": "inuubo ako"
+          },
+          {
+            "role": "assistant",
+            "content": "Salamat sa impormasyon. Para mas malinaw ang picture, may nararamdaman ka bang hirap sa paghinga, o kaya ay mabilis na paghinga habang nakaupo lang?",
+            "type": "question"
+          }
+        ]
+      },
+      "response": {
+        "type": "assessment",
+        "message": "Salamat sa pagsagot. Ang lagnat at ubo na may kasamang hirap sa paghinga ay seryosong sintomas na hindi natin pwedeng i-assess nang tama sa chat lang — walang nakatingin sa'yo at walang test na nagagawa rito.\n\nAng mga sintomas na ganyan ay maaaring senyales ng iba't ibang kondisyon, gaya ng impeksyon sa baga o iba pang seryosong problema sa paghinga. Dahil dito, kailangan mong magpatingin sa doktor o pumunta sa pinakamalapit na ER ngayong araw mismo. Huwag nang maghintay kung kusang mawawala ang hirap sa paghinga.\n\nPagdating mo sa ospital, sabihin mo sa staff: \"Nilalagnat ako, inuubo, at nahihirapan akong huminga simula kanina.\"",
+        "quick_replies": [],
+        "urgency": "seek_care_now",
+        "explanation": "Ang hirap sa paghinga na may kasamang lagnat at ubo ay isang emergency symptom na nangangailangan ng agarang pagsusuri ng doktor.",
+        "watch_for": [
+          "Biglang paglala ng hirap sa paghinga",
+          "Pagkakaroon ng asul na kulay sa labi o kuko",
+          "Matinding pananakit ng dibdib",
+          "Pagkalito o sobrang panghihina"
+        ],
+        "next_step": "Pumunta sa pinakamalapit na ER o ospital ngayong araw mismo.",
+        "possibilities_mentioned": true,
+        "self_care": [],
+        "monitoring": [],
+        "encouragement": "Tama ang desisyon mong magpa-check agad — andito lang ako hanggang sa makarating ka sa doktor.",
+        "intents": [
+          "reporting_new_symptom",
+          "answering_question"
+        ],
+        "requires_clinical_reassessment": true,
+        "change_type": "worsening",
+        "reassessment_reason": "Ang pag-amin sa hirap sa paghinga ay nagpapataas ng urgency sa seek_care_now.",
+        "proposed_card_action": "new",
+        "findings": [
+          "fever",
+          "cough",
+          "difficulty breathing"
+        ],
+        "assessment_cleared": false,
+        "card": {
+          "action": "new",
+          "reason": "first_assessment"
+        },
+        "conversation_state": {
+          "urgency": "seek_care_now",
+          "assessment_active": true,
+          "phase": "guidance"
+        },
+        "metadata": {
+          "prompt_version": "2.1.0",
+          "red_flag_matched": false,
+          "red_flag_rule_ids": [],
+          "model_name": "gemini-3.1-flash-lite"
+        }
+      },
+      "turns": [
+        {
+          "turn": 1,
+          "user_message": "nilalagnat ako",
+          "response": {
+            "type": "question",
+            "message": "Salamat sa pagsabi. Para matulungan kitang ma-assess nang tama, gaano na katagal ang lagnat mo at may iba ka pa bang nararamdaman tulad ng ubo, sipon, o sakit ng katawan?",
+            "quick_replies": [
+              "1 araw pa lang",
+              "2-3 araw na",
+              "Lampas 3 araw na",
+              "May kasamang ibang sintomas"
+            ],
+            "urgency": null,
+            "explanation": null,
+            "watch_for": [],
+            "next_step": null,
+            "possibilities_mentioned": false,
+            "self_care": [],
+            "monitoring": [],
+            "encouragement": null,
+            "intents": [
+              "reporting_new_symptom"
+            ],
+            "requires_clinical_reassessment": true,
+            "change_type": "new_symptom",
+            "reassessment_reason": null,
+            "proposed_card_action": "keep",
+            "findings": [],
+            "assessment_cleared": false,
+            "card": {
+              "action": "keep",
+              "reason": "none"
+            },
+            "conversation_state": {
+              "urgency": null,
+              "assessment_active": false,
+              "phase": "assessing"
+            },
+            "metadata": {
+              "prompt_version": "2.1.0",
+              "red_flag_matched": false,
+              "red_flag_rule_ids": [],
+              "model_name": "gemini-3.1-flash-lite"
+            }
+          },
+          "checks": [
+            {
+              "checker": "check_language",
+              "passed": true,
+              "evaluable": true,
+              "detail": "detected='tagalog' (expected one of ('tagalog', 'mixed'))",
+              "scope": "every_turn",
+              "turn": 1
+            }
+          ],
+          "pipeline_logs": [
+            {
+              "level": "WARNING",
+              "logger": "pulse.gemini_client",
+              "message": "Gemini response rejected on attempt 1, retrying: question responses require empty findings",
+              "rejection_reason": "question responses require empty findings",
+              "rejection_reason_first": null,
+              "rejection_reason_second": null,
+              "degraded_cause": null,
+              "degraded_detail": null,
+              "gemini_error_type": null,
+              "gemini_error_detail": null
+            }
+          ]
+        },
+        {
+          "turn": 2,
+          "user_message": "inuubo ako",
+          "response": {
+            "type": "question",
+            "message": "Salamat sa impormasyon. Para mas malinaw ang picture, may nararamdaman ka bang hirap sa paghinga, o kaya ay mabilis na paghinga habang nakaupo lang?",
+            "quick_replies": [
+              "Wala naman",
+              "Medyo nahihirapan",
+              "Mabilis ang hinga"
+            ],
+            "urgency": null,
+            "explanation": null,
+            "watch_for": [],
+            "next_step": null,
+            "possibilities_mentioned": false,
+            "self_care": [],
+            "monitoring": [],
+            "encouragement": null,
+            "intents": [
+              "reporting_new_symptom"
+            ],
+            "requires_clinical_reassessment": true,
+            "change_type": "new_symptom",
+            "reassessment_reason": null,
+            "proposed_card_action": "keep",
+            "findings": [],
+            "assessment_cleared": false,
+            "card": {
+              "action": "keep",
+              "reason": "none"
+            },
+            "conversation_state": {
+              "urgency": null,
+              "assessment_active": false,
+              "phase": "assessing"
+            },
+            "metadata": {
+              "prompt_version": "2.1.0",
+              "red_flag_matched": false,
+              "red_flag_rule_ids": [],
+              "model_name": "gemini-3.1-flash-lite"
+            }
+          },
+          "checks": [
+            {
+              "checker": "check_language",
+              "passed": true,
+              "evaluable": true,
+              "detail": "detected='tagalog' (expected one of ('tagalog', 'mixed'))",
+              "scope": "every_turn",
+              "turn": 2
+            }
+          ],
+          "pipeline_logs": [
+            {
+              "level": "WARNING",
+              "logger": "pulse.gemini_client",
+              "message": "Gemini response rejected on attempt 1, retrying: question responses require empty findings",
+              "rejection_reason": "question responses require empty findings",
+              "rejection_reason_first": null,
+              "rejection_reason_second": null,
+              "degraded_cause": null,
+              "degraded_detail": null,
+              "gemini_error_type": null,
+              "gemini_error_detail": null
+            }
+          ]
+        },
+        {
+          "turn": 3,
+          "user_message": "oo",
+          "response": {
+            "type": "assessment",
+            "message": "Salamat sa pagsagot. Ang lagnat at ubo na may kasamang hirap sa paghinga ay seryosong sintomas na hindi natin pwedeng i-assess nang tama sa chat lang — walang nakatingin sa'yo at walang test na nagagawa rito.\n\nAng mga sintomas na ganyan ay maaaring senyales ng iba't ibang kondisyon, gaya ng impeksyon sa baga o iba pang seryosong problema sa paghinga. Dahil dito, kailangan mong magpatingin sa doktor o pumunta sa pinakamalapit na ER ngayong araw mismo. Huwag nang maghintay kung kusang mawawala ang hirap sa paghinga.\n\nPagdating mo sa ospital, sabihin mo sa staff: \"Nilalagnat ako, inuubo, at nahihirapan akong huminga simula kanina.\"",
+            "quick_replies": [],
+            "urgency": "seek_care_now",
+            "explanation": "Ang hirap sa paghinga na may kasamang lagnat at ubo ay isang emergency symptom na nangangailangan ng agarang pagsusuri ng doktor.",
+            "watch_for": [
+              "Biglang paglala ng hirap sa paghinga",
+              "Pagkakaroon ng asul na kulay sa labi o kuko",
+              "Matinding pananakit ng dibdib",
+              "Pagkalito o sobrang panghihina"
+            ],
+            "next_step": "Pumunta sa pinakamalapit na ER o ospital ngayong araw mismo.",
+            "possibilities_mentioned": true,
+            "self_care": [],
+            "monitoring": [],
+            "encouragement": "Tama ang desisyon mong magpa-check agad — andito lang ako hanggang sa makarating ka sa doktor.",
+            "intents": [
+              "reporting_new_symptom",
+              "answering_question"
+            ],
+            "requires_clinical_reassessment": true,
+            "change_type": "worsening",
+            "reassessment_reason": "Ang pag-amin sa hirap sa paghinga ay nagpapataas ng urgency sa seek_care_now.",
+            "proposed_card_action": "new",
+            "findings": [
+              "fever",
+              "cough",
+              "difficulty breathing"
+            ],
+            "assessment_cleared": false,
+            "card": {
+              "action": "new",
+              "reason": "first_assessment"
+            },
+            "conversation_state": {
+              "urgency": "seek_care_now",
+              "assessment_active": true,
+              "phase": "guidance"
+            },
+            "metadata": {
+              "prompt_version": "2.1.0",
+              "red_flag_matched": false,
+              "red_flag_rule_ids": [],
+              "model_name": "gemini-3.1-flash-lite"
+            }
+          },
+          "checks": [
+            {
+              "checker": "check_language",
+              "passed": true,
+              "evaluable": true,
+              "detail": "detected='tagalog' (expected one of ('tagalog', 'mixed'))",
+              "scope": "every_turn",
+              "turn": 3
+            }
+          ],
+          "pipeline_logs": []
+        }
+      ],
+      "crashed": false,
+      "budget_exceeded": false,
+      "degraded_turns": [],
+      "checks": [
+        {
+          "checker": "check_language",
+          "passed": true,
+          "evaluable": true,
+          "detail": "detected='tagalog' (expected one of ('tagalog', 'mixed'))",
+          "scope": "every_turn",
+          "turn": 1
+        },
+        {
+          "checker": "check_language",
+          "passed": true,
+          "evaluable": true,
+          "detail": "detected='tagalog' (expected one of ('tagalog', 'mixed'))",
+          "scope": "every_turn",
+          "turn": 2
+        },
+        {
+          "checker": "check_language",
+          "passed": true,
+          "evaluable": true,
+          "detail": "detected='tagalog' (expected one of ('tagalog', 'mixed'))",
+          "scope": "every_turn",
+          "turn": 3
+        }
+      ],
+      "possibilities_mentioned": true,
+      "question_turns": 2
+    }
+  ]
+}
