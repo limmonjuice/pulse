@@ -400,11 +400,41 @@ def test_rejects_non_string_reassessment_reason(monkeypatch):
     assert _strip_meta(result) == VALID_CONVERSATION
 
 
-def test_rejects_findings_outside_assessment(monkeypatch):
-    bad = {**VALID_QUESTION, "findings": ["fever"]}
-    _install_fake_genai(monkeypatch, [json.dumps(bad), json.dumps(VALID_QUESTION)])
+def test_coerces_findings_outside_assessment_instead_of_retrying(monkeypatch):
+    """Was test_rejects_findings_outside_assessment. Changed 2026-07-26 after
+    the live sweep showed this ONE rule caused 3 of 3 first-attempt schema
+    rejections: the model asks a clarifying question and records the symptom
+    it just heard. Rejecting burned a second call against a ~20/day free tier
+    for a field nothing downstream reads on a non-assessment turn."""
+    populated = {**VALID_QUESTION, "findings": ["fever"]}
+    fake_models = _install_fake_genai(monkeypatch, [json.dumps(populated)])
     result = get_assessment("system prompt", [], "some message")
+    assert len(fake_models.calls) == 1, "coercion must not cost a retry"
+    assert result["findings"] == []
     assert _strip_meta(result) == VALID_QUESTION
+    assert result["_retry_used"] is False
+
+
+@pytest.mark.parametrize("base", [VALID_QUESTION, VALID_CRISIS, VALID_CONVERSATION])
+def test_findings_are_coerced_on_every_non_assessment_type(monkeypatch, base):
+    _install_fake_genai(monkeypatch, [json.dumps({**base, "findings": ["fever", "cough"]})])
+    result = get_assessment("system prompt", [], "some message")
+    assert result["findings"] == []
+
+
+def test_assessment_findings_are_preserved(monkeypatch):
+    """The coercion must not touch the turn type where findings are the point."""
+    _install_fake_genai(monkeypatch, [json.dumps(VALID_ASSESSMENT)])
+    result = get_assessment("system prompt", [], "some message")
+    assert result["findings"] == VALID_ASSESSMENT["findings"]
+    assert result["findings"], "fixture must have non-empty findings for this to mean anything"
+
+
+def test_findings_coercion_is_logged_so_the_rate_stays_measurable(monkeypatch, caplog):
+    _install_fake_genai(monkeypatch, [json.dumps({**VALID_QUESTION, "findings": ["fever"]})])
+    with caplog.at_level(logging.INFO, logger="pulse.gemini_client"):
+        get_assessment("system prompt", [], "some message")
+    assert any(getattr(r, "coerced_field", None) == "findings" for r in caplog.records)
 
 
 def test_rejects_non_list_findings(monkeypatch):

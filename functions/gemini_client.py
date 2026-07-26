@@ -307,7 +307,31 @@ def _validate_payload(payload: object) -> dict:
     if not isinstance(findings, list) or not all(isinstance(f, str) for f in findings):
         raise ValueError("findings must be an array of strings")
     if response_type != "assessment" and findings:
-        raise ValueError(f"{response_type} responses require empty findings")
+        # COERCE, don't reject. Measured 2026-07-26: this single rule caused
+        # 3 of 3 first-attempt schema rejections in the live sweep — the model
+        # asks a clarifying question and records the symptom it just heard,
+        # which is sensible behavior the schema happened to forbid. Rejecting
+        # cost a second API call against a ~20/day free tier, doubled latency,
+        # and on a double failure reached the user as a degraded fallback.
+        #
+        # Safe because nothing downstream reads model-proposed findings off a
+        # non-assessment turn: episode_state only populates active_findings
+        # from turns carrying a real urgency tier, and safety_engine treats
+        # those fields as scaffolding it never consumes. safety_engine's own
+        # domain-gate demotion already performs exactly this coercion.
+        #
+        # Logged (not silent) so the rate stays measurable — the point of the
+        # 2026-07-26 instrumentation work was to stop trading one invisible
+        # behavior for another.
+        logger.info(
+            "coercing non-empty findings to [] on a %s turn", response_type,
+            extra={
+                "coerced_field": "findings",
+                "response_type": response_type,
+                "coerced_count": len(findings),
+            },
+        )
+        payload["findings"] = []
 
     _reject_error_language(payload["message"])
 
