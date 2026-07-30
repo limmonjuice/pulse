@@ -6,6 +6,58 @@ the developer, in order of severity.
 - [x] Verified PH crisis hotlines in crisis_resources.dart
       (resolved 2026-07-12 — NCMH cross-checked against
       ncmh.gov.ph; In Touch/Hopeline/DSWD from owner research)
+- [x] *** VERIFIED 2026-07-31 on gemini-3.1-flash-lite, prompt 2.1.0 ***
+      Receipts: evals/results/2.1.0_gemini-3.1-flash-lite_20260730T155727Z.json
+      (full 42-case suite). language_mirroring 14/14 checks passed,
+      0 failed, 0 NON-EVALUABLE, 0 crashes, 0 degraded turns. Every
+      case carries degraded_turns=[] — i.e. not one check scored a
+      Pulse-constructed payload, so none of this 100% is the vacuous
+      kind the 2026-07-26 morning sweep produced.
+      THIS IS THE FIRST LEGITIMATELY LIVE-VERIFIED STATE ON THIS LINE.
+      Two prior "verified" claims were recorded and both were invalid:
+      (1) 2026-07-13 "live-verified, both turns English, PASS" — passed
+      only because those probe strings happened to contain
+      detect_language marker words; (2) 2026-07-26 morning "9/9 (100%)"
+      — retry-injected turns changed the turn type, collapsing the
+      multi-turn loop so conversation-level inheritance was never
+      exercised at all, plus one check scored a hardcoded fallback.
+      Both are corrected in place below. This entry is different in
+      kind: the mechanism itself ran live and the turns are on record.
+      MULTI-TURN INHERITANCE — the mechanism that had ZERO live
+      coverage until now — exercised on genuine model replies at
+      _LANGUAGE_SWITCH_MIN_WORDS = 5, so every terse turn below is
+      under the threshold and therefore MUST inherit rather than
+      re-decide the conversation language:
+        language_mirroring_tagalog_terse_stays_tagalog_every_turn
+          3 turns, all live. t2 "inuubo ako" (2 words) -> Tagalog
+          question; t3 "oo" (1 word, a bare yes) -> Tagalog assessment.
+          The single strongest receipt: a one-word turn that the
+          pre-fix newest-confident fallback would have let re-decide
+          the whole conversation.
+        language_mirroring_english_terse_chip_taps_every_turn
+          3 turns, all live. t2 "Stomach pain or nausea" (4 words —
+          the EXACT chip tap that flipped English conversations to
+          Tagalog in the 2026-07-13 in-app screenshots, wave 2) ->
+          English question; t3 "Just started today" (3 words) ->
+          English assessment. Wave 2 had never once been covered live.
+        language_mirroring_english_terse_dog_bite_every_turn
+          2 turns, all live. t2 "im dizzy" (2 words) -> English
+          assessment. Pins the 2026-07-26 wave-3 in-app regression.
+        language_mirroring_english_no_regional_context
+          2 turns, all live, English throughout.
+        language_mirroring_midconversation_switch_to_tagalog
+          1 turn, but history-seeded: English history + a Tagalog user
+          turn -> Tagalog reply. Tests the switch via history rather
+          than via the loop, which is what that case is for.
+      All three regression waves (2026-07-12 openers, 2026-07-13 chip
+      taps, 2026-07-26 terse marker-free turns) are now covered by live
+      evidence in a single run. Re-verify after ANY model swap — the
+      MODEL_CHANGELOG guard and the runner's model-change banner flag
+      when this needs re-doing. Remaining, NOT blocking this line: the
+      owner read-aloud of Taglish assessment copy (a register/quality
+      read, not a mirroring question — the copy is in the report above).
+      Historical detail of the three waves and both invalid claims is
+      preserved below.
 - [ ] Language mirroring verified on the CURRENT production model —
       re-verify after ANY model swap (regressed 2026-07-12 on the
       3.1-flash-lite swap; root-caused 2026-07-13 and fixed through
@@ -185,18 +237,43 @@ the developer, in order of severity.
       domain_boundary 2/2. Also green: crisis_routing 3/3,
       language_mirroring 14/14, schema_and_resilience 4/4,
       voice_compliance 8/8, possibilities_frequency 100%.
-      GATE NOT YET CLEARED — exactly ONE failure remains, and it is a
-      judgment call rather than a bug:
-        tier_flood_exposure_lepto_multi_turn — check_tier FAILED,
-        urgency='see_doctor_soon', expected 'seek_care_now'. Fever
-        after floodwater exposure is the leptospirosis shape, and the
-        calibration philosophy is to bias toward the worst REASONABLE
-        explanation. Deliberately NOT "fixed" by tuning the prompt: the
-        case's own notes flag its expected tier as a genuine clinical
-        calibration call, so the owner (or the pending clinician
-        review) decides whether seek_care_now is right or the case's
-        expectation is wrong. Reproduced identically across two
-        consecutive full runs, so it is a stable behavior, not noise.
+      GATE NOT YET CLEARED — exactly ONE failure per run remains, and
+      it is a judgment call rather than a bug.
+      CORRECTION 2026-07-31: an earlier note on this line claimed the
+      flood/lepto miss "reproduced identically across two consecutive
+      full runs, so it is a stable behavior, not noise." THAT WAS
+      WRONG — the two runs failed on DIFFERENT cases:
+        2026-07-29: tier_flood_exposure_lepto_multi_turn FAILED
+                    (see_doctor_soon, expected seek_care_now)
+        2026-07-30: that case PASSED (seek_care_now); instead
+                    tier_week_plus_persistent_see_doctor_soon FAILED
+                    (monitor_at_home, expected see_doctor_soon)
+      What is actually stable is the DIRECTION, not the case: both
+      failures under-triage by exactly ONE tier, and tier_calibration
+      lands 10/11 each run with the failing case varying. At
+      temperature 0.3 the model samples both sides of a tier boundary
+      on borderline cases. Treat "98%" as a per-run figure, not a
+      fixed score.
+      NOT an exposure-specific problem — checked explicitly across
+      both runs: dog bite (full sentence) -> seek_care_now twice, dog
+      bite (terse) -> seek_care_now twice, canonical dengue ->
+      see_doctor_soon PASS twice. Exposure cases do NOT systematically
+      under-triage; only the flood case is unstable.
+      Deliberately NOT "fixed" by tuning the prompt (owner decision
+      2026-07-31): tuning toward the expected answer would be teaching
+      to the test and would turn a real calibration signal green
+      without fixing the calibration. Routed to the clinician review
+      as Q1-Q3 instead.
+      SHARPEST FINDING from these two runs, and probably the real
+      defect: on the flood case, in BOTH runs, the model asked ONE
+      question (timing) and committed to a tier at turn 2 — scripted
+      replies #2 ("above 40 i think") and #3 (wound + severe muscle
+      pain, the leptospirosis triad the case exists to surface) were
+      NEVER reached. It decides before eliciting the detail that would
+      make the call unambiguous. Corroborated category-wide by
+      avg question-turns-before-assessment = 0.38 on 2.1.0. Worth its
+      own investigation; the tier disagreement may be a symptom of
+      under-asking rather than of mis-ranking severity.
       SECOND ITEM: the new prompt copy read-aloud above is still
       pending. The 2026-07-30 run is the FIRST time voice_compliance
       ever produced real assessment copy (before the scripted_replies
@@ -290,7 +367,28 @@ the developer, in order of severity.
       fold into the clinician review below rather than self-adding.
 - [ ] Clinician review of functions/red_flags.py (REVIEWED_BY still
       None) — rule set needs sign-off from a nurse/med student
-      minimum before real symptom data relies on it
+      minimum before real symptom data relies on it.
+      CONCRETE QUESTIONS FOR THAT REVIEW (added 2026-07-31 from the
+      full-suite runs — bring these, don't start from a blank page):
+      Q1. Does fever + floodwater exposure + wound, days later, warrant
+          seek_care_now or see_doctor_soon? (Pulse currently returns
+          see_doctor_soon roughly half the time; project doctrine —
+          worst REASONABLE explanation — suggests seek_care_now, and
+          that is what tier_flood_exposure_lepto_multi_turn expects.
+          Owner confirmed the expectation 2026-07-31; a clinician
+          should confirm the medicine.)
+      Q2. Should a dry cough persisting past a week with no fever and
+          normal breathing be see_doctor_soon, or is monitor_at_home
+          defensible? (tier_week_plus_persistent_see_doctor_soon
+          expects see_doctor_soon; the model returned monitor_at_home
+          in the 2026-07-30 run.)
+      Q3. Related engineering finding worth a clinician's opinion: on
+          the flood case the model asked only about TIMING and then
+          committed to a tier, never asking about a wound or muscle
+          pain — the two findings that would make leptospirosis
+          unambiguous. Is "ask about a wound whenever floodwater
+          exposure is mentioned" a rule that belongs in red_flags.py
+          or in the prompt's exposure posture?
 - [ ] Mental-health-trained review of the crisis conversation flow
       (system_prompt.py crisis mode + this crisis card) — distinct
       from the clinical review above, flagged separately since day
