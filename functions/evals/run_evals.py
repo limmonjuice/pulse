@@ -162,13 +162,20 @@ def _non_evaluable(checker_name: str, reason: str) -> dict:
     }
 
 
-def _run_checks(checks: list[tuple], response: dict) -> list[dict]:
+def _run_checks(
+    checks: list[tuple], response: dict, *, allow_pulse_constructed: bool = False
+) -> list[dict]:
     # Class-wide gate: if the turn is Pulse-constructed rather than model
     # output, NO checker can say anything about the model (see
     # checkers.degraded_turn_reason for the per-checker audit). Gating
     # here rather than inside each checker means a future checker cannot
     # reintroduce the defect by forgetting to handle degraded turns.
-    degraded_reason = checkers.degraded_turn_reason(response)
+    #
+    # allow_pulse_constructed inverts that for cases whose SUBJECT is
+    # Pulse's own deterministic output — red-flag-floor cases, where the
+    # static fallback payload is precisely what must be asserted. Gating
+    # those made them report NOTHING EVALUABLE (found 2026-07-27).
+    degraded_reason = None if allow_pulse_constructed else checkers.degraded_turn_reason(response)
     results = []
     for checker_name, expected in checks:
         if degraded_reason is not None:
@@ -269,7 +276,10 @@ def run_case(case: EvalCase, delay: float) -> dict:
         turn_no = len(turns) + 1
         turn_check_results = [
             {**cr, "scope": "every_turn", "turn": turn_no}
-            for cr in _run_checks(every_turn_checks, response)
+            for cr in _run_checks(
+                every_turn_checks, response,
+                allow_pulse_constructed=case.expects_pulse_constructed,
+            )
         ]
         turns.append(
             {
@@ -337,7 +347,11 @@ def run_case(case: EvalCase, delay: float) -> dict:
         # touches the stored/report response.
         check_response = {**response, "_eval_question_turns": question_turns}
         final_check_results = [
-            {**cr, "scope": "final"} for cr in _run_checks(final_checks, check_response)
+            {**cr, "scope": "final"}
+            for cr in _run_checks(
+                final_checks, check_response,
+                allow_pulse_constructed=case.expects_pulse_constructed,
+            )
         ]
     for cr in final_check_results:
         print(f"  {_verdict(cr)}  {cr['checker']}: {cr['detail']}")

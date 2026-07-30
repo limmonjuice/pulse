@@ -129,10 +129,16 @@ the developer, in order of severity.
       fact is reported separately and is NOT a mirroring failure. Worth
       adding scripted replies to that case so it exercises more than one
       turn (POLISH_BACKLOG, not a blocker).
-      QUOTA NOTE: the 2026-07-26 second run cost 8 calls and did NOT hit
-      429, so more quota remained than the ~7 estimate. The 20/day
-      figure was measured on 2.5-flash-lite; 3.1-flash-lite's real RPD
-      is still unmeasured and should not be assumed.) A Tagalog-only Pulse silently excludes
+      QUOTA NOTE (updated 2026-07-27): the 20/day figure does NOT bind
+      on 3.1-flash-lite. Measured: 21 calls on 2026-07-26 (13 + 8) with
+      no 429, plus 13 more on 2026-07-27. Free-tier RPD for this model
+      is therefore >=21/day; the 20/day ceiling was measured on
+      2.5-flash-lite and never applied here. The model swap was
+      2026-07-13, so the larger allowance was in effect the whole time
+      and the 2026-07-26 rationing was against a figure that did not
+      apply. Owner decision 2026-07-27: treat quota as a non-constraint
+      for now. The exact ceiling remains unmeasured — record what runs
+      observe rather than asserting a number.) A Tagalog-only Pulse silently excludes
       English-preferring users and vice versa. Verification =
       the language_mirroring category green on every turn, on the
       model that is actually deployed; the model-swap guard

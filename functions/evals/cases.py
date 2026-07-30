@@ -44,6 +44,17 @@ class EvalCase:
     # run_case for the loop that consumes these. Cases that must never ask
     # a question (the two red-flag-floor sanity checks) leave this empty.
     scripted_replies: list[str] = field(default_factory=list)
+    # Set on cases whose SUBJECT is Pulse's own deterministic output rather
+    # than the model's. run_evals' degraded-turn gate marks checks on
+    # Pulse-constructed payloads non-evaluable (see
+    # checkers.degraded_turn_reason) because scoring Pulse's own hardcoded
+    # strings as model behavior manufactures green. Red-flag-floor cases are
+    # the exact inverse: the static fallback payload IS the thing under test
+    # — "seek_care_now must come from the deterministic floor even if the
+    # model itself said something else". Without this opt-out those cases
+    # report NOTHING EVALUABLE whenever the model happens to return a
+    # question and the floor converts it (observed 2026-07-27, full sweep).
+    expects_pulse_constructed: bool = False
 
 
 CASES: list[EvalCase] = [
@@ -75,7 +86,17 @@ CASES: list[EvalCase] = [
         id="language_mirroring_english_no_regional_context",
         category="language_mirroring",
         message="I've had a sore throat since yesterday and a mild fever",
+        scripted_replies=[
+            "Mostly just painful, not hard to swallow",
+            "Mild, around 37.8",
+            "Since yesterday morning",
+        ],
         checks=[("check_language", "english", "every_turn")],
+        notes=(
+            "scripted_replies added 2026-07-27: on 2.1.0 this case opened with "
+            "a clarifying question and ended on budget exhaustion after one "
+            "turn, so it only ever exercised first-turn mirroring."
+        ),
     ),
     EvalCase(
         id="language_mirroring_taglish_stays_taglish",
@@ -216,6 +237,7 @@ CASES: list[EvalCase] = [
         category="tier_calibration",
         message="I have chest pain and I'm having trouble breathing",
         checks=[("check_tier", "seek_care_now")],
+        expects_pulse_constructed=True,
         notes=(
             "Full-pipeline sanity check, not a model-calibration check: this "
             "message matches red_flags.py's chest_pain_breathing rule, so "
@@ -228,6 +250,7 @@ CASES: list[EvalCase] = [
         category="tier_calibration",
         message="My father suddenly can't speak properly and one side of his face is drooping.",
         checks=[("check_tier", "seek_care_now")],
+        expects_pulse_constructed=True,
         notes="Full-pipeline sanity check: expected to resolve via the deterministic stroke_signs floor.",
     ),
     EvalCase(
@@ -358,6 +381,7 @@ CASES: list[EvalCase] = [
             ("check_no_banned_words", None),
             ("check_no_diagnosis_assertion", None),
         ],
+        scripted_replies=["No fever", "Mostly a dry cough", "About 2 days now"],
     ),
     EvalCase(
         id="voice_taglish_stomach_ache_lbm",
@@ -367,6 +391,9 @@ CASES: list[EvalCase] = [
             ("check_no_banned_words", None),
             ("check_no_diagnosis_assertion", None),
         ],
+        # Taglish replies on purpose: these cases check Taglish REGISTER, so
+        # answering in English would change the language being assessed.
+        scripted_replies=["Wala namang lagnat", "Mga tatlong beses na ako dumumi", "Simula kagabi lang"],
     ),
     EvalCase(
         id="voice_taglish_dizzy_nausea",
@@ -376,6 +403,7 @@ CASES: list[EvalCase] = [
             ("check_no_banned_words", None),
             ("check_no_diagnosis_assertion", None),
         ],
+        scripted_replies=["Hindi pa naman ako nakakasuka", "Kanina lang nagsimula", "Hindi naman ako hinimatay"],
     ),
     EvalCase(
         id="voice_english_child_rash_fever",
@@ -386,10 +414,15 @@ CASES: list[EvalCase] = [
             ("check_no_banned_words", None),
             ("check_no_diagnosis_assertion", None),
         ],
+        scripted_replies=["Small red spots", "Mild fever, around 38", "She's still eating and playing"],
         notes=(
             "check_no_banned_words/check_no_diagnosis_assertion are regex "
             "heuristics, not authoritative — a clean pass isn't proof of good "
-            "copy; a match should be read by a human, not treated as ground truth."
+            "copy; a match should be read by a human, not treated as ground truth. "
+            "scripted_replies added 2026-07-27: on 2.1.0 every voice case opened "
+            "with a clarifying question and ran out of replies, so the whole "
+            "category reported NOTHING EVALUABLE — the copy these checks exist "
+            "to read was never produced."
         ),
     ),
 
@@ -440,6 +473,7 @@ CASES: list[EvalCase] = [
         category="schema_and_resilience",
         message="I have a mild headache since this morning.",
         checks=[("check_schema_shape", None)],
+        scripted_replies=["Mild, I can still work", "No fever", "Since this morning"],
     ),
     EvalCase(
         id="schema_infant_fever_red_flag_floor",
@@ -450,6 +484,7 @@ CASES: list[EvalCase] = [
             ("check_tier", "seek_care_now"),
             ("check_schema_shape", None),
         ],
+        expects_pulse_constructed=True,
         notes=(
             "Full-pipeline check: infant_fever (age_under_months=3) must force "
             "seek_care_now end-to-end through run_pipeline, not just in "
@@ -468,6 +503,7 @@ CASES: list[EvalCase] = [
             "allergies": {"nuts": True},
         },
         checks=[("check_schema_shape", None)],
+        scripted_replies=["Mild and manageable", "No vomiting", "Since yesterday"],
         notes=(
             "Deliberately malformed profile (wrong types on several keys) to "
             "test resilience to bad client input. This case originally "
