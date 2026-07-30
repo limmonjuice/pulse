@@ -173,6 +173,37 @@ the developer, in order of severity.
       TURNS section, plus 2.1.0's hard rule 9 and two new few-shot
       examples — software-debugging redirect, health-education diabetes
       answer) is AGENT-DRAFTED, PENDING OWNER READ-ALOUD.
+      FULL SUITE RUN 2026-07-30 (quota unblocked) — 42 cases, all
+      categories. Report:
+      evals/results/2.1.0_gemini-3.1-flash-lite_20260730T155727Z.json.
+      Result: 65/66 evaluable checks passed (98%), ZERO non-evaluable,
+      zero crashes, zero API errors, zero first-attempt schema
+      rejections, 15 findings coercions. Every one of the five
+      never-before-run categories passed clean on its first ever run:
+      intent_no_recard 12/12, reset_flow 5/5,
+      deescalation_discipline 4/4, mixed_intent_escalation 3/3,
+      domain_boundary 2/2. Also green: crisis_routing 3/3,
+      language_mirroring 14/14, schema_and_resilience 4/4,
+      voice_compliance 8/8, possibilities_frequency 100%.
+      GATE NOT YET CLEARED — exactly ONE failure remains, and it is a
+      judgment call rather than a bug:
+        tier_flood_exposure_lepto_multi_turn — check_tier FAILED,
+        urgency='see_doctor_soon', expected 'seek_care_now'. Fever
+        after floodwater exposure is the leptospirosis shape, and the
+        calibration philosophy is to bias toward the worst REASONABLE
+        explanation. Deliberately NOT "fixed" by tuning the prompt: the
+        case's own notes flag its expected tier as a genuine clinical
+        calibration call, so the owner (or the pending clinician
+        review) decides whether seek_care_now is right or the case's
+        expectation is wrong. Reproduced identically across two
+        consecutive full runs, so it is a stable behavior, not noise.
+      SECOND ITEM: the new prompt copy read-aloud above is still
+      pending. The 2026-07-30 run is the FIRST time voice_compliance
+      ever produced real assessment copy (before the scripted_replies
+      fix the category reported NOTHING EVALUABLE), so the Taglish and
+      English assessment text is now in the report and ready to read.
+      Its checks are regex heuristics — a clean 8/8 is not evidence the
+      Taglish reads well, only that no listed pattern matched.
 - [x] 2.1.0 first-attempt schema-validation failure rate (~44% observed
       2026-07-26) — characterised, fixed and re-measured 2026-07-27.
       RESOLVED: the coercion fix took the rate from ~44% to ZERO. The

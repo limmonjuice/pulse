@@ -371,6 +371,7 @@ def run_case(case: EvalCase, delay: float) -> dict:
         "crashed": False,
         "budget_exceeded": budget_exceeded,
         "degraded_turns": degraded_turns,
+        "expects_pulse_constructed": case.expects_pulse_constructed,
         "checks": all_checks,
         "possibilities_mentioned": (
             # A fallback payload hardcodes possibilities_mentioned=False;
@@ -457,11 +458,28 @@ def _print_summary(results: list[dict]) -> None:
                 f"    <-- {len(non_evaluable)} check(s) could NOT be scored — this category "
                 f"is NOT fully verified regardless of the rate above"
             )
-        degraded = {e["case_id"]: e.get("degraded_turns") for e in entries if e.get("degraded_turns")}
-        if degraded:
+        # Two different facts, and conflating them made the summary lie: a
+        # degraded turn in an ordinary case means its checks were skipped,
+        # but in an opt-out case it is the expected subject and WAS scored.
+        gated = {
+            e["case_id"]: e["degraded_turns"]
+            for e in entries
+            if e.get("degraded_turns") and not e.get("expects_pulse_constructed")
+        }
+        asserted = {
+            e["case_id"]: e["degraded_turns"]
+            for e in entries
+            if e.get("degraded_turns") and e.get("expects_pulse_constructed")
+        }
+        if gated:
             print(
-                f"    {len(degraded)} case(s) produced Pulse-constructed (non-model) turns; "
-                f"checks on those turns are non-evaluable: {degraded}"
+                f"    {len(gated)} case(s) produced Pulse-constructed (non-model) turns; "
+                f"checks on those turns are non-evaluable: {gated}"
+            )
+        if asserted:
+            print(
+                f"    {len(asserted)} case(s) asserted ON Pulse-constructed turns by design "
+                f"(deterministic-floor cases; scored, not skipped): {asserted}"
             )
         budget_exceeded = [e["case_id"] for e in entries if e.get("budget_exceeded")]
         if budget_exceeded:
